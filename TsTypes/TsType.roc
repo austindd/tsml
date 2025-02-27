@@ -31,13 +31,13 @@ ConstraintTag : [
 TypeScope : Dict TypeId TypeTag
 
 TypeEnv := {
-    lastId : TypeId,
-    scopeStack : Stack.Stack TypeScope,
+    last_id : TypeId,
+    scope_stack : Stack.Stack TypeScope,
 }
 
 TypeEvalResult : {
-    typeEnv : TypeEnv,
-    typeId : TypeId,
+    type_env : TypeEnv,
+    type_id : TypeId,
     type : TypeTag,
 }
 
@@ -47,109 +47,110 @@ TypeError : {
     message : Str,
 }
 
-registerType : TypeEnv, TypeTag -> (TypeEnv, TypeId)
-registerType = \@TypeEnv { lastId: @TypeId lastId_, scopeStack }, typeTag ->
-    nextId = @TypeId (lastId_ + 1)
-    nearestScope = Stack.peek scopeStack
-    newScopeStack =
-        when nearestScope is
-            Ok scope ->
-                newScope = Dict.insert scope nextId typeTag
-                (Stack.pop scopeStack) |> Stack.push newScope
+register_type : TypeEnv, TypeTag -> (TypeEnv, TypeId)
+register_type = |@TypeEnv({ last_id: @TypeId(last_id_), scope_stack }), type_tag|
+    next_id = @TypeId((last_id_ + 1))
+    nearest_scope = Stack.peek(scope_stack)
+    new_scope_stack =
+        when nearest_scope is
+            Ok(scope) ->
+                new_scope = Dict.insert(scope, next_id, type_tag)
+                (Stack.pop(scope_stack)) |> Stack.push(new_scope)
 
-            Err _ -> Stack.push scopeStack (Dict.single nextId typeTag)
+            Err(_) -> Stack.push(scope_stack, Dict.single(next_id, type_tag))
 
-    (@TypeEnv { lastId: nextId, scopeStack: newScopeStack }, nextId)
+    (@TypeEnv({ last_id: next_id, scope_stack: new_scope_stack }), next_id)
 
-getTypeFromScope : TypeScope, TypeId -> Result TypeTag [NotFound]
-getTypeFromScope = \typeScope, typeId ->
-    when Dict.get typeScope typeId is
-        Ok typeTag -> Ok typeTag
-        Err KeyNotFound -> Err NotFound
+get_type_from_scope : TypeScope, TypeId -> Result TypeTag [NotFound]
+get_type_from_scope = |type_scope, type_id|
+    when Dict.get(type_scope, type_id) is
+        Ok(type_tag) -> Ok(type_tag)
+        Err(KeyNotFound) -> Err(NotFound)
 
-getTypeFromEnv : TypeEnv, TypeId -> Result TypeTag [NotFound]
-getTypeFromEnv = \@TypeEnv { scopeStack }, typeId ->
-    initialState : Result TypeTag [NotFound]
-    initialState = Err NotFound
-    Stack.walkFromTopUntil
-        scopeStack
-        initialState
-        (\state, typeScope ->
-            result = getTypeFromScope typeScope typeId
+get_type_from_env : TypeEnv, TypeId -> Result TypeTag [NotFound]
+get_type_from_env = |@TypeEnv({ scope_stack }), type_id|
+    initial_state : Result TypeTag [NotFound]
+    initial_state = Err(NotFound)
+    Stack.walk_from_top_until(
+        scope_stack,
+        initial_state,
+        |state, type_scope|
+            result = get_type_from_scope(type_scope, type_id)
             when result is
-                Ok _ -> Break result
-                Err _ -> Continue result
-        )
+                Ok(_) -> Break(result)
+                Err(_) -> Continue(result),
+    )
 
-pushEmptyScopeToEnv : TypeEnv -> TypeEnv
-pushEmptyScopeToEnv = \@TypeEnv { lastId, scopeStack } ->
-    @TypeEnv { lastId, scopeStack: Stack.push scopeStack (Dict.empty {}) }
+push_empty_scope_to_env : TypeEnv -> TypeEnv
+push_empty_scope_to_env = |@TypeEnv({ last_id, scope_stack })|
+    @TypeEnv({ last_id, scope_stack: Stack.push(scope_stack, Dict.empty({})) })
 
-popScopeFromEnv : TypeEnv -> TypeEnv
-popScopeFromEnv = \@TypeEnv { lastId, scopeStack } ->
-    @TypeEnv { lastId, scopeStack: Stack.pop scopeStack }
+pop_scope_from_env : TypeEnv -> TypeEnv
+pop_scope_from_env = |@TypeEnv({ last_id, scope_stack })|
+    @TypeEnv({ last_id, scope_stack: Stack.pop(scope_stack) })
 
 # Constraint Solving
-typeIdSatisfiesTypeId : TypeEnv, TypeId, TypeId -> Result {} {}
-typeIdSatisfiesTypeId = \typeEnv, typeIdA, typeIdB ->
-    if typeIdA == typeIdB then
-        Ok {}
+type_id_satisfies_type_id : TypeEnv, TypeId, TypeId -> Result {} {}
+type_id_satisfies_type_id = |type_env, type_id_a, type_id_b|
+    if type_id_a == type_id_b then
+        Ok({})
     else
-        crash "Not Implemented: typeIdSatisfiesTypeId"
+        crash("Not Implemented: typeIdSatisfiesTypeId")
 
-typeTagSatisfiesBoolean : TypeTag, [Boolean] -> Result {} {}
-typeTagSatisfiesBoolean = \typeA, typeB ->
-    when typeA is
-        Boolean -> Ok {}
-        _ -> Err {}
+type_tag_satisfies_boolean : TypeTag, [Boolean] -> Result {} {}
+type_tag_satisfies_boolean = |type_a, type_b|
+    when type_a is
+        Boolean -> Ok({})
+        _ -> Err({})
 
-typeIdSatisfiesBoolean : TypeEnv, TypeId, [Boolean] -> Result {} {}
-typeIdSatisfiesBoolean = \typeEnv, typeIdA, typeB ->
-    when getTypeFromEnv typeEnv typeIdA is
-        Ok typeA -> typeTagSatisfiesBoolean typeA typeB
-        Err err -> Err {}
+type_id_satisfies_boolean : TypeEnv, TypeId, [Boolean] -> Result {} {}
+type_id_satisfies_boolean = |type_env, type_id_a, type_b|
+    when get_type_from_env(type_env, type_id_a) is
+        Ok(type_a) -> type_tag_satisfies_boolean(type_a, type_b)
+        Err(err) -> Err({})
 
-typeTagSatisfiesNumber : TypeTag, [Number] -> Result {} {}
-typeTagSatisfiesNumber = \typeA, typeB ->
-    when typeA is
-        Number -> Ok {}
-        _ -> Err {}
+type_tag_satisfies_number : TypeTag, [Number] -> Result {} {}
+type_tag_satisfies_number = |type_a, type_b|
+    when type_a is
+        Number -> Ok({})
+        _ -> Err({})
 
-typeIdSatisfiesNumber : TypeEnv, TypeId, [Number] -> Result {} {}
-typeIdSatisfiesNumber = \typeEnv, typeIdA, typeB ->
-    when getTypeFromEnv typeEnv typeIdA is
-        Ok typeA -> typeTagSatisfiesNumber typeA typeB
-        Err err -> Err {}
+type_id_satisfies_number : TypeEnv, TypeId, [Number] -> Result {} {}
+type_id_satisfies_number = |type_env, type_id_a, type_b|
+    when get_type_from_env(type_env, type_id_a) is
+        Ok(type_a) -> type_tag_satisfies_number(type_a, type_b)
+        Err(err) -> Err({})
 
-structTagSatisfiesStruct : TypeEnv, StructTag, StructTag -> Result {} {}
-structTagSatisfiesStruct = \typeEnv, Struct { props: propsA }, Struct { props: propsB } ->
-    Dict.walk
-        propsB
-        (Ok {})
-        (\prevResult, keyB, propB ->
-            currentResult =
-                when Dict.get propsA keyB is
-                    Ok propA ->
-                        typeIdSatisfiesTypeId typeEnv propA propB
+struct_tag_satisfies_struct : TypeEnv, StructTag, StructTag -> Result {} {}
+struct_tag_satisfies_struct = |type_env, Struct({ props: props_a }), Struct({ props: props_b })|
+    Dict.walk(
+        props_b,
+        Ok({}),
+        |prev_result, key_b, prop_b|
+            current_result =
+                when Dict.get(props_a, key_b) is
+                    Ok(prop_a) ->
+                        type_id_satisfies_type_id(type_env, prop_a, prop_b)
 
-                    Err err -> Err {}
-            when currentResult is
-                Ok _ -> prevResult
-                Err err ->
-                    when prevResult is
-                        Ok _ -> Err {}
-                        Err prevErrors -> Err {})
+                    Err(err) -> Err({})
+            when current_result is
+                Ok(_) -> prev_result
+                Err(err) ->
+                    when prev_result is
+                        Ok(_) -> Err({})
+                        Err(prev_errors) -> Err({}),
+    )
 
-typeIdSatisfiesStruct : TypeEnv, TypeId, StructTag -> Result {} {}
-typeIdSatisfiesStruct = \typeEnv, typeIdA, typeB ->
-    when getTypeFromEnv typeEnv typeIdA is
-        Ok typeA ->
-            when typeA is
-                Struct structA -> structTagSatisfiesStruct typeEnv (Struct structA) typeB
-                _ -> Err {}
+type_id_satisfies_struct : TypeEnv, TypeId, StructTag -> Result {} {}
+type_id_satisfies_struct = |type_env, type_id_a, type_b|
+    when get_type_from_env(type_env, type_id_a) is
+        Ok(type_a) ->
+            when type_a is
+                Struct(struct_a) -> struct_tag_satisfies_struct(type_env, Struct(struct_a), type_b)
+                _ -> Err({})
 
-        Err err -> Err {}
+        Err(err) -> Err({})
 
-typeTagSatisfiesExistential : TypeTag, [Existential] -> Result {} {}
-typeTagSatisfiesExistential = \typeA, typeB ->
-    Ok {}
+type_tag_satisfies_existential : TypeTag, [Existential] -> Result {} {}
+type_tag_satisfies_existential = |type_a, type_b|
+    Ok({})

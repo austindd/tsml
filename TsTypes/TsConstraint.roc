@@ -46,37 +46,37 @@ ConstraintSet := List Constraint
 TypeScope : Dict TypeId Constraint
 
 TypeCtx := {
-    lastId : TypeId,
-    scopeStack : Stack.Stack TypeScope,
+    last_id : TypeId,
+    scope_stack : Stack.Stack TypeScope,
 }
 
-getTypeFromScope : TypeScope, TypeId -> Result Constraint [NotFound]
-getTypeFromScope = \typeScope, typeId ->
-    when Dict.get typeScope typeId is
-        Ok constraint -> Ok constraint
-        Err KeyNotFound -> Err NotFound
+get_type_from_scope : TypeScope, TypeId -> Result Constraint [NotFound]
+get_type_from_scope = |type_scope, type_id|
+    when Dict.get(type_scope, type_id) is
+        Ok(constraint) -> Ok(constraint)
+        Err(KeyNotFound) -> Err(NotFound)
 
-getTypeFromCtx : TypeCtx, TypeId -> Result Constraint [NotFound]
-getTypeFromCtx = \@TypeCtx { scopeStack }, typeId ->
-    initialState : Result Constraint [NotFound]
-    initialState = Err NotFound
-    Stack.walkFromTopUntil
-        scopeStack
-        initialState
-        (\state, typeScope ->
-            result = getTypeFromScope typeScope typeId
+get_type_from_ctx : TypeCtx, TypeId -> Result Constraint [NotFound]
+get_type_from_ctx = |@TypeCtx({ scope_stack }), type_id|
+    initial_state : Result Constraint [NotFound]
+    initial_state = Err(NotFound)
+    Stack.walk_from_top_until(
+        scope_stack,
+        initial_state,
+        |state, type_scope|
+            result = get_type_from_scope(type_scope, type_id)
             when result is
-                Ok _ -> Break result
-                Err _ -> Continue result
-        )
+                Ok(_) -> Break(result)
+                Err(_) -> Continue(result),
+    )
 
-pushEmptyScopeToCtx : TypeCtx -> TypeCtx
-pushEmptyScopeToCtx = \@TypeCtx { lastId, scopeStack } ->
-    @TypeCtx { lastId, scopeStack: Stack.push scopeStack (Dict.empty {}) }
+push_empty_scope_to_ctx : TypeCtx -> TypeCtx
+push_empty_scope_to_ctx = |@TypeCtx({ last_id, scope_stack })|
+    @TypeCtx({ last_id, scope_stack: Stack.push(scope_stack, Dict.empty({})) })
 
-popScopeFromCtx : TypeCtx -> TypeCtx
-popScopeFromCtx = \@TypeCtx { lastId, scopeStack } ->
-    @TypeCtx { lastId, scopeStack: Stack.pop scopeStack }
+pop_scope_from_ctx : TypeCtx -> TypeCtx
+pop_scope_from_ctx = |@TypeCtx({ last_id, scope_stack })|
+    @TypeCtx({ last_id, scope_stack: Stack.pop(scope_stack) })
 
 # inferKind : TypeCtx, Constraint -> Result Kind [KindError]
 # inferKind = \ctx, constraint ->

@@ -10,14 +10,14 @@ import TsTypes.CoreTypes exposing [
     TypeCtx,
 ]
 
-satisfiesBoolean : TConstraint -> Result {} {}
-satisfiesBoolean = \constraint ->
+satisfies_boolean : TConstraint -> Result {} {}
+satisfies_boolean = |constraint|
     when constraint is
-        Boolean _ -> Ok {}
-        _ -> Err {}
+        Boolean(_) -> Ok({})
+        _ -> Err({})
 
-satisfiesNumber : TConstraint -> Result {} {}
-satisfiesNumber = \constraint ->
+satisfies_number : TConstraint -> Result {} {}
+satisfies_number = |constraint|
     when constraint is
-        Number _ -> Ok {}
-        _ -> Err {}
+        Number(_) -> Ok({})
+        _ -> Err({})
