@@ -2,6 +2,10 @@ module [
     ListMap,
     empty,
     single,
+    insert,
+    get,
+    remove,
+    map
 ]
 
 ListMap a b := {
