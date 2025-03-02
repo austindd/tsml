@@ -22,15 +22,14 @@ TermId := U64
     ]
 
 TConstraint : [
-    TypeOfTerm TermId,
+    TypeOfTerm Str TermId,
     TVar TypeId,
+    DeclaredType Str TypeId,
     Boolean,
     Number,
     Struct (Dict Str Property),
     Union (List TConstraint),
     Intersection (List TConstraint),
-    TypeConstructor (List TypeId),
-    TypeVariable Str,
     Unknown,
     Never,
 ]
@@ -75,6 +74,14 @@ TypeCtx := {
 TermCtx := {
     last_id : TermId,
     scope_stack : Stack.Stack TermScope,
+}
+
+Env := {
+    typeCtx : TypeCtx,
+    termCtx : TermCtx,
+    mayThrow : TConstraint,
+    performsIo : Bool,
+    mayMutate : List TermId,
 }
 
 get_type_from_scope : TypeScope, TypeId -> Result TConstraint [TypeNotFoundInScope]
@@ -124,26 +131,20 @@ constraint_is_subtype_of = |term_ctx, type_ctx, constraint_a, constraint_b|
     pair : (TConstraint, TConstraint)
     pair = (constraint_a, constraint_b)
     when pair is
-        (c_a, Boolean(_)) -> constraint_is_subtype_of_boolean(term_ctx, type_ctx, c_a)
-        (c_a, Number(_)) -> constraint_is_subtype_of_number(term_ctx, type_ctx, c_a)
-        (c_a, TVar(type_id_b, _)) -> constraint_is_subtype_of_type_id(term_ctx, type_ctx, c_a, type_id_b)
+        (c_a, Boolean) -> constraint_is_subtype_of_boolean(term_ctx, type_ctx, c_a)
+        (c_a, Number) -> constraint_is_subtype_of_number(term_ctx, type_ctx, c_a)
+        (c_a, TVar(type_id_b)) -> constraint_is_subtype_of_type_id(term_ctx, type_ctx, c_a, type_id_b)
         (c_a, Struct(struct_b)) -> constraint_is_subtype_of_struct(term_ctx, type_ctx, c_a, Struct(struct_b))
-        (Union(constraints_a, _), Union(constraints_b, _)) -> Err(SubtypeMismatch) # TODO: Implement
-        (Intersection(constraints_a, _), Intersection(constraints_b, _)) -> Err(SubtypeMismatch) # TODO: Implement
-        (TypeConstructor(params_a, _), TypeConstructor(params_b, _)) -> Err(SubtypeMismatch) # TODO: Implement
-        (TypeVariable(name_a, _), TypeVariable(name_b, _)) ->
-            when name_a == name_b is
-                true -> Ok({})
-                false -> Err(SubtypeMismatch)
-
-        (Unknown(_), Unknown(_)) -> Ok({})
+        (Union(constraints_a), Union(constraints_b)) -> Err(SubtypeMismatch) # TODO: Implement
+        (Intersection(constraints_a), Intersection(constraints_b)) -> Err(SubtypeMismatch) # TODO: Implement
+        (Unknown, Unknown) -> Ok({})
         _ -> Err(SubtypeMismatch)
 
 constraint_is_subtype_of_boolean : TermCtx, TypeCtx, TConstraint -> Result {} [TypeNotFoundInCtx, TermNotFoundInCtx, SubtypeMismatch]
 constraint_is_subtype_of_boolean = |term_ctx, type_ctx, constraint|
     when constraint is
-        Boolean(_) -> Ok({})
-        TVar(type_id, _) ->
+        Boolean -> Ok({})
+        TVar(type_id) ->
             inner_result = get_type_from_ctx(type_ctx, type_id)
             when inner_result is
                 Ok(inner) -> constraint_is_subtype_of_boolean(term_ctx, type_ctx, inner)
@@ -154,8 +155,8 @@ constraint_is_subtype_of_boolean = |term_ctx, type_ctx, constraint|
 constraint_is_subtype_of_number : TermCtx, TypeCtx, TConstraint -> Result {} [TypeNotFoundInCtx, TermNotFoundInCtx, SubtypeMismatch]
 constraint_is_subtype_of_number = |term_ctx, type_ctx, constraint|
     when constraint is
-        Number(_) -> Ok({})
-        TVar(type_id, _) ->
+        Number -> Ok({})
+        TVar(type_id) ->
             inner_result = get_type_from_ctx(type_ctx, type_id)
             when inner_result is
                 Ok(inner) -> constraint_is_subtype_of_number(term_ctx, type_ctx, inner)
@@ -166,10 +167,10 @@ constraint_is_subtype_of_number = |term_ctx, type_ctx, constraint|
 constraint_is_subtype_of_type_id : TermCtx, TypeCtx, TConstraint, TypeId -> Result {} [TypeNotFoundInCtx, TermNotFoundInCtx, SubtypeMismatch]
 constraint_is_subtype_of_type_id = |term_ctx, type_ctx, constraint, type_id|
     when constraint is
-        TVar(inner_id, _) ->
+        TVar(inner_id) ->
             inner_result = get_type_from_ctx(type_ctx, inner_id)
             when inner_result is
-                Ok(inner) -> constraint_is_subtype_of(term_ctx, type_ctx, inner, TVar(type_id, KStar))
+                Ok(inner) -> constraint_is_subtype_of(term_ctx, type_ctx, inner, TVar(type_id))
                 Err(_) -> Err(TypeNotFoundInCtx)
 
         _ -> Err(SubtypeMismatch)
@@ -187,9 +188,9 @@ is_type_id_subtype_of_type_id = |term_ctx, type_ctx, type_id_a, type_id_b|
         Err(_) -> Err(TypeNotFoundInCtx)
 
 constraint_is_subtype_of_struct : TermCtx, TypeCtx, TConstraint, TStruct -> Result {} [TypeNotFoundInCtx, TermNotFoundInCtx, SubtypeMismatch]
-constraint_is_subtype_of_struct = |term_ctx, type_ctx, constraint, Struct(struct_b, _)|
+constraint_is_subtype_of_struct = |term_ctx, type_ctx, constraint, Struct(struct_b)|
     when constraint is
-        Struct(struct_a, _) ->
+        Struct(struct_a) ->
             Dict.walk(
                 struct_b,
                 Ok({}),
@@ -210,13 +211,13 @@ constraint_is_subtype_of_struct = |term_ctx, type_ctx, constraint, Struct(struct
         _ -> Err(SubtypeMismatch)
 
 constraint_is_subtype_of_subtype : TermCtx, TypeCtx, TConstraint, TSubtype -> Result {} [TypeNotFoundInCtx, TermNotFoundInCtx, SubtypeMismatch]
-constraint_is_subtype_of_subtype = |term_ctx, type_ctx, constraint, TVar(type_id_b, _)|
+constraint_is_subtype_of_subtype = |term_ctx, type_ctx, constraint, TVar(type_id_b)|
     constraint_is_subtype_of_type_id(term_ctx, type_ctx, constraint, type_id_b)
 
 constraint_is_subtype_of_union : TermCtx, TypeCtx, TConstraint, List TConstraint -> Result {} [TypeNotFoundInCtx, TermNotFoundInCtx, SubtypeMismatch]
 constraint_is_subtype_of_union = |term_ctx, type_ctx, constraint_a, union_b|
     when constraint_a is
-        Union(union_a, _) ->
+        Union(union_a) ->
             is_satisfied = List.any(
                 union_b,
                 |c_b|
@@ -241,7 +242,7 @@ constraint_is_subtype_of_union = |term_ctx, type_ctx, constraint_a, union_b|
 constraint_is_subtype_of_intersection : TermCtx, TypeCtx, TConstraint, List TConstraint -> Result {} [TypeNotFoundInCtx, TermNotFoundInCtx, SubtypeMismatch]
 constraint_is_subtype_of_intersection = |term_ctx, type_ctx, constraint_a, intersection_b|
     when constraint_a is
-        Union(union_a, _) ->
+        Union(union_a) ->
             is_satisfied = List.all(
                 intersection_b,
                 |c_b|

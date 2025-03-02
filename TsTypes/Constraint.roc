@@ -4,7 +4,6 @@ module [
 import TsTypes.CoreTypes exposing [
     TypeId,
     TConstraint,
-    Kind,
     Property,
     TypeScope,
     TypeCtx,
@@ -13,11 +12,11 @@ import TsTypes.CoreTypes exposing [
 satisfies_boolean : TConstraint -> Result {} {}
 satisfies_boolean = |constraint|
     when constraint is
-        Boolean(_) -> Ok({})
+        Boolean -> Ok({})
         _ -> Err({})
 
 satisfies_number : TConstraint -> Result {} {}
 satisfies_number = |constraint|
     when constraint is
-        Number(_) -> Ok({})
+        Number -> Ok({})
         _ -> Err({})
