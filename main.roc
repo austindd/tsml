@@ -15,6 +15,7 @@ import StrUtils
 import TsTypes.TsConstraint
 import TsTypes.Constraint
 import StackMap
+import TsTypes.Constraint
 
 # getFileContents! = \fPathStr ->
 # fPath = Path.from_str fPathStr

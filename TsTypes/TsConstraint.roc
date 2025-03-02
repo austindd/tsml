@@ -2,6 +2,7 @@ module [
 ]
 
 import Stack exposing [Stack]
+import Option exposing [Option]
 
 TypeId := U64
     implements [
@@ -29,6 +30,7 @@ Constraint : [
     TypeConstructor (List TypeId) Kind, # Type constructor with parameters and its kind
     TypeVariable Str Kind, # Type variable with its kind
     Unknown Kind, # Unknown type with its kind
+    Function { tvars : List (Str, TypeId), params : List (Str, Constraint), returnType : Constraint, throws : Option Constraint } Kind,
 ]
 
 Kind : [
