@@ -1,8 +1,12 @@
 module [
+    get,
     insert,
     set,
     update,
-    get,
+    map,
+    update_all,
+    from_list,
+    update_all_with_key,
 ]
 
 import ResultUtils
@@ -110,3 +114,13 @@ expect
 update_all : SymTbl a, (Result a {} -> Result b {}) -> SymTbl b
 update_all = |@SymTbl(list), fn|
     List.map(list, fn) |> @SymTbl
+
+update_all_with_key : SymTbl a, (Result a {}, SymKey -> Result b {}) -> SymTbl b
+update_all_with_key = |@SymTbl(list), fn|
+    List.map_with_index(list, |maybe_value, idx| fn(maybe_value, @SymKey(idx))) |> @SymTbl
+
+from_list : List a -> (SymTbl a, List SymKey)
+from_list = |list|
+    sym_tbl = List.map(list, |value| Ok(value)) |> @SymTbl
+    sym_key_list = List.map_with_index(list, |_, idx| @SymKey(idx))
+    (sym_tbl, sym_key_list)
