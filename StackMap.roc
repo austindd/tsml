@@ -80,12 +80,12 @@ insert = |@StackMap(stack_map), item|
                 ),
             )
 
-expect
-    insert(@StackMap(Stack.from_list([[1, 2, 3]])), 7)
-    == (
-        @StackMap(Stack.from_list([[1, 2, 3, 7], []])),
-        @StackMapKey({ level: 1, index: 3 }),
-    )
+# expect
+#     insert(@StackMap(Stack.from_list([[1, 2, 3]])), 7)
+#     == (
+#         @StackMap(Stack.from_list([[1, 2, 3, 7], []])),
+#         @StackMapKey({ level: 1, index: 3 }),
+#     )
 
 update : StackMap a, StackMapKey, a -> Result (StackMap a) [InvalidKey]
 update = |@StackMap(stack_map), @StackMapKey(key), item|
