@@ -53,6 +53,14 @@ TvarStore := SymTblStack TConstraint
 
 TypeMap := Dict Str TConstraint
 
+type_map_add_type : TypeMap, Str, TConstraint -> TypeMap
+type_map_add_type = |@TypeMap(type_map), type_name, t_constraint|
+    type_map |> Dict.insert(type_name, t_constraint) |> @TypeMap
+
+type_map_remove_type : TypeMap, Str -> TypeMap
+type_map_remove_type = |@TypeMap(type_map), type_name|
+    type_map |> Dict.remove(type_name) |> @TypeMap
+
 Env := {
     tvar_store : TvarStore,
     type_map : TypeMap,

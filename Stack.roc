@@ -45,8 +45,8 @@ Stack a := List a implements [
         Hash,
     ]
 
-empty : {} -> Stack a
-empty = |{}| @Stack([])
+empty : Stack _
+empty = @Stack([])
 
 is_empty : Stack a -> Bool
 is_empty = |@Stack(stack)|

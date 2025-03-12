@@ -18,15 +18,14 @@ StackMapKey := {
         Hash,
     ]
 
-empty : {} -> StackMap a
-empty = |{}|
-    @StackMap(Stack.empty {})
+empty : StackMap _
+empty = @StackMap(Stack.empty)
 
 is_empty : StackMap a -> Bool
 is_empty = |@StackMap(stack_map)|
     Stack.is_empty(stack_map)
 
-expect is_empty(@StackMap(Stack.empty {}))
+expect is_empty(@StackMap(Stack.empty))
 
 from_list : List (List a) -> StackMap a
 from_list = |list|
