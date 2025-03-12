@@ -35,6 +35,7 @@ module [
     for_each_try!,
     walk_try,
     set_at_level,
+    update,
 ]
 
 import Hash
@@ -281,3 +282,7 @@ set_at_level = |@Stack(stack), level, item|
             Ok(@Stack(new_stack))
 
         Err(OutOfBounds) -> Err(OutOfBounds)
+
+update : Stack a, U64, (a -> a) -> Stack a
+update = |@Stack(stack), level, update_value|
+    List.update(stack, level, update_value) |> @Stack
