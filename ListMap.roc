@@ -2,18 +2,18 @@ module [
     ListMap,
     empty,
     single,
-    insert,
-    get,
-    remove,
-    map,
 ]
 
 import Option exposing [Option, Some, None]
 
+Ordering : [EQ, LT, GT]
+
+Ord implements
+    compare : a, a -> Ordering where a implements Ord
+
 ListMap a b := {
-    key_eq : a, a -> Bool,
     keys : List a,
-    values : List Option b,
+    values : List (Option b),
 }
 
 empty : {} -> ListMap a b
@@ -30,7 +30,20 @@ single = |key, value|
     @ListMap(
         {
             keys: [key],
-            values: [value],
+            values: [Some(value)],
         },
     )
 
+insert : ListMap a b, a, b -> ListMap a b where a implements Ord
+insert = |@ListMap(list_map), key, value|
+    newKeys = List.append(list_map.keys, key)
+    newValues = List.append(list_map.values, Some(value))
+    @ListMap(
+        {
+            keys: newKeys,
+            values: newValues,
+        },
+    )
+
+# get : ListMap a b, a -> ListMap a b
+# get = |@ListMap(list_map), key|
