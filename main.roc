@@ -17,8 +17,9 @@ import TsTypes.Constraint
 import StackMap
 import TsTypes.Constraint
 import SymTbl
-import ScopeStack
+import SymTblStack
 import TsTypes.CoreTypes2
+import AvlTree
 
 # getFileContents! = \fPathStr ->
 # fPath = Path.from_str fPathStr
