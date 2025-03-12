@@ -1,4 +1,6 @@
 module [
+    SymTbl,
+    SymKey,
     get,
     insert,
     set,
