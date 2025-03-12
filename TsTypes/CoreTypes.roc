@@ -22,7 +22,7 @@ TermId := U64
     ]
 
 TConstraint : [
-    TypeOfTerm Str,
+    # TypeOfTerm Str,
     TVar TypeId,
     DeclaredType Str,
     Boolean,
