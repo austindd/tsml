@@ -115,3 +115,15 @@ compact = |options|
                 Some(x) -> List.concat(state, [x])
                 None -> state,
     )
+
+from_result : Result a b -> Option a
+from_result = |result|
+    when result is
+        Ok(value) -> Some(value)
+        Err(_) -> None
+
+to_result : Option a -> Result a {}
+to_result = |option|
+    when option is
+        Some(value) -> Ok(value)
+        None -> Err({})
