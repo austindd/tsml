@@ -1,14 +1,14 @@
 module [SymTblStack, get, set]
 
 import Stack exposing [Stack]
-import SymTbl exposing [SymTbl, SymKey]
+import SymTbl exposing [SymTbl, SymTblId]
 import ResultUtils exposing [result_flatmap]
 
 SymTblStack a := Stack (SymTbl a)
 
 ItemId := {
     level : U64, # zero-indexed
-    key : SymKey,
+    key : SymTblId,
 }
 
 get : SymTblStack a, ItemId -> Result a {}

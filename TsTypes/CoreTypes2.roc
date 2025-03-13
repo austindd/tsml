@@ -5,12 +5,12 @@ module [
 ]
 
 import Stack exposing [Stack]
-import SymTbl exposing [SymTbl, SymKey]
+import SymTbl exposing [SymTbl, SymTblId]
 import SymTblStack exposing [SymTblStack]
 
 TConstraint : [
     # TypeOfTerm Str,
-    Tvar SymKey,
+    Tvar SymTblId,
     DeclaredType Str,
     Boolean,
     Number,
@@ -22,7 +22,7 @@ TConstraint : [
 ]
 
 TSubtype : [
-    Tvar SymKey,
+    Tvar SymTblId,
 ]
 
 TStruct : [
@@ -46,7 +46,7 @@ TIntersection2 : [
 
 Property : {
     name : Str,
-    type : SymKey,
+    type : SymTblId,
 }
 
 TvarStore := SymTblStack TConstraint
