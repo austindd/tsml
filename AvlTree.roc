@@ -37,16 +37,6 @@ height = |avl|
         Leaf(_) -> 1
         Node({ h }) -> h
 
-# contains : Avl a b, a -> Bool where a implements Ord
-# contains = |avl, value|
-#    when avl is
-#        Leaf -> Bool.false
-#        Node { l, v, r } ->
-#            when compare(value, v) is
-#                EQ -> Bool.true
-#                LT -> contains(l, value)
-#                GT -> contains(r, value)
-
 rotate_right : Avl a b -> Avl a b
 rotate_right = |avl|
     when avl is
@@ -112,3 +102,26 @@ insert = |avl, key, value|
                 GT ->
                     new_right = insert(r, key, value)
                     mknode(l, k, v, new_right)
+
+get : Avl a b, a -> Result b {}
+get = |avl, key|
+    when avl is
+        Empty -> Err {}
+        Leaf({ k, v }) ->
+            when compare(key, k) is
+                EQ -> Ok(v)
+                LT | GT -> Err {}
+
+        Node({ l, k, v, h, r }) ->
+            when compare(key, k) is
+                EQ -> Ok(v)
+                LT -> get(l, key)
+                GT -> get(r, key)
+
+map : Avl a b, (b -> c) -> Avl a c
+map = |avl, fn|
+    when avl is
+        Empty -> Empty
+        Leaf({ k, v }) -> Leaf({ k, v: fn(v) })
+        Node({ l, k, v, h, r }) ->
+            mknode(map(l, fn), k, fn(v), map(r, fn))
