@@ -28,7 +28,7 @@ empty : Avl _ _
 empty = Empty
 
 mknode = |l, k, v, r|
-    Node({ l, k, v, h: Num.max(height(l), height(r)), r })
+    Node({ l, k, v, h: 1 + Num.max(height(l), height(r)), r })
 
 height : Avl a b -> U64
 height = |avl|
@@ -91,3 +91,24 @@ balance = |avl|
                             avl
             else
                 avl
+
+insert : Avl a b, a, b -> Avl a b
+insert = |avl, key, value|
+    when avl is
+        Empty -> Leaf({ k: key, v: value })
+        Leaf({ k, v }) ->
+            when compare(key, k) is
+                EQ -> Leaf({ k, v: value })
+                LT -> balance(mknode(empty, key, value, avl))
+                GT -> balance(mknode(avl, key, value, empty))
+
+        Node({ l, k, v, h, r }) ->
+            when compare(key, k) is
+                EQ -> mknode(l, k, value, r)
+                LT ->
+                    new_left = insert(l, key, value)
+                    mknode(new_left, k, v, r)
+
+                GT ->
+                    new_right = insert(r, key, value)
+                    mknode(l, k, v, new_right)
