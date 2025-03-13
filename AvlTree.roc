@@ -80,5 +80,14 @@ balance = |avl|
                             rotate_right(avl)
                         else
                             avl
+            else if hr > hl + 2 then
+                when r is
+                    Empty | Leaf(_) -> crash impossible
+                    Node(r_node) ->
+                        { l: r_node_l, r: r_node_r } = r_node
+                        if height(r_node_r) >= height(r_node_l) then
+                            rotate_left(avl)
+                        else
+                            avl
             else
-                crash ""
+                avl
