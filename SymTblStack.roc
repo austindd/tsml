@@ -6,13 +6,13 @@ import ResultUtils exposing [result_flatmap]
 
 SymTblStack a := Stack (SymTbl a)
 
-ItemId := {
+SymTblStackId := {
     level : U64, # zero-indexed
     key : SymTblId,
 }
 
-get : SymTblStack a, ItemId -> Result a {}
-get = |@SymTblStack(tree), @ItemId(st_key)|
+get : SymTblStack a, SymTblStackId -> Result a {}
+get = |@SymTblStack(tree), @SymTblStackId(st_key)|
     Stack.peek_at(tree, st_key.level)
     |> Result.map_err(|_| {})
     |> result_flatmap(
@@ -20,12 +20,12 @@ get = |@SymTblStack(tree), @ItemId(st_key)|
             SymTbl.get(level, st_key.key),
     )
 
-set : SymTblStack a, ItemId, a -> SymTblStack a
-set = |@SymTblStack(scope_stack), @ItemId(item_id), value|
+set : SymTblStack a, SymTblStackId, a -> SymTblStack a
+set = |@SymTblStack(sym_tbl_stack), @SymTblStackId(item_id), value|
     Stack.update(
-        scope_stack,
+        sym_tbl_stack,
         item_id.level,
-        |scope|
-            SymTbl.set(scope, item_id.key, value),
+        |sym_tbl|
+            SymTbl.set(sym_tbl, item_id.key, value),
     )
     |> @SymTblStack
