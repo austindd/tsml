@@ -1,5 +1,14 @@
 module [
     Avl,
+    Ordering,
+    Ord,
+    compare,
+    empty,
+    insert,
+    get,
+    map,
+    walk_entries,
+    to_list,
 ]
 
 Ordering : [EQ, LT, GT]
@@ -126,21 +135,22 @@ map = |avl, fn|
         Node({ l, k, v, h, r }) ->
             mknode(map(l, fn), k, fn(v), map(r, fn))
 
-U32Key := U32 implements [
-        Ord {
-            compare: num_compare,
-        },
-    ]
+walk_entries : Avl a b, state, (state, a, b -> state) -> state
+walk_entries = |avl, state, fn|
+    when avl is
+        Empty -> state
+        Leaf({ k, v }) -> fn(state, k, v)
+        Node({ l, k, v, r }) ->
+            l_state = walk_entries(l, state, fn)
+            this_state = fn(state, k, v)
+            r_state = walk_entries(r, this_state, fn)
+            r_state
 
-num_compare : U32Key, U32Key -> Ordering
-num_compare = |@U32Key(a), @U32Key(b)|
-    Num.compare(a, b)
-
-AvlTreeU32 a := Avl U32Key a
-
-get_u32 : AvlTreeU32 a, U32 -> Result a {}
-get_u32 = |@AvlTreeU32(tree), key|
-    get(tree, @U32Key(key))
-
-test : {} -> AvlTreeU32 a
-test = |{}| empty({}) |> @AvlTreeU32
+to_list : Avl a b -> List (a, b)
+to_list = |avl|
+    walk_entries(
+        avl,
+        [],
+        |list, key, value|
+            List.append(list, (key, value)),
+    )

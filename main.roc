@@ -20,6 +20,7 @@ import SymTbl
 import SymTblStack
 import TsTypes.CoreTypes2
 import AvlTree
+import AvlTreeNum
 import ListMap
 
 # getFileContents! = \fPathStr ->
