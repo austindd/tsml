@@ -24,8 +24,8 @@ Avl a b : [
 
 impossible = "Impossible"
 
-empty : Avl _ _
-empty = Empty
+empty : {} -> Avl a b
+empty = |{}| Empty
 
 mknode = |l, k, v, r|
     Node({ l, k, v, h: 1 + Num.max(height(l), height(r)), r })
@@ -89,8 +89,8 @@ insert = |avl, key, value|
         Leaf({ k, v }) ->
             when compare(key, k) is
                 EQ -> Leaf({ k, v: value })
-                LT -> balance(mknode(empty, key, value, avl))
-                GT -> balance(mknode(avl, key, value, empty))
+                LT -> balance(mknode(Empty, key, value, avl))
+                GT -> balance(mknode(avl, key, value, Empty))
 
         Node({ l, k, v, h, r }) ->
             when compare(key, k) is
@@ -121,7 +121,26 @@ get = |avl, key|
 map : Avl a b, (b -> c) -> Avl a c
 map = |avl, fn|
     when avl is
-        Empty -> Empty
+        Empty -> empty {}
         Leaf({ k, v }) -> Leaf({ k, v: fn(v) })
         Node({ l, k, v, h, r }) ->
             mknode(map(l, fn), k, fn(v), map(r, fn))
+
+U32Key := U32 implements [
+        Ord {
+            compare: num_compare,
+        },
+    ]
+
+num_compare : U32Key, U32Key -> Ordering
+num_compare = |@U32Key(a), @U32Key(b)|
+    Num.compare(a, b)
+
+AvlTreeU32 a := Avl U32Key a
+
+get_u32 : AvlTreeU32 a, U32 -> Result a {}
+get_u32 = |@AvlTreeU32(tree), key|
+    get(tree, @U32Key(key))
+
+test : {} -> AvlTreeU32 a
+test = |{}| empty({}) |> @AvlTreeU32
