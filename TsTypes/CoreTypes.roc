@@ -6,8 +6,8 @@ module [
     TypeCtx,
 ]
 
-import Stack exposing [Stack]
-import Option exposing [Option, Some, None]
+import Stack
+import Option exposing [Option]
 
 TypeId := U64
     implements [
