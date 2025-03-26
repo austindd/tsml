@@ -89,40 +89,6 @@ main! = |_|
     # Stdout.line! "Type in something and press Enter:"
     # input = Stdin.line!
 
-    # input = "hello "
-    # tokenResultList = input |> Str.toUtf8 |> utf8ListToTsTokenList
-    # tokenList = List.map tokenResultList \x -> (Result.withDefault x Unknown)
-    # tokenListDisplay = List.map tokenList tsTokenDebugDisplay
-    # output = tokenListDisplay |> Str.joinWith "\n"
-
-    # input = "Hello"
-    # charListResult = Utf8Char.fromStr input
-    # output =
-    #   when charListResult is
-    #     Ok charList ->
-    #       # charList |> Utf8Char.charListToStr
-    #       ListUtils.displayList (Utf8Char.display) (charList)
-    #     Err Utf8CharDecodeError -> "Error: Utf8DecodeError"
-
-    # inputA = Struct { props: Dict.fromList [("a", Number), ("b", Number), ("c", Number)] }
-    # inputB = Struct { props: Dict.fromList [("b", Number), ("c", Number)] }
-    # inputA = Union [
-    #   String,
-    #   Number
-    # ]
-    # inputB = Intersection [
-    #   Union [
-    #     String,
-    #     Number
-    #   ],
-    # ]
-    # isSatisfied = TsTypes.satisfiesTsType inputA inputB
-    # output = isSatisfied |> \x ->
-    #   if x then
-    #     "True"
-    #   else
-    #     "False"
-
     input_a = "abc"
     input_b = "bcd"
     output =
@@ -133,4 +99,20 @@ main! = |_|
                 EQ -> "EQ"
                 GT -> "GT"
 
-    Stdout.line!(output)
+    # Stdout.line!(output)
+    Stdout.line!(
+        AvlTreeNum.from_list(
+            [
+                (1, "1"),
+            ],
+        )
+        |> Inspect.to_str,
+        # "" |> Inspect.to_str,
+    )
+
+#
+#
+
+fast_log2_u64 : U64 -> U64
+fast_log2_u64 = |value|
+    (63 - Num.count_leading_zero_bits(value)) |> Num.to_u64
