@@ -19,8 +19,6 @@ import TsTypes.Constraint
 import SymTbl
 import SymTblStack
 import TsTypes.CoreTypes2
-import AvlTree
-import AvlTreeNum
 import ListMap
 
 # getFileContents! = \fPathStr ->
@@ -99,16 +97,7 @@ main! = |_|
                 EQ -> "EQ"
                 GT -> "GT"
 
-    # Stdout.line!(output)
-    Stdout.line!(
-        AvlTreeNum.from_list(
-            [
-                (1, "1"),
-            ],
-        )
-        |> Inspect.to_str,
-        # "" |> Inspect.to_str,
-    )
+    Stdout.line!(output)
 
 #
 #
