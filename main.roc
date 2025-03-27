@@ -98,10 +98,3 @@ main! = |_|
                 GT -> "GT"
 
     Stdout.line!(output)
-
-#
-#
-
-fast_log2_u64 : U64 -> U64
-fast_log2_u64 = |value|
-    (63 - Num.count_leading_zero_bits(value)) |> Num.to_u64
