@@ -20,6 +20,8 @@ import SymTbl
 import SymTblStack
 import TsTypes.CoreTypes2
 import ListMap
+import TsToken
+import TsAst
 
 # getFileContents! = \fPathStr ->
 # fPath = Path.from_str fPathStr
