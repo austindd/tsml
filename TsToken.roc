@@ -365,22 +365,22 @@ utf8_list_to_ts_token_list = |u8_list_|
             inner_collect = |current_acc, current_remaining, current_decimal, current_exp, final_acc|
                 when current_remaining is
                     [46, .. as rest_chars] if !current_decimal -> # decimal point
-                        inner_collect(List.append(current_acc, [46]), rest_chars, Bool.true, current_exp, final_acc)
+                        inner_collect(List.append(current_acc, 46), rest_chars, Bool.true, current_exp, final_acc)
 
                     [101, .. as rest_chars] if !current_exp -> # 'e' for exponent
-                        inner_collect(List.append(current_acc, [101]), rest_chars, current_decimal, Bool.true, final_acc)
+                        inner_collect(List.append(current_acc, 101), rest_chars, current_decimal, Bool.true, final_acc)
 
                     [69, .. as rest_chars] if !current_exp -> # 'E' for exponent
-                        inner_collect(List.append(current_acc, [69]), rest_chars, current_decimal, Bool.true, final_acc)
+                        inner_collect(List.append(current_acc, 69), rest_chars, current_decimal, Bool.true, final_acc)
 
                     [43, .. as rest_chars] if current_exp and (List.last(current_acc) == 101 or List.last(current_acc) == 69) -> # '+' after exponent
-                        inner_collect(List.append(current_acc, [43]), rest_chars, current_decimal, current_exp, final_acc)
+                        inner_collect(List.append(current_acc, 43), rest_chars, current_decimal, current_exp, final_acc)
 
                     [45, .. as rest_chars] if current_exp and (List.last(current_acc) == 101 or List.last(current_acc) == 69) -> # '-' after exponent
-                        inner_collect(List.append(current_acc, [45]), rest_chars, current_decimal, current_exp, final_acc)
+                        inner_collect(List.append(current_acc, 45), rest_chars, current_decimal, current_exp, final_acc)
 
                     [u8, .. as rest_chars] if is_digit(u8) ->
-                        inner_collect(List.append(current_acc, [u8]), rest_chars, current_decimal, current_exp, final_acc)
+                        inner_collect(List.append(current_acc, u8), rest_chars, current_decimal, current_exp, final_acc)
 
                     _ -> (List.append(final_acc, current_acc), current_remaining)
             inner_collect(acc, remaining, has_decimal, has_exp, [])
