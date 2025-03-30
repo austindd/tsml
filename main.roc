@@ -2,7 +2,7 @@
 app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.19.0/Hj-J_zxz7V9YurCSTFcFdu6cQJie4guzsPMUi5kBYUk.tar.br" }
 
 import pf.Stdout
-# import pf.Stdin
+import pf.Stdin
 import pf.Path
 # import pf.File
 # import pf.Env
@@ -42,15 +42,25 @@ import TsAst
 #            "$(initial), $(inner)]"
 
 main! = |_|
-    input_a = "const x = 100 + y + (function() { return 42; })()"
+
+    _ = Stdout.line!("\ninput:")
+
+    input_a = {} |> Stdin.line!
+    # "const x = 100 + y + (function() { return 42; })()"
+
     output =
         input_a
-        |> Str.to_utf8
-        |> TsToken.utf8_list_to_ts_token_list
-        |> List.keep_oks(|x| x)
-        |> List.map(TsToken.ts_token_debug_display)
+        |> Result.map_ok(
+            |args|
+                args
+                |> Str.to_utf8
+                |> TsToken.utf8_list_to_ts_token_list
+                |> List.keep_oks(|x| x)
+                |> List.map(TsToken.ts_token_debug_display),
+        )
 
-    # something
+    _ = Stdout.line!("\noutput:")
+
     output
     |> Inspect.to_str
     |> Stdout.line!
