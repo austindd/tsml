@@ -179,7 +179,7 @@ utf8_list_to_ts_token_list = |u8_list_|
             "async",
             "await",
         ]
-        List.contains(keywords, |item| item == s)
+        List.contains(keywords, s)
 
     # Main recursive tokenizer function with accumulator
     utf8_list_to_ts_token_list_inner : TsToken, List U8, List TsTokenResult -> List TsTokenResult
@@ -341,9 +341,9 @@ utf8_list_to_ts_token_list = |u8_list_|
             inner_collect = |current_acc, current_remaining, final_acc|
                 when current_remaining is
                     [u8, .. as rest_chars] if is_identifier_part(u8) ->
-                        inner_collect(List.append(current_acc, [u8]), rest_chars, final_acc)
+                        inner_collect(List.append(current_acc, u8), rest_chars, final_acc)
 
-                    _ -> (List.append(final_acc, current_acc), current_remaining)
+                    _ -> (List.concat(final_acc, current_acc), current_remaining)
             inner_collect(acc, remaining, [])
 
         (ident_chars, new_remaining) = collect_identifier_chars([first_char], rest)
@@ -373,16 +373,16 @@ utf8_list_to_ts_token_list = |u8_list_|
                     [69, .. as rest_chars] if !current_exp -> # 'E' for exponent
                         inner_collect(List.append(current_acc, 69), rest_chars, current_decimal, Bool.true, final_acc)
 
-                    [43, .. as rest_chars] if current_exp and (List.last(current_acc) == 101 or List.last(current_acc) == 69) -> # '+' after exponent
+                    [43, .. as rest_chars] if current_exp and (List.last(current_acc) == Ok(101) or List.last(current_acc) == Ok(69)) -> # '+' after exponent
                         inner_collect(List.append(current_acc, 43), rest_chars, current_decimal, current_exp, final_acc)
 
-                    [45, .. as rest_chars] if current_exp and (List.last(current_acc) == 101 or List.last(current_acc) == 69) -> # '-' after exponent
+                    [45, .. as rest_chars] if current_exp and (List.last(current_acc) == Ok(101) or List.last(current_acc) == Ok(69)) -> # '-' after exponent
                         inner_collect(List.append(current_acc, 45), rest_chars, current_decimal, current_exp, final_acc)
 
                     [u8, .. as rest_chars] if is_digit(u8) ->
                         inner_collect(List.append(current_acc, u8), rest_chars, current_decimal, current_exp, final_acc)
 
-                    _ -> (List.append(final_acc, current_acc), current_remaining)
+                    _ -> (List.concat(final_acc, current_acc), current_remaining)
             inner_collect(acc, remaining, has_decimal, has_exp, [])
 
         (num_chars, new_remaining) = collect_numeric_chars([first_digit], rest, Bool.false, Bool.false)
