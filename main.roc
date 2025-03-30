@@ -43,7 +43,6 @@ import TsAst
 
 main! = |_|
     input_a = "const x = 100 + y"
-    input_b = "bcd"
     output =
         input_a
         |> Str.to_utf8
