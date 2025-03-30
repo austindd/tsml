@@ -27,6 +27,7 @@ TsToken : [
     TemplateLitPart Str,
     TemplateLitEnd Str,
     InterpolationPart,
+    FunctionArrow,
     Unknown,
 ]
 
@@ -55,6 +56,7 @@ ts_token_debug_display = |token|
         TemplateLitPart(str) -> "TemplateLitPart(${str})"
         TemplateLitEnd(str) -> "TemplateLitEnd(${str})"
         InterpolationPart -> "InterpolationPart"
+        FunctionArrow -> "FunctionArrow"
         Unknown -> "$$__Unknown__$$"
 
 EcmaWhitespace : [Space, Tab, Newline, LineTabulation, FormFeed, ZeroWidthNoBreakSpace]
@@ -114,6 +116,9 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
 
         [33, 61, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(Operator("!=="), u8s, List.append(token_list, Ok(Operator("!=="))))
+
+        [61, 62, .. as u8s] -> # => (Function Arrow)
+            utf8_list_to_ts_token_list_inner(FunctionArrow, u8s, List.append(token_list, Ok(FunctionArrow)))
 
         [61, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(Operator("=="), u8s, List.append(token_list, Ok(Operator("=="))))
