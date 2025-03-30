@@ -15,21 +15,25 @@ TsToken : [
     NumLit Str,
     Ident Str,
     Keyword Str,
+    # Operators
     Operator Str,
-    TripleEqualOp,
-    NotTripleEqualOp,
-    DoubleEqualOp,
-    NotDoubleEqualOp,
-    GreaterThanOp,
-    LessThanOp,
-    GreaterThanOrEqualOp,
-    LessThanOrEqualOp,
-    EqualOp,
+    TripleEqual,
+    NotTripleEqual,
+    DoubleEqual,
+    NotDoubleEqual,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual,
+    Equal,
     QuestionMark,
-    PlusSign,
-    MinusSign,
+    Plus,
+    Minus,
     LogicalAnd,
     LogicalOr,
+    PlusPlus,
+    MinusMinus,
+    # Punctuation
     Punctuation Str,
     OpenParen,
     CloseParen,
@@ -58,21 +62,25 @@ ts_token_debug_display = |token|
         NumLit(str) -> "NumLit(${str})"
         Ident(str) -> "Ident(${str})"
         Keyword(str) -> "Keyword(${str})"
+        # Operators
         Operator(str) -> "Operator(${str})"
-        TripleEqual -> "TripleEqualOp"
-        NotTripleEqual -> "NotTripleEqualOp"
-        DoubleEqual -> "DoubleEqualOp"
-        NotDoubleEqual -> "NotDoubleEqualOp"
-        GreaterThan -> "GreaterThanOp"
-        LessThan -> "LessThanOp"
-        GreaterThanOrEqual -> "GreaterThanOrEqualOp"
-        LessThanOrEqual -> "LessThanOrEqualOp"
-        Equal -> "EqualOp"
+        TripleEqual -> "TripleEqual"
+        NotTripleEqual -> "NotTripleEqual"
+        DoubleEqual -> "DoubleEqual"
+        NotDoubleEqual -> "NotDoubleEqual"
+        GreaterThan -> "GreaterThan"
+        LessThan -> "LessThan"
+        GreaterThanOrEqual -> "GreaterThanOrEqual"
+        LessThanOrEqual -> "LessThanOrEqual"
+        Equal -> "Equal"
         QuestionMark -> "QuestionMark"
-        PlusSign -> "PlusSign"
-        MinusSign -> "MinusSign"
+        Plus -> "Plus"
+        Minus -> "Minus"
         LogicalAnd -> "LogicalAnd"
         LogicalOr -> "LogicalOr"
+        PlusPlus -> "PlusPlus"
+        MinusMinus -> "MinusMinus"
+        # Punctuation
         Punctuation(str) -> "Punctuation(${str})"
         OpenParen -> "OpenParen"
         CloseParen -> "CloseParen"
@@ -140,25 +148,25 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
 
         # Operators and punctuation - multi-character operators first
         [61, 61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(TripleEqualOp, u8s, List.append(token_list, Ok(TripleEqualOp)))
+            utf8_list_to_ts_token_list_inner(TripleEqual, u8s, List.append(token_list, Ok(TripleEqual)))
 
         [33, 61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(NotTripleEqualOp, u8s, List.append(token_list, Ok(NotTripleEqualOp)))
+            utf8_list_to_ts_token_list_inner(NotTripleEqual, u8s, List.append(token_list, Ok(NotTripleEqual)))
 
         [61, 62, .. as u8s] -> # => (Function Arrow)
             utf8_list_to_ts_token_list_inner(FunctionArrow, u8s, List.append(token_list, Ok(FunctionArrow)))
 
         [61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(DoubleEqualOp, u8s, List.append(token_list, Ok(DoubleEqualOp)))
+            utf8_list_to_ts_token_list_inner(DoubleEqual, u8s, List.append(token_list, Ok(DoubleEqual)))
 
         [33, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(NotDoubleEqualOp, u8s, List.append(token_list, Ok(NotDoubleEqualOp)))
+            utf8_list_to_ts_token_list_inner(NotDoubleEqual, u8s, List.append(token_list, Ok(NotDoubleEqual)))
 
         [62, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(GreaterThanOrEqualOp, u8s, List.append(token_list, Ok(GreaterThanOrEqualOp)))
+            utf8_list_to_ts_token_list_inner(GreaterThanOrEqual, u8s, List.append(token_list, Ok(GreaterThanOrEqual)))
 
         [60, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(LessThanOrEqualOp, u8s, List.append(token_list, Ok(LessThanOrEqualOp)))
+            utf8_list_to_ts_token_list_inner(LessThanOrEqual, u8s, List.append(token_list, Ok(LessThanOrEqual)))
 
         [38, 38, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(LogicalAnd, u8s, List.append(token_list, Ok(LogicalAnd)))
@@ -167,10 +175,10 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
             utf8_list_to_ts_token_list_inner(LogicalOr, u8s, List.append(token_list, Ok(LogicalOr)))
 
         [43, 43, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("++"), u8s, List.append(token_list, Ok(Operator("++"))))
+            utf8_list_to_ts_token_list_inner(PlusPlus, u8s, List.append(token_list, Ok(PlusPlus)))
 
         [45, 45, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("--"), u8s, List.append(token_list, Ok(Operator("--"))))
+            utf8_list_to_ts_token_list_inner(MinusMinus, u8s, List.append(token_list, Ok(MinusMinus)))
 
         # Single-character operators and punctuation
         [40, .. as u8s] ->
@@ -207,13 +215,13 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
             utf8_list_to_ts_token_list_inner(QuestionMark, u8s, List.append(token_list, Ok(QuestionMark)))
 
         [61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(EqualOp, u8s, List.append(token_list, Ok(EqualOp)))
+            utf8_list_to_ts_token_list_inner(Equal, u8s, List.append(token_list, Ok(Equal)))
 
         [43, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(PlusSign, u8s, List.append(token_list, Ok(PlusSign)))
+            utf8_list_to_ts_token_list_inner(Plus, u8s, List.append(token_list, Ok(Plus)))
 
         [45, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(MinusSign, u8s, List.append(token_list, Ok(MinusSign)))
+            utf8_list_to_ts_token_list_inner(Minus, u8s, List.append(token_list, Ok(Minus)))
 
         [42, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(Operator("*"), u8s, List.append(token_list, Ok(Operator("*"))))
@@ -228,10 +236,10 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
             utf8_list_to_ts_token_list_inner(Operator("!"), u8s, List.append(token_list, Ok(Operator("!"))))
 
         [62, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(GreaterThanOp, u8s, List.append(token_list, Ok(GreaterThanOp)))
+            utf8_list_to_ts_token_list_inner(GreaterThan, u8s, List.append(token_list, Ok(GreaterThan)))
 
         [60, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(LessThanOp, u8s, List.append(token_list, Ok(LessThanOp)))
+            utf8_list_to_ts_token_list_inner(LessThan, u8s, List.append(token_list, Ok(LessThan)))
 
         [38, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(Operator("&"), u8s, List.append(token_list, Ok(Operator("&"))))
