@@ -16,6 +16,20 @@ TsToken : [
     Ident Str,
     Keyword Str,
     Operator Str,
+    TripleEqualOp,
+    NotTripleEqualOp,
+    DoubleEqualOp,
+    NotDoubleEqualOp,
+    GreaterThanOp,
+    LessThanOp,
+    GreaterThanOrEqualOp,
+    LessThanOrEqualOp,
+    EqualOp,
+    QuestionMark,
+    PlusSign,
+    MinusSign,
+    LogicalAnd,
+    LogicalOr,
     Punctuation Str,
     OpenParen,
     CloseParen,
@@ -45,6 +59,20 @@ ts_token_debug_display = |token|
         Ident(str) -> "Ident(${str})"
         Keyword(str) -> "Keyword(${str})"
         Operator(str) -> "Operator(${str})"
+        TripleEqual -> "TripleEqualOp"
+        NotTripleEqual -> "NotTripleEqualOp"
+        DoubleEqual -> "DoubleEqualOp"
+        NotDoubleEqual -> "NotDoubleEqualOp"
+        GreaterThan -> "GreaterThanOp"
+        LessThan -> "LessThanOp"
+        GreaterThanOrEqual -> "GreaterThanOrEqualOp"
+        LessThanOrEqual -> "LessThanOrEqualOp"
+        Equal -> "EqualOp"
+        QuestionMark -> "QuestionMark"
+        PlusSign -> "PlusSign"
+        MinusSign -> "MinusSign"
+        LogicalAnd -> "LogicalAnd"
+        LogicalOr -> "LogicalOr"
         Punctuation(str) -> "Punctuation(${str})"
         OpenParen -> "OpenParen"
         CloseParen -> "CloseParen"
@@ -112,31 +140,31 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
 
         # Operators and punctuation - multi-character operators first
         [61, 61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("==="), u8s, List.append(token_list, Ok(Operator("==="))))
+            utf8_list_to_ts_token_list_inner(TripleEqualOp, u8s, List.append(token_list, Ok(TripleEqualOp)))
 
         [33, 61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("!=="), u8s, List.append(token_list, Ok(Operator("!=="))))
+            utf8_list_to_ts_token_list_inner(NotTripleEqualOp, u8s, List.append(token_list, Ok(NotTripleEqualOp)))
 
         [61, 62, .. as u8s] -> # => (Function Arrow)
             utf8_list_to_ts_token_list_inner(FunctionArrow, u8s, List.append(token_list, Ok(FunctionArrow)))
 
         [61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("=="), u8s, List.append(token_list, Ok(Operator("=="))))
+            utf8_list_to_ts_token_list_inner(DoubleEqualOp, u8s, List.append(token_list, Ok(DoubleEqualOp)))
 
         [33, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("!="), u8s, List.append(token_list, Ok(Operator("!="))))
+            utf8_list_to_ts_token_list_inner(NotDoubleEqualOp, u8s, List.append(token_list, Ok(NotDoubleEqualOp)))
 
         [62, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator(">="), u8s, List.append(token_list, Ok(Operator(">="))))
+            utf8_list_to_ts_token_list_inner(GreaterThanOrEqualOp, u8s, List.append(token_list, Ok(GreaterThanOrEqualOp)))
 
         [60, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("<="), u8s, List.append(token_list, Ok(Operator("<="))))
+            utf8_list_to_ts_token_list_inner(LessThanOrEqualOp, u8s, List.append(token_list, Ok(LessThanOrEqualOp)))
 
         [38, 38, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("&&"), u8s, List.append(token_list, Ok(Operator("&&"))))
+            utf8_list_to_ts_token_list_inner(LogicalAnd, u8s, List.append(token_list, Ok(LogicalAnd)))
 
         [124, 124, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("||"), u8s, List.append(token_list, Ok(Operator("||"))))
+            utf8_list_to_ts_token_list_inner(LogicalOr, u8s, List.append(token_list, Ok(LogicalOr)))
 
         [43, 43, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(Operator("++"), u8s, List.append(token_list, Ok(Operator("++"))))
@@ -176,16 +204,16 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
             utf8_list_to_ts_token_list_inner(Punctuation(":"), u8s, List.append(token_list, Ok(Punctuation(":"))))
 
         [63, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("?"), u8s, List.append(token_list, Ok(Operator("?"))))
+            utf8_list_to_ts_token_list_inner(QuestionMark, u8s, List.append(token_list, Ok(QuestionMark)))
 
         [61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("="), u8s, List.append(token_list, Ok(Operator("="))))
+            utf8_list_to_ts_token_list_inner(EqualOp, u8s, List.append(token_list, Ok(EqualOp)))
 
         [43, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("+"), u8s, List.append(token_list, Ok(Operator("+"))))
+            utf8_list_to_ts_token_list_inner(PlusSign, u8s, List.append(token_list, Ok(PlusSign)))
 
         [45, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("-"), u8s, List.append(token_list, Ok(Operator("-"))))
+            utf8_list_to_ts_token_list_inner(MinusSign, u8s, List.append(token_list, Ok(MinusSign)))
 
         [42, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(Operator("*"), u8s, List.append(token_list, Ok(Operator("*"))))
@@ -200,10 +228,10 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
             utf8_list_to_ts_token_list_inner(Operator("!"), u8s, List.append(token_list, Ok(Operator("!"))))
 
         [62, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator(">"), u8s, List.append(token_list, Ok(Operator(">"))))
+            utf8_list_to_ts_token_list_inner(GreaterThanOp, u8s, List.append(token_list, Ok(GreaterThanOp)))
 
         [60, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("<"), u8s, List.append(token_list, Ok(Operator("<"))))
+            utf8_list_to_ts_token_list_inner(LessThanOp, u8s, List.append(token_list, Ok(LessThanOp)))
 
         [38, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(Operator("&"), u8s, List.append(token_list, Ok(Operator("&"))))
