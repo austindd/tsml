@@ -17,6 +17,12 @@ TsToken : [
     Keyword Str,
     Operator Str,
     Punctuation Str,
+    OpenParen,
+    CloseParen,
+    OpenCurlyBracket,
+    CloseCurlyBracket,
+    OpenSquareBracket,
+    CloseSquareBracket,
     Comment Str,
     TemplateLitPart Str,
     TemplateLitEnd Str,
@@ -39,6 +45,12 @@ ts_token_debug_display = |token|
         Keyword(str) -> "Keyword(${str})"
         Operator(str) -> "Operator(${str})"
         Punctuation(str) -> "Punctuation(${str})"
+        OpenParen -> "OpenParen"
+        CloseParen -> "CloseParen"
+        OpenCurlyBracket -> "OpenCurlyBracket"
+        CloseCurlyBracket -> "CloseCurlyBracket"
+        OpenSquareBracket -> "OpenSquareBracket"
+        CloseSquareBracket -> "CloseSquareBracket"
         Comment(str) -> "Comment(${str})"
         TemplateLitPart(str) -> "TemplateLitPart(${str})"
         TemplateLitEnd(str) -> "TemplateLitEnd(${str})"
@@ -129,22 +141,22 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
 
         # Single-character operators and punctuation
         [40, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation("("), u8s, List.append(token_list, Ok(Punctuation("("))))
+            utf8_list_to_ts_token_list_inner(OpenParen, u8s, List.append(token_list, Ok(OpenParen)))
 
         [41, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation(")"), u8s, List.append(token_list, Ok(Punctuation(")"))))
+            utf8_list_to_ts_token_list_inner(CloseParen, u8s, List.append(token_list, Ok(CloseParen)))
 
         [123, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation("{"), u8s, List.append(token_list, Ok(Punctuation("{"))))
+            utf8_list_to_ts_token_list_inner(OpenCurlyBracket, u8s, List.append(token_list, Ok(OpenCurlyBracket)))
 
         [125, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation("}"), u8s, List.append(token_list, Ok(Punctuation("}"))))
+            utf8_list_to_ts_token_list_inner(CloseCurlyBracket, u8s, List.append(token_list, Ok(CloseCurlyBracket)))
 
         [91, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation("["), u8s, List.append(token_list, Ok(Punctuation("["))))
+            utf8_list_to_ts_token_list_inner(OpenSquareBracket, u8s, List.append(token_list, Ok(OpenSquareBracket)))
 
         [93, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation("]"), u8s, List.append(token_list, Ok(Punctuation("]"))))
+            utf8_list_to_ts_token_list_inner(CloseSquareBracket, u8s, List.append(token_list, Ok(CloseSquareBracket)))
 
         [59, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(Punctuation(";"), u8s, List.append(token_list, Ok(Punctuation(";"))))
@@ -442,17 +454,17 @@ process_template_literal = |u8s, acc, token_list|
     inner_process(u8s, acc, token_list)
 
 process_interpolation_wrapper : List U8, Num _, List TsTokenResult -> List TsTokenResult
-process_interpolation_wrapper = |u8s, brace_depth, token_list|
+process_interpolation_wrapper = |u8s, curly_bracket_depth, token_list|
     process_interpolation : List U8, Num _, List TsTokenResult -> (List U8, List TsTokenResult)
     process_interpolation = |current_u8s, current_depth, current_token_list|
         when current_u8s is
-            [123, .. as rest] -> # Opening brace increases depth
+            [123, .. as rest] -> # Opening CurlyBracket increases depth
                 process_interpolation(rest, current_depth + 1, current_token_list)
 
-            [125, .. as rest] if current_depth == 1 -> # Closing brace at depth 1 ends interpolation
+            [125, .. as rest] if current_depth == 1 -> # Closing CurlyBracket at depth 1 ends interpolation
                 (rest, List.append(current_token_list, Ok(InterpolationPart)))
 
-            [125, .. as rest] -> # Closing brace decreases depth
+            [125, .. as rest] -> # Closing CurlyBracket decreases depth
                 process_interpolation(rest, current_depth - 1, current_token_list)
 
             [_, .. as rest] ->
@@ -461,7 +473,7 @@ process_interpolation_wrapper = |u8s, brace_depth, token_list|
             [] -> # Unclosed interpolation
                 ([], List.append(current_token_list, Err(UnclosedInterpolation)))
 
-    (new_remaining, updated_token_list) = process_interpolation(u8s, brace_depth, token_list)
+    (new_remaining, updated_token_list) = process_interpolation(u8s, curly_bracket_depth, token_list)
     # Continue processing the template
     process_template_literal(new_remaining, [], updated_token_list)
 
