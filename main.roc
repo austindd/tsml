@@ -41,24 +41,6 @@ import TsAst
 #            inner = Str.joinWith xs ", "
 #            "$(initial), $(inner)]"
 
-# TsToken :
-#   [ Space, Newline, StrLit (Str), NumLit (Num), Ident (Str), Keyword (Str) ]
-
-TsToken : [Start, Space, Newline, StrLit Str, NumLit Str, Ident Str, Keyword Str, Unknown]
-TsTokenResult : [Ok TsToken, Err [Unknown]]
-
-ts_token_debug_display : TsToken -> Str
-ts_token_debug_display = |token|
-    when token is
-        Start -> "$$__Start__$$"
-        Space -> "Space"
-        Newline -> "Newline"
-        StrLit(str) -> "StrLit(${str})"
-        NumLit(str) -> "NumLit(${str})"
-        Ident(str) -> "Ident(${str})"
-        Keyword(str) -> "Keyword(${str})"
-        Unknown -> "$$__Unknown__$$"
-
 main! = |_|
     # Stdout.line! "Type in something and press Enter:"
     # input = Stdin.line!
