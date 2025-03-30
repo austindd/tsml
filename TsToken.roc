@@ -43,6 +43,7 @@
 # Improved
 module [
     ts_token_debug_display,
+    utf8_list_to_ts_token_list,
     EcmaAlpha,
     EcmaWhitespace,
     EcmaNewline,
