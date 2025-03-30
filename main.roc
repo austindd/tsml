@@ -42,7 +42,7 @@ import TsAst
 #            "$(initial), $(inner)]"
 
 main! = |_|
-    input_a = "const x = 100 + y"
+    input_a = "const x = 100 + y + (function() { return 42; })()"
     output =
         input_a
         |> Str.to_utf8
