@@ -42,17 +42,16 @@ import TsAst
 #            "$(initial), $(inner)]"
 
 main! = |_|
-    # Stdout.line! "Type in something and press Enter:"
-    # input = Stdin.line!
-
-    input_a = "abc"
+    input_a = "const x = 100 + y"
     input_b = "bcd"
     output =
-        StrUtils.compare(input_a, input_b)
-        |> |x|
-            when x is
-                LT -> "LT"
-                EQ -> "EQ"
-                GT -> "GT"
+        input_a
+        |> Str.to_utf8
+        |> TsToken.utf8_list_to_ts_token_list
+        |> List.keep_oks(|x| x)
+        |> List.map(TsToken.ts_token_debug_display)
 
-    Stdout.line!(output)
+    # something
+    output
+    |> Inspect.to_str
+    |> Stdout.line!
