@@ -49,7 +49,10 @@ TsToken : [
     Unknown,
 ]
 
-TsTokenResult : [Ok TsToken, Err [Unknown, UnclosedString, UnclosedTemplate, UnclosedInterpolation]]
+TsTokenResult : [
+    Ok TsToken,
+    Err [Unknown, UnclosedString, UnclosedTemplate, UnclosedInterpolation, InvalidNumericSeparator],
+]
 
 ts_token_debug_display : TsToken -> Str
 ts_token_debug_display = |token|
@@ -340,146 +343,143 @@ process_identifier = |first_char, rest, token_list|
 
 process_numeric_literal : U8, List U8, List TsTokenResult -> List TsTokenResult
 process_numeric_literal = |first_digit, rest, token_list|
-    # Helper function to check if a U8 represents a digit
-    # (Assuming is_digit is defined elsewhere as: |u8| u8 >= 48 && u8 <= 57)
+    # Assuming is_digit is defined elsewhere as: |u8| u8 >= 48 && u8 <= 57
 
-    collect_numeric_chars : List U8, List U8, Bool, Bool -> (List U8, List U8)
+    # Return type changed to Result
+    collect_numeric_chars : List U8, List U8, Bool, Bool -> Result (List U8, List U8) [InvalidNumericSeparator]
     collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
-        # Tail-recursive inner helper
-        inner_collect : List U8, List U8, Bool, Bool, List U8 -> (List U8, List U8)
+        # Tail-recursive inner helper - Return type changed to Result
+        inner_collect : List U8, List U8, Bool, Bool, List U8 -> Result (List U8, List U8) [InvalidNumericSeparator]
         inner_collect = |current_acc, current_remaining, current_decimal, current_exp, final_acc|
             when current_remaining is
                 # --- Underscore Separator Handling ---
                 [95, .. as rest_after_underscore] -> # Encountered an underscore '_'
-                    # Rule 1 & 2 & 3 (preceding): Last char added MUST be a digit.
-                    prev_is_digit =
-                        when List.last(current_acc) is
-                            Ok(prev_u8) -> is_digit(prev_u8)
-                            Err(_) -> Bool.false
+                    # Check for immediate double underscore: __
+                    when List.first(rest_after_underscore) is
+                        Ok(95) -> Err(InvalidNumericSeparator) # Explicit Error for __
+                        _ -> # Not a double underscore, check normal rules
+                            # Rule 1 & 2 & 3 (preceding): Last char added MUST be a digit.
+                            prev_is_digit =
+                                when List.last(current_acc) is
+                                    Ok(prev_u8) -> is_digit(prev_u8)
+                                    Err(_) -> Bool.false
 
-                    # Rule 1 & 3 & 4 (succeeding): Next char MUST be a digit.
-                    next_is_digit =
-                        when List.first(rest_after_underscore) is
-                            Ok(next_u8) -> is_digit(next_u8)
-                            Err(_) -> Bool.false # Underscore at the end is invalid
+                            # Rule 1 & 3 & 4 (succeeding): Next char MUST be a digit.
+                            # Note: We already know next is not '_' from the outer when.
+                            next_is_digit =
+                                when List.first(rest_after_underscore) is
+                                    Ok(next_u8) -> is_digit(next_u8)
+                                    Err(_) -> Bool.false # Underscore at the end
 
-                    if prev_is_digit and next_is_digit then
-                        # Valid separator: Append the underscore and continue processing the rest
-                        inner_collect(List.append(current_acc, 95), rest_after_underscore, current_decimal, current_exp, final_acc)
-                    else
-                        # Invalid separator placement: Stop collecting number chars HERE.
-                        # The underscore is NOT part of the number.
-                        (List.concat(final_acc, current_acc), current_remaining) # Pass original remaining back
+                            if prev_is_digit and next_is_digit then
+                                # Valid separator: Append underscore and continue
+                                # Wrap recursive call in Ok as it returns Result
+                                inner_collect(List.append(current_acc, 95), rest_after_underscore, current_decimal, current_exp, final_acc)
+                            else
+                                # Invalid separator placement (e.g., _ at end, 1_e, ._): Report Error
+                                Err InvalidNumericSeparator
+
                 # --- Decimal point '.' (ASCII 46) ---
-
                 [46, .. as rest_chars] if !current_decimal and !current_exp ->
-                    # Ensure previous char wasn't an underscore
                     prev_is_underscore =
                         when List.last(current_acc) is
                             Ok(95) -> Bool.true
                             _ -> Bool.false
-
-                    # Ensure next char isn't an underscore
                     next_is_underscore =
                         when List.first(rest_chars) is
                             Ok(95) -> Bool.true
                             _ -> Bool.false
 
                     if prev_is_underscore or next_is_underscore then
-                        # Invalid: '_.' or '._' - Stop before the '.'
-                        (List.concat(final_acc, current_acc), current_remaining)
+                        Err InvalidNumericSeparator # Invalid: '_.' or '._'
                     else
-                        # Valid decimal point
                         inner_collect(List.append(current_acc, 46), rest_chars, Bool.true, current_exp, final_acc)
 
                 # --- Exponent 'e'/'E' (ASCII 101/69) ---
                 [exp_char, .. as rest_chars] if (exp_char == 101 or exp_char == 69) and !current_exp ->
-                    # Ensure previous char wasn't an underscore
                     prev_is_underscore =
                         when List.last(current_acc) is
                             Ok(95) -> Bool.true
                             _ -> Bool.false
-
-                    # Check for invalid underscore immediately after e/E, or after a following sign
-                    # e.g., e_, E_, e+_, E+_, e-_, E-_
-                    next_pattern_is_invalid =
+                    next_pattern_is_invalid = # Check e_, E_, e+_, E+_, e-_, E-_
                         when List.first(rest_chars) is
-                            Ok(95) -> # Case: e_ or E_
-                                Bool.true
-
-                            Ok(x) if x == 43 or x == 45 -> # Case: e+ or e- or E+ or E- potentially followed by _
-                                # Check the character *after* the sign
+                            Ok(95) -> Bool.true
+                            Ok(x) if x == 43 or x == 45 ->
                                 when List.get(rest_chars, 1) is
-                                    Ok(95) -> # Case: e+_ or e-_ etc.
-                                        Bool.true
+                                    Ok(95) -> Bool.true
+                                    _ -> Bool.false
 
-                                    _ -> # Case: e+1 or e-2 etc. (valid pattern start)
-                                        Bool.false
-
-                            _ -> # Case: e1 or E2 etc. (valid pattern start)
-                                Bool.false
+                            _ -> Bool.false
 
                     if prev_is_underscore or next_pattern_is_invalid then
-                        # Invalid: '_e', 'e_', 'e+_' etc. - Stop before 'e'/'E'
-                        (List.concat(final_acc, current_acc), current_remaining)
+                        Err InvalidNumericSeparator # Invalid: '_e', 'e_', 'e+_' etc.
                     else
-                        # Valid exponent indicator
                         inner_collect(List.append(current_acc, exp_char), rest_chars, current_decimal, Bool.true, final_acc)
 
                 # --- Exponent sign '+' / '-' (ASCII 43/45) ---
                 [sign_char, .. as rest_chars] if (sign_char == 43 or sign_char == 45) and current_exp ->
-                    # Check if the character *before* the sign was 'e' or 'E'.
                     is_after_exp_indicator =
                         when List.last(current_acc) is
                             Ok(prev_u8) -> prev_u8 == 101 or prev_u8 == 69
                             Err(_) -> Bool.false
-
-                    # Ensure next char isn't an underscore
                     next_is_underscore =
                         when List.first(rest_chars) is
                             Ok(95) -> Bool.true
                             _ -> Bool.false
 
                     if is_after_exp_indicator and !next_is_underscore then
-                        # Valid sign after exponent indicator, and not followed by _ (e.g. e+1, e-2)
                         inner_collect(List.append(current_acc, sign_char), rest_chars, current_decimal, current_exp, final_acc)
                     else
-                        # Invalid sign placement (e.g. not after e/E, or like e+_)
-                        # Stop collection before the sign
-                        (List.concat(final_acc, current_acc), current_remaining)
-
+                        Err InvalidNumericSeparator # Invalid sign placement or e+_
                 # --- Digits '0'-'9' ---
+
                 [u8, .. as rest_chars] if is_digit(u8) ->
                     inner_collect(List.append(current_acc, u8), rest_chars, current_decimal, current_exp, final_acc)
 
                 # --- End of numeric literal (any other character or end of input) ---
-                _ -> (List.concat(final_acc, current_acc), current_remaining)
+                # Successful termination of collection
+                _ -> Ok (List.concat(final_acc, current_acc), current_remaining)
 
         # Initial call to the inner helper
         inner_collect(acc, remaining, has_decimal, has_exp, [])
 
     # --- Function Body ---
-    (num_chars, new_remaining) = collect_numeric_chars([first_digit], rest, Bool.false, Bool.false)
+    # Handle the Result from collect_numeric_chars
+    when collect_numeric_chars([first_digit], rest, Bool.false, Bool.false) is
+        Ok (num_chars, new_remaining) ->
+            # Success case: Proceed mostly as before
+            final_num_chars =
+                (
+                    when List.last(num_chars) is
+                        # Final check for trailing underscore (should be caught earlier, but good practice)
+                        Ok(95) -> Err(InvalidNumericSeparator) # Trigger error path if found
+                        _ -> Ok(num_chars)
+                )
+                |> Result.with_default(num_chars) # Use original if Ok, fallback shouldn't hit if logic sound
 
-    # Basic validation: Ensure literal doesn't end with an underscore if collected
-    # (This check prevents cases where the logic might somehow allow `123_` through,
-    # although the inner_collect logic should prevent this by checking next_is_digit.)
-    final_num_chars =
-        when List.last(num_chars) is
-            Ok(95) -> List.drop_last(num_chars, 1) # Should not happen with correct logic
-            _ -> num_chars
+            if List.is_empty(final_num_chars) then
+                # This case might happen if e.g., the input was just "1_" and '_' was invalid
+                # We already reported the error if collect_numeric_chars returned Err.
+                # If it returned Ok with empty list (e.g. from final validation), treat as Unknown?
+                # Or maybe this path shouldn't be reachable if errors are caught properly.
+                # For safety, let's treat empty as Unknown/Errornous scenario.
+                utf8_list_to_ts_token_list_inner(Unknown, new_remaining, List.append(token_list, Err(Unknown))) # Or InvalidNumericSeparator?
+            else
+                num_result = Str.from_utf8(final_num_chars)
+                when num_result is
+                    Ok(num_str) ->
+                        utf8_list_to_ts_token_list_inner(NumLit(num_str), new_remaining, List.append(token_list, Ok(NumLit(num_str))))
 
-    if List.is_empty(final_num_chars) then
-        # This could happen if the first digit was followed by an invalid char immediately
-        utf8_list_to_ts_token_list_inner(Unknown, new_remaining, List.append(token_list, Err(Unknown))) # Or handle differently
-    else
-        num_result = Str.from_utf8(final_num_chars)
-        when num_result is
-            Ok(num_str) ->
-                utf8_list_to_ts_token_list_inner(NumLit(num_str), new_remaining, List.append(token_list, Ok(NumLit(num_str))))
+                    Err(_) -> # UTF8 error, shouldn't happen with digits/'.'/'e'/'_'/'+'/'-'
+                        utf8_list_to_ts_token_list_inner(Unknown, new_remaining, List.append(token_list, Err(Unknown)))
 
-            Err(_) -> # Should not fail if only valid chars were collected
-                utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(token_list, Err(Unknown)))
+        Err InvalidNumericSeparator ->
+            # Error detected during numeric collection!
+            # Append the specific error token.
+            # For recovery, we'll continue tokenizing *after* the first digit,
+            # effectively discarding the problematic numeric literal attempt.
+            # 'rest' is the list of U8s immediately following the 'first_digit'.
+            utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(token_list, Err(InvalidNumericSeparator)))
 
 process_string_literal : List U8, Str, List U8, List TsTokenResult -> List TsTokenResult
 process_string_literal = |u8s, quote_type, acc, token_list|
