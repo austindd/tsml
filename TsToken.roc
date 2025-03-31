@@ -377,7 +377,7 @@ process_numeric_literal = |first_digit, rest, token_list|
                                 inner_collect(List.append(current_acc, 95), rest_after_underscore, current_decimal, current_exp, final_acc)
                             else
                                 # Invalid separator placement (e.g., _ at end, 1_e, ._): Report Error
-                                Err InvalidNumericSeparator
+                                Err(InvalidNumericSeparator)
 
                 # --- Decimal point '.' (ASCII 46) ---
                 [46, .. as rest_chars] if !current_decimal and !current_exp ->
@@ -391,7 +391,7 @@ process_numeric_literal = |first_digit, rest, token_list|
                             _ -> Bool.false
 
                     if prev_is_underscore or next_is_underscore then
-                        Err InvalidNumericSeparator # Invalid: '_.' or '._'
+                        Err(InvalidNumericSeparator) # Invalid: '_.' or '._'
                     else
                         inner_collect(List.append(current_acc, 46), rest_chars, Bool.true, current_exp, final_acc)
 
@@ -412,7 +412,7 @@ process_numeric_literal = |first_digit, rest, token_list|
                             _ -> Bool.false
 
                     if prev_is_underscore or next_pattern_is_invalid then
-                        Err InvalidNumericSeparator # Invalid: '_e', 'e_', 'e+_' etc.
+                        Err(InvalidNumericSeparator) # Invalid: '_e', 'e_', 'e+_' etc.
                     else
                         inner_collect(List.append(current_acc, exp_char), rest_chars, current_decimal, Bool.true, final_acc)
 
@@ -430,7 +430,7 @@ process_numeric_literal = |first_digit, rest, token_list|
                     if is_after_exp_indicator and !next_is_underscore then
                         inner_collect(List.append(current_acc, sign_char), rest_chars, current_decimal, current_exp, final_acc)
                     else
-                        Err InvalidNumericSeparator # Invalid sign placement or e+_
+                        Err(InvalidNumericSeparator) # Invalid sign placement or e+_
                 # --- Digits '0'-'9' ---
 
                 [u8, .. as rest_chars] if is_digit(u8) ->
@@ -473,7 +473,7 @@ process_numeric_literal = |first_digit, rest, token_list|
                     Err(_) -> # UTF8 error, shouldn't happen with digits/'.'/'e'/'_'/'+'/'-'
                         utf8_list_to_ts_token_list_inner(Unknown, new_remaining, List.append(token_list, Err(Unknown)))
 
-        Err InvalidNumericSeparator ->
+        Err(InvalidNumericSeparator) ->
             # Error detected during numeric collection!
             # Append the specific error token.
             # For recovery, we'll continue tokenizing *after* the first digit,
