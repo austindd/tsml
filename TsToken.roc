@@ -41,6 +41,11 @@ TsToken : [
     CloseCurlyBracket,
     OpenSquareBracket,
     CloseSquareBracket,
+    Semicolon,
+    Comma,
+    Period,
+    Colon,
+    # Other
     Comment Str,
     TemplateLitPart Str,
     TemplateLitEnd Str,
@@ -91,6 +96,11 @@ ts_token_debug_display = |token|
         CloseCurlyBracket -> "CloseCurlyBracket"
         OpenSquareBracket -> "OpenSquareBracket"
         CloseSquareBracket -> "CloseSquareBracket"
+        Semicolon -> "Semicolon"
+        Comma -> "Comma"
+        Period -> "Period"
+        Colon -> "Colon"
+        # Other
         Comment(str) -> "Comment(${str})"
         TemplateLitPart(str) -> "TemplateLitPart(${str})"
         TemplateLitEnd(str) -> "TemplateLitEnd(${str})"
@@ -203,16 +213,16 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
             utf8_list_to_ts_token_list_inner(CloseSquareBracket, u8s, List.append(token_list, Ok(CloseSquareBracket)))
 
         [59, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation(";"), u8s, List.append(token_list, Ok(Punctuation(";"))))
+            utf8_list_to_ts_token_list_inner(Semicolon, u8s, List.append(token_list, Ok(Semicolon)))
 
         [44, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation(","), u8s, List.append(token_list, Ok(Punctuation(","))))
+            utf8_list_to_ts_token_list_inner(Comma, u8s, List.append(token_list, Ok(Comma)))
 
         [46, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation("."), u8s, List.append(token_list, Ok(Punctuation("."))))
+            utf8_list_to_ts_token_list_inner(Period, u8s, List.append(token_list, Ok(Period)))
 
         [58, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Punctuation(":"), u8s, List.append(token_list, Ok(Punctuation(":"))))
+            utf8_list_to_ts_token_list_inner(Colon, u8s, List.append(token_list, Ok(Colon)))
 
         [63, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(QuestionMark, u8s, List.append(token_list, Ok(QuestionMark)))
