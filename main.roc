@@ -45,15 +45,10 @@ main! = |_|
 
     _ = Stdout.line!("\ninput:")
 
-    input_a = get_file_contents!(
-        "/Users/austin/dev/kayhanspace/kayhanspace/next.config.ts",
-    )
-
-    _ =
-        when input_a is
-            Ok(x) -> Stdout.write!(x)
-            Err(err) -> Stdout.write!(Inspect.to_str(err))
-    # {} |> Stdin.line!
+    input_a = {} |> Stdin.line!
+    # when input_a is
+    #    Ok(x) -> Stdout.write!(x)
+    #    Err(err) -> Stdout.write!(Inspect.to_str(err))
     # "const x = 100 + y + (function() { return 42; })()"
 
     output =
