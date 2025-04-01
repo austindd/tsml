@@ -23,10 +23,10 @@ import ListMap
 import TsToken
 import TsAst
 
-# getFileContents! = \fPathStr ->
-# fPath = Path.from_str fPathStr
-# output = Path.read_utf8! fPath
-# output
+get_file_contents! = |f_path_str|
+    f_path = Path.from_str f_path_str
+    output = Path.read_utf8! f_path
+    output
 
 # pathStrToPathStrList = \pathStr ->
 #    Str.splitOn pathStr "/"
@@ -45,7 +45,15 @@ main! = |_|
 
     _ = Stdout.line!("\ninput:")
 
-    input_a = {} |> Stdin.line!
+    input_a = get_file_contents!(
+        "/Users/austin/dev/kayhanspace/kayhanspace/next.config.ts",
+    )
+
+    _ =
+        when input_a is
+            Ok(x) -> Stdout.write!(x)
+            Err(err) -> Stdout.write!(Inspect.to_str(err))
+    # {} |> Stdin.line!
     # "const x = 100 + y + (function() { return 42; })()"
 
     output =
