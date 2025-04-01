@@ -33,6 +33,10 @@ TsToken : [
     LogicalOr,
     PlusPlus,
     MinusMinus,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseNot,
     # Punctuation
     Punctuation Str,
     OpenParen,
@@ -88,6 +92,10 @@ ts_token_debug_display = |token|
         LogicalOr -> "LogicalOr"
         PlusPlus -> "PlusPlus"
         MinusMinus -> "MinusMinus"
+        BitwiseAnd -> "BitwiseAnd"
+        BitwiseOr -> "BitwiseOr"
+        BitwiseXor -> "BitwiseXor"
+        BitwiseNot -> "BitwiseNot"
         # Punctuation
         Punctuation(str) -> "Punctuation(${str})"
         OpenParen -> "OpenParen"
@@ -255,16 +263,16 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
             utf8_list_to_ts_token_list_inner(LessThan, u8s, List.append(token_list, Ok(LessThan)))
 
         [38, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("&"), u8s, List.append(token_list, Ok(Operator("&"))))
+            utf8_list_to_ts_token_list_inner(BitwiseAnd, u8s, List.append(token_list, Ok(BitwiseAnd)))
 
         [124, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("|"), u8s, List.append(token_list, Ok(Operator("|"))))
+            utf8_list_to_ts_token_list_inner(BitwiseOr, u8s, List.append(token_list, Ok(BitwiseOr)))
 
         [94, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("^"), u8s, List.append(token_list, Ok(Operator("^"))))
+            utf8_list_to_ts_token_list_inner(BitwiseXor, u8s, List.append(token_list, Ok(BitwiseXor)))
 
         [126, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("~"), u8s, List.append(token_list, Ok(Operator("~"))))
+            utf8_list_to_ts_token_list_inner(BitwiseNot, u8s, List.append(token_list, Ok(BitwiseNot)))
 
         # Identifiers and keywords
         [u8, .. as u8s] if is_identifier_start(u8) ->
