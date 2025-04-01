@@ -55,8 +55,13 @@ main! = |_|
                 args
                 |> Str.to_utf8
                 |> TsToken.utf8_list_to_ts_token_list
-                |> List.keep_oks(|x| x)
-                |> List.map(TsToken.ts_token_debug_display),
+                |> List.map(
+                    |item|
+                        item
+                        |> Result.map_ok(
+                            TsToken.ts_token_debug_display,
+                        ),
+                ),
         )
 
     _ = Stdout.line!("\noutput:")
