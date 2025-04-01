@@ -37,6 +37,9 @@ TsToken : [
     BitwiseOr,
     BitwiseXor,
     BitwiseNot,
+    LeftShift,
+    SignedRightShift,
+    UnsignedRightShift,
     # Punctuation
     Punctuation Str,
     OpenParen,
@@ -96,6 +99,9 @@ ts_token_debug_display = |token|
         BitwiseOr -> "BitwiseOr"
         BitwiseXor -> "BitwiseXor"
         BitwiseNot -> "BitwiseNot"
+        LeftShift -> "LeftShift"
+        SignedRightShift -> "SignedRightShift"
+        UnsignedRightShift -> "UnsignedRightShift"
         # Punctuation
         Punctuation(str) -> "Punctuation(${str})"
         OpenParen -> "OpenParen"
@@ -200,6 +206,16 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
 
         [45, 45, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(MinusMinus, u8s, List.append(token_list, Ok(MinusMinus)))
+
+        # --- Shift Operators (Must come before single < and >) ---  # <-- ADDED SECTION
+        [62, 62, 62, .. as u8s] -> # >>> (Unsigned Right Shift)
+            utf8_list_to_ts_token_list_inner(UnsignedRightShift, u8s, List.append(token_list, Ok(UnsignedRightShift)))
+
+        [62, 62, .. as u8s] -> # >> (Signed Right Shift)
+            utf8_list_to_ts_token_list_inner(SignedRightShift, u8s, List.append(token_list, Ok(SignedRightShift)))
+
+        [60, 60, .. as u8s] -> # << (Left Shift)
+            utf8_list_to_ts_token_list_inner(LeftShift, u8s, List.append(token_list, Ok(LeftShift)))
 
         # Single-character operators and punctuation
         [40, .. as u8s] ->
