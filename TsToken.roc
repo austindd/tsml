@@ -33,6 +33,10 @@ TsToken : [
     LogicalOr,
     PlusPlus,
     MinusMinus,
+    Multiply,
+    Divide,
+    Modulus,
+    LogicalNegate,
     BitwiseAnd,
     BitwiseOr,
     BitwiseXor,
@@ -91,6 +95,10 @@ ts_token_debug_display = |token|
         QuestionMark -> "QuestionMark"
         Plus -> "Plus"
         Minus -> "Minus"
+        Multiply -> "Multiply"
+        Divide -> "Divide"
+        Modulus -> "Modulus"
+        LogicalNegate -> "LogicalNegate"
         LogicalAnd -> "LogicalAnd"
         LogicalOr -> "LogicalOr"
         PlusPlus -> "PlusPlus"
@@ -261,16 +269,16 @@ utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
             utf8_list_to_ts_token_list_inner(Minus, u8s, List.append(token_list, Ok(Minus)))
 
         [42, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("*"), u8s, List.append(token_list, Ok(Operator("*"))))
+            utf8_list_to_ts_token_list_inner(Multiply, u8s, List.append(token_list, Ok(Multiply)))
 
         [47, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("/"), u8s, List.append(token_list, Ok(Operator("/"))))
+            utf8_list_to_ts_token_list_inner(Divide, u8s, List.append(token_list, Ok(Divide)))
 
         [37, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("%"), u8s, List.append(token_list, Ok(Operator("%"))))
+            utf8_list_to_ts_token_list_inner(Modulus, u8s, List.append(token_list, Ok(Modulus)))
 
         [33, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Operator("!"), u8s, List.append(token_list, Ok(Operator("!"))))
+            utf8_list_to_ts_token_list_inner(LogicalNegate, u8s, List.append(token_list, Ok(LogicalNegate)))
 
         [62, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(GreaterThan, u8s, List.append(token_list, Ok(GreaterThan)))
