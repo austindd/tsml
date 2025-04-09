@@ -7,62 +7,191 @@ module [
 ]
 
 TsToken : [
-    Start,
-    Space,
-    Tab,
-    Newline,
-    StrLit Str,
-    NumLit Str,
-    Ident Str,
-    Keyword Str,
-    # Operators
-    Operator Str,
-    TripleEqual,
-    NotTripleEqual,
-    DoubleEqual,
-    NotDoubleEqual,
-    GreaterThan,
-    LessThan,
-    GreaterThanOrEqual,
-    LessThanOrEqual,
-    Equal,
-    QuestionMark,
-    Plus,
-    Minus,
-    LogicalAnd,
-    LogicalOr,
-    PlusPlus,
-    MinusMinus,
-    Multiply,
-    Divide,
-    Modulus,
-    LogicalNegate,
-    BitwiseAnd,
-    BitwiseOr,
-    BitwiseXor,
-    BitwiseNot,
-    LeftShift,
-    SignedRightShift,
-    UnsignedRightShift,
-    # Punctuation
-    Punctuation Str,
-    OpenParen,
-    CloseParen,
-    OpenCurlyBracket,
-    CloseCurlyBracket,
-    OpenSquareBracket,
-    CloseSquareBracket,
-    Semicolon,
-    Comma,
-    Period,
-    Colon,
-    # Other
-    Comment Str,
-    TemplateLitPart Str,
-    TemplateLitEnd Str,
-    InterpolationPart,
-    FunctionArrow,
+    Start, # Not used for AST. Just marking the start of the token stream.
     Unknown,
+    EndOfFileToken,
+    SingleLineCommentTrivia,
+    MultiLineCommentTrivia,
+    NewLineTrivia,
+    WhitespaceTrivia,
+    ShebangTrivia,
+    ConflictMarkerTrivia,
+    NonTextFileMarkerTrivia,
+    # Literals
+    NumericLiteral Str,
+    BigIntLiteral Str,
+    StringLiteral Str,
+    JsxText Str,
+    JsxTextAllWhiteSpaces Str,
+    RegularExpressionLiteral Str,
+    NoSubstitutionTemplateLiteral Str,
+    # Pseudo-literals
+    TemplateHead,
+    TemplateMiddle,
+    TemplateTail,
+    # Punctuation
+    OpenBraceToken,
+    CloseBraceToken,
+    OpenParenToken,
+    CloseParenToken,
+    OpenBracketToken,
+    CloseBracketToken,
+    DotToken,
+    DotDotDotToken,
+    SemicolonToken,
+    CommaToken,
+    QuestionDotToken,
+    LessThanToken,
+    LessThanSlashToken,
+    GreaterThanToken,
+    LessThanEqualsToken,
+    GreaterThanEqualsToken,
+    EqualsEqualsToken,
+    ExclamationEqualsToken,
+    EqualsEqualsEqualsToken,
+    ExclamationEqualsEqualsToken,
+    EqualsGreaterThanToken,
+    PlusToken,
+    MinusToken,
+    AsteriskToken,
+    AsteriskAsteriskToken,
+    SlashToken,
+    PercentToken,
+    PlusPlusToken,
+    MinusMinusToken,
+    LessThanLessThanToken,
+    GreaterThanGreaterThanToken,
+    GreaterThanGreaterThanGreaterThanToken,
+    AmpersandToken,
+    BarToken,
+    CaretToken,
+    ExclamationToken,
+    TildeToken,
+    AmpersandAmpersandToken,
+    BarBarToken,
+    QuestionToken,
+    ColonToken,
+    AtToken,
+    QuestionQuestionToken,
+    #
+    # /** Only the JSDoc scanner produces BacktickToken. The normal scanner produces NoSubstitutionTemplateLiteral and related kinds. */
+    BacktickToken,
+    # /** Only the JSDoc scanner produces HashToken. The normal scanner produces PrivateIdentifier. */
+    HashToken,
+    #
+    # Assignments
+    EqualsToken,
+    PlusEqualsToken,
+    MinusEqualsToken,
+    AsteriskEqualsToken,
+    AsteriskAsteriskEqualsToken,
+    SlashEqualsToken,
+    PercentEqualsToken,
+    LessThanLessThanEqualsToken,
+    GreaterThanGreaterThanEqualsToken,
+    GreaterThanGreaterThanGreaterThanEqualsToken,
+    AmpersandEqualsToken,
+    BarEqualsToken,
+    BarBarEqualsToken,
+    AmpersandAmpersandEqualsToken,
+    QuestionQuestionEqualsToken,
+    CaretEqualsToken,
+    # Identifiers and PrivateIdentifiers
+    Identifier Str,
+    PrivateIdentifier Str,
+    #
+    # /**
+    # * Only the special JSDoc comment text scanner produces JSDocCommentTextTokes. One of these tokens spans all text after a tag comment's start and before the next @
+    # * @internal
+    # */
+    # JSDocCommentTextToken,
+    #
+    # Reserved words
+    BreakKeyword,
+    CaseKeyword,
+    CatchKeyword,
+    ClassKeyword,
+    ConstKeyword,
+    ContinueKeyword,
+    DebuggerKeyword,
+    DefaultKeyword,
+    DeleteKeyword,
+    DoKeyword,
+    ElseKeyword,
+    EnumKeyword,
+    ExportKeyword,
+    ExtendsKeyword,
+    FalseKeyword,
+    FinallyKeyword,
+    ForKeyword,
+    FunctionKeyword,
+    IfKeyword,
+    ImportKeyword,
+    InKeyword,
+    InstanceOfKeyword,
+    NewKeyword,
+    NullKeyword,
+    ReturnKeyword,
+    SuperKeyword,
+    SwitchKeyword,
+    ThisKeyword,
+    ThrowKeyword,
+    TrueKeyword,
+    TryKeyword,
+    TypeOfKeyword,
+    VarKeyword,
+    VoidKeyword,
+    WhileKeyword,
+    WithKeyword,
+    # Strict mode reserved words
+    ImplementsKeyword,
+    InterfaceKeyword,
+    LetKeyword,
+    PackageKeyword,
+    PrivateKeyword,
+    ProtectedKeyword,
+    PublicKeyword,
+    StaticKeyword,
+    YieldKeyword,
+    # Contextual keywords
+    AbstractKeyword,
+    AccessorKeyword,
+    AsKeyword,
+    AssertsKeyword,
+    AssertKeyword,
+    AnyKeyword,
+    AsyncKeyword,
+    AwaitKeyword,
+    BooleanKeyword,
+    ConstructorKeyword,
+    DeclareKeyword,
+    GetKeyword,
+    InferKeyword,
+    IntrinsicKeyword,
+    IsKeyword,
+    KeyOfKeyword,
+    ModuleKeyword,
+    NamespaceKeyword,
+    NeverKeyword,
+    OutKeyword,
+    ReadonlyKeyword,
+    RequireKeyword,
+    NumberKeyword,
+    ObjectKeyword,
+    SatisfiesKeyword,
+    SetKeyword,
+    StringKeyword,
+    SymbolKeyword,
+    TypeKeyword,
+    UndefinedKeyword,
+    UniqueKeyword,
+    UnknownKeyword,
+    UsingKeyword,
+    FromKeyword,
+    GlobalKeyword,
+    BigIntKeyword,
+    OverrideKeyword,
+    OfKeyword, # LastKeyword and LastToken and LastContextualKeyword
 ]
 
 TsTokenResult : [
@@ -73,62 +202,191 @@ TsTokenResult : [
 ts_token_debug_display : TsToken -> Str
 ts_token_debug_display = |token|
     when token is
-        Start -> "$$__Start__$$"
-        Space -> "Space"
-        Tab -> "Tab"
-        Newline -> "Newline"
-        StrLit(str) -> "StrLit(${str})"
-        NumLit(str) -> "NumLit(${str})"
-        Ident(str) -> "Ident(${str})"
-        Keyword(str) -> "Keyword(${str})"
-        # Operators
-        Operator(str) -> "Operator(${str})"
-        TripleEqual -> "TripleEqual"
-        NotTripleEqual -> "NotTripleEqual"
-        DoubleEqual -> "DoubleEqual"
-        NotDoubleEqual -> "NotDoubleEqual"
-        GreaterThan -> "GreaterThan"
-        LessThan -> "LessThan"
-        GreaterThanOrEqual -> "GreaterThanOrEqual"
-        LessThanOrEqual -> "LessThanOrEqual"
-        Equal -> "Equal"
-        QuestionMark -> "QuestionMark"
-        Plus -> "Plus"
-        Minus -> "Minus"
-        Multiply -> "Multiply"
-        Divide -> "Divide"
-        Modulus -> "Modulus"
-        LogicalNegate -> "LogicalNegate"
-        LogicalAnd -> "LogicalAnd"
-        LogicalOr -> "LogicalOr"
-        PlusPlus -> "PlusPlus"
-        MinusMinus -> "MinusMinus"
-        BitwiseAnd -> "BitwiseAnd"
-        BitwiseOr -> "BitwiseOr"
-        BitwiseXor -> "BitwiseXor"
-        BitwiseNot -> "BitwiseNot"
-        LeftShift -> "LeftShift"
-        SignedRightShift -> "SignedRightShift"
-        UnsignedRightShift -> "UnsignedRightShift"
+        Start -> "Start"
+        Unknown -> "Unknown"
+        EndOfFileToken -> "EndOfFileToken"
+        SingleLineCommentTrivia -> "SingleLineCommentTrivia"
+        MultiLineCommentTrivia -> "MultiLineCommentTrivia"
+        NewLineTrivia -> "NewLineTrivia"
+        WhitespaceTrivia -> "WhitespaceTrivia"
+        ShebangTrivia -> "ShebangTrivia"
+        ConflictMarkerTrivia -> "ConflictMarkerTrivia"
+        NonTextFileMarkerTrivia -> "NonTextFileMarkerTrivia"
+        # Literals
+        NumericLiteral(str) -> "NumericLiteral(${str})"
+        BigIntLiteral(str) -> "BigIntLiteral(${str})"
+        StringLiteral(str) -> "StringLiteral(${str})"
+        JsxText(str) -> "JsxText(${str})"
+        JsxTextAllWhiteSpaces(str) -> "JsxTextAllWhiteSpaces(${str})"
+        RegularExpressionLiteral(str) -> "RegularExpressionLiteral(${str})"
+        NoSubstitutionTemplateLiteral(str) -> "NoSubstitutionTemplateLiteral(${str})"
+        # Pseudo-literals
+        TemplateHead(str) -> "TemplateHead(${str})"
+        TemplateMiddle(str) -> "TemplateMiddle(${str})"
+        TemplateTail(str) -> "TemplateTail(${str})"
         # Punctuation
-        Punctuation(str) -> "Punctuation(${str})"
-        OpenParen -> "OpenParen"
-        CloseParen -> "CloseParen"
-        OpenCurlyBracket -> "OpenCurlyBracket"
-        CloseCurlyBracket -> "CloseCurlyBracket"
-        OpenSquareBracket -> "OpenSquareBracket"
-        CloseSquareBracket -> "CloseSquareBracket"
-        Semicolon -> "Semicolon"
-        Comma -> "Comma"
-        Period -> "Period"
-        Colon -> "Colon"
-        # Other
-        Comment(str) -> "Comment(${str})"
-        TemplateLitPart(str) -> "TemplateLitPart(${str})"
-        TemplateLitEnd(str) -> "TemplateLitEnd(${str})"
-        InterpolationPart -> "InterpolationPart"
-        FunctionArrow -> "FunctionArrow"
-        Unknown -> "$$__Unknown__$$"
+        OpenBraceToken -> "OpenBraceToken"
+        CloseBraceToken -> "CloseBraceToken"
+        OpenParenToken -> "OpenParenToken"
+        CloseParenToken -> "CloseParenToken"
+        OpenBracketToken -> "OpenBracketToken"
+        CloseBracketToken -> "CloseBracketToken"
+        DotToken -> "DotToken"
+        DotDotDotToken -> "DotDotDotToken"
+        SemicolonToken -> "SemicolonToken"
+        CommaToken -> "CommaToken"
+        QuestionDotToken -> "QuestionDotToken"
+        LessThanToken -> "LessThanToken"
+        LessThanSlashToken -> "LessThanSlashToken"
+        GreaterThanToken -> "GreaterThanToken"
+        LessThanEqualsToken -> "LessThanEqualsToken"
+        GreaterThanEqualsToken -> "GreaterThanEqualsToken"
+        EqualsEqualsToken -> "EqualsEqualsToken"
+        ExclamationEqualsToken -> "ExclamationEqualsToken"
+        EqualsEqualsEqualsToken -> "EqualsEqualsEqualsToken"
+        ExclamationEqualsEqualsToken -> "ExclamationEqualsEqualsToken"
+        EqualsGreaterThanToken -> "EqualsGreaterThanToken"
+        PlusToken -> "PlusToken"
+        MinusToken -> "MinusToken"
+        AsteriskToken -> "AsteriskToken"
+        AsteriskAsteriskToken -> "AsteriskAsteriskToken"
+        SlashToken -> "SlashToken"
+        PercentToken -> "PercentToken"
+        PlusPlusToken -> "PlusPlusToken"
+        MinusMinusToken -> "MinusMinusToken"
+        LessThanLessThanToken -> "LessThanLessThanToken"
+        GreaterThanGreaterThanToken -> "GreaterThanGreaterThanToken"
+        GreaterThanGreaterThanGreaterThanToken -> "GreaterThanGreaterThanGreaterThanToken"
+        AmpersandToken -> "AmpersandToken"
+        BarToken -> "BarToken"
+        CaretToken -> "CaretToken"
+        ExclamationToken -> "ExclamationToken"
+        TildeToken -> "TildeToken"
+        AmpersandAmpersandToken -> "AmpersandAmpersandToken"
+        BarBarToken -> "BarBarToken"
+        QuestionToken -> "QuestionToken"
+        ColonToken -> "ColonToken"
+        AtToken -> "AtToken"
+        QuestionQuestionToken -> "QuestionQuestionToken"
+        #
+        # /** Only the JSDoc scanner produces BacktickToken. The normal scanner produces NoSubstitutionTemplateLiteral and related kinds. */
+        BacktickToken -> "BacktickToken"
+        # /** Only the JSDoc scanner produces HashToken. The normal scanner produces PrivateIdentifier. */
+        HashToken -> "HashToken"
+        #
+        # Assignments
+        EqualsToken -> "EqualsToken"
+        PlusEqualsToken -> "PlusEqualsToken"
+        MinusEqualsToken -> "MinusEqualsToken"
+        AsteriskEqualsToken -> "AsteriskEqualsToken"
+        AsteriskAsteriskEqualsToken -> "AsteriskAsteriskEqualsToken"
+        SlashEqualsToken -> "SlashEqualsToken"
+        PercentEqualsToken -> "PercentEqualsToken"
+        LessThanLessThanEqualsToken -> "LessThanLessThanEqualsToken"
+        GreaterThanGreaterThanEqualsToken -> "GreaterThanGreaterThanEqualsToken"
+        GreaterThanGreaterThanGreaterThanEqualsToken -> "GreaterThanGreaterThanGreaterThanEqualsToken"
+        AmpersandEqualsToken -> "AmpersandEqualsToken"
+        BarEqualsToken -> "BarEqualsToken"
+        BarBarEqualsToken -> "BarBarEqualsToken"
+        AmpersandAmpersandEqualsToken -> "AmpersandAmpersandEqualsToken"
+        QuestionQuestionEqualsToken -> "QuestionQuestionEqualsToken"
+        CaretEqualsToken -> "CaretEqualsToken"
+        # Identifiers and PrivateIdentifiers
+        Identifier Str -> "Identifier"
+        PrivateIdentifier Str -> "PrivateIdentifier"
+        #
+        # /**
+        # * Only the special JSDoc comment text scanner produces JSDocCommentTextTokes. One of these tokens spans all text after a tag comment's start and before the next @
+        # * @internal
+        # */
+        # JSDocCommentTextToken ->
+        #
+        # Reserved words
+        BreakKeyword -> "BreakKeyword"
+        CaseKeyword -> "CaseKeyword"
+        CatchKeyword -> "CatchKeyword"
+        ClassKeyword -> "ClassKeyword"
+        ConstKeyword -> "ConstKeyword"
+        ContinueKeyword -> "ContinueKeyword"
+        DebuggerKeyword -> "DebuggerKeyword"
+        DefaultKeyword -> "DefaultKeyword"
+        DeleteKeyword -> "DeleteKeyword"
+        DoKeyword -> "DoKeyword"
+        ElseKeyword -> "ElseKeyword"
+        EnumKeyword -> "EnumKeyword"
+        ExportKeyword -> "ExportKeyword"
+        ExtendsKeyword -> "ExtendsKeyword"
+        FalseKeyword -> "FalseKeyword"
+        FinallyKeyword -> "FinallyKeyword"
+        ForKeyword -> "ForKeyword"
+        FunctionKeyword -> "FunctionKeyword"
+        IfKeyword -> "IfKeyword"
+        ImportKeyword -> "ImportKeyword"
+        InKeyword -> "InKeyword"
+        InstanceOfKeyword -> "InstanceOfKeyword"
+        NewKeyword -> "NewKeyword"
+        NullKeyword -> "NullKeyword"
+        ReturnKeyword -> "ReturnKeyword"
+        SuperKeyword -> "SuperKeyword"
+        SwitchKeyword -> "SwitchKeyword"
+        ThisKeyword -> "ThisKeyword"
+        ThrowKeyword -> "ThrowKeyword"
+        TrueKeyword -> "TrueKeyword"
+        TryKeyword -> "TryKeyword"
+        TypeOfKeyword -> "TypeOfKeyword"
+        VarKeyword -> "VarKeyword"
+        VoidKeyword -> "VoidKeyword"
+        WhileKeyword -> "WhileKeyword"
+        WithKeyword -> "WithKeyword"
+        # Strict mode reserved words
+        ImplementsKeyword -> "ImplementsKeyword"
+        InterfaceKeyword -> "InterfaceKeyword"
+        LetKeyword -> "LetKeyword"
+        PackageKeyword -> "PackageKeyword"
+        PrivateKeyword -> "PrivateKeyword"
+        ProtectedKeyword -> "ProtectedKeyword"
+        PublicKeyword -> "PublicKeyword"
+        StaticKeyword -> "StaticKeyword"
+        YieldKeyword -> "YieldKeyword"
+        # Contextual keywords
+        AbstractKeyword -> "AbstractKeyword"
+        AccessorKeyword -> "AccessorKeyword"
+        AsKeyword -> "AsKeyword"
+        AssertsKeyword -> "AssertsKeyword"
+        AssertKeyword -> "AssertKeyword"
+        AnyKeyword -> "AnyKeyword"
+        AsyncKeyword -> "AsyncKeyword"
+        AwaitKeyword -> "AwaitKeyword"
+        BooleanKeyword -> "BooleanKeyword"
+        ConstructorKeyword -> "ConstructorKeyword"
+        DeclareKeyword -> "DeclareKeyword"
+        GetKeyword -> "GetKeyword"
+        InferKeyword -> "InferKeyword"
+        IntrinsicKeyword -> "IntrinsicKeyword"
+        IsKeyword -> "IsKeyword"
+        KeyOfKeyword -> "KeyOfKeyword"
+        ModuleKeyword -> "ModuleKeyword"
+        NamespaceKeyword -> "NamespaceKeyword"
+        NeverKeyword -> "NeverKeyword"
+        OutKeyword -> "OutKeyword"
+        ReadonlyKeyword -> "ReadonlyKeyword"
+        RequireKeyword -> "RequireKeyword"
+        NumberKeyword -> "NumberKeyword"
+        ObjectKeyword -> "ObjectKeyword"
+        SatisfiesKeyword -> "SatisfiesKeyword"
+        SetKeyword -> "SetKeyword"
+        StringKeyword -> "StringKeyword"
+        SymbolKeyword -> "SymbolKeyword"
+        TypeKeyword -> "TypeKeyword"
+        UndefinedKeyword -> "UndefinedKeyword"
+        UniqueKeyword -> "UniqueKeyword"
+        UnknownKeyword -> "UnknownKeyword"
+        UsingKeyword -> "UsingKeyword"
+        FromKeyword -> "FromKeyword"
+        GlobalKeyword -> "GlobalKeyword"
+        BigIntKeyword -> "BigIntKeyword"
+        OverrideKeyword -> "OverrideKeyword"
+        OfKeyword -> "OfKeyword"
 
 EcmaWhitespace : [Space, Tab, Newline, LineTabulation, FormFeed, ZeroWidthNoBreakSpace]
 EcmaAlpha : [Alpha (List U8)]
@@ -145,167 +403,167 @@ utf8_list_to_ts_token_list = |u8_list_|
 
 # Main recursive tokenizer function with accumulator
 utf8_list_to_ts_token_list_inner : TsToken, List U8, List TsTokenResult -> List TsTokenResult
-utf8_list_to_ts_token_list_inner = |prev_token, u8_list, token_list|
+utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_token often not needed in this style
     when u8_list is
-        # Whitespace
-        [32, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Space, u8s, List.append(token_list, Ok(Space)))
+        # --- End of File ---
+        [] -> List.append(token_list, Ok(EndOfFileToken))
+        # --- Trivia: Newlines and Whitespace ---
+        [10, .. as u8s] -> # \n
+            utf8_list_to_ts_token_list_inner(NewLineTrivia, u8s, List.append(token_list, Ok(NewLineTrivia)))
 
-        [9, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Tab, u8s, List.append(token_list, Ok(Tab)))
+        [13, 10, .. as u8s] -> # \r\n
+            utf8_list_to_ts_token_list_inner(NewLineTrivia, u8s, List.append(token_list, Ok(NewLineTrivia)))
 
-        [10, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Newline, u8s, List.append(token_list, Ok(Newline)))
+        [u8, .. as u8s] if u8 == 32 or u8 == 9 or u8 == 11 or u8 == 12 -> # Space, Tab, VT, FF
+            # Consume all contiguous whitespace
+            consume_whitespace = |bytes|
+                when bytes is
+                    [b, .. as rest] if b == 32 or b == 9 or b == 11 or b == 12 -> consume_whitespace(rest)
+                    # Check for non-breaking space (U+00A0 = C2 A0) - Optional
+                    [194, 160, .. as rest] -> consume_whitespace(rest)
+                    _ -> bytes
+            rest_after_whitespace = consume_whitespace(u8s)
+            utf8_list_to_ts_token_list_inner(WhitespaceTrivia, rest_after_whitespace, List.append(token_list, Ok(WhitespaceTrivia)))
 
-        [13, 10, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Newline, u8s, List.append(token_list, Ok(Newline)))
+        # --- Trivia: Comments ---
+        [47, 47, .. as u8s_after_slash_slash] -> # // Single Line Comment
+            # Assume process_line_comment consumes until newline and returns the rest
+            { token: comment_token_res, rest: rest_after_comment } = process_line_comment(u8s_after_slash_slash)
+            utf8_list_to_ts_token_list_inner(SingleLineCommentTrivia, rest_after_comment, List.append(token_list, comment_token_res)) # Should return Ok(SingleLineCommentTrivia)
 
-        # String literals
-        [34, .. as u8s] ->
-            process_string_literal(u8s, "\"", [], token_list)
+        [47, 42, .. as u8s_after_slash_star] -> # /* Multi Line Comment */
+            # Assume process_block_comment consumes until */ and returns the rest
+            { token: comment_token_res, rest: rest_after_comment } = process_block_comment(u8s_after_slash_star)
+            utf8_list_to_ts_token_list_inner(MultiLineCommentTrivia, rest_after_comment, List.append(token_list, comment_token_res)) # Should return Ok(MultiLineCommentTrivia)
+        # --- Literals ---
 
-        [39, .. as u8s] ->
-            process_string_literal(u8s, "'", [], token_list)
+        [34, .. as u8s_after_quote] -> # " String Literal
+            { token: str_token_res, rest: rest_after_str } = process_string_literal(u8s_after_quote, 34) # Pass quote char
+            utf8_list_to_ts_token_list_inner(StringLiteral(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
 
-        [96, .. as u8s] ->
-            process_template_literal(u8s, [], token_list)
+        [39, .. as u8s_after_quote] -> # ' String Literal
+            { token: str_token_res, rest: rest_after_str } = process_string_literal(u8s_after_quote, 39) # Pass quote char
+            utf8_list_to_ts_token_list_inner(StringLiteral(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
 
-        # Numeric literals
-        [u8, .. as u8s] if is_digit(u8) ->
-            process_numeric_literal(u8, u8s, token_list)
+        [96, .. as u8s_after_backtick] -> # ` Template Literal
+            { token: template_token_res, rest: rest_after_template } = process_template_literal(u8s_after_backtick)
+            # prev_token needs to be the actual token variant here
+            current_token =
+                when template_token_res is
+                    Ok(tok) -> tok
+                    Err(_) -> Unknown # Or handle error appropriately
+            utf8_list_to_ts_token_list_inner(current_token, rest_after_template, List.append(token_list, template_token_res))
 
-        # Comments
-        [47, 47, .. as u8s] ->
-            process_line_comment(u8s, [], token_list)
+        # --- Punctuation and Operators (Longest First) ---
+        [46, 46, 46, .. as u8s] -> utf8_list_to_ts_token_list_inner(DotDotDotToken, u8s, List.append(token_list, Ok(DotDotDotToken)))
+        [63, 46, .. as u8s] -> utf8_list_to_ts_token_list_inner(QuestionDotToken, u8s, List.append(token_list, Ok(QuestionDotToken)))
+        [42, 42, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(AsteriskAsteriskEqualsToken, u8s, List.append(token_list, Ok(AsteriskAsteriskEqualsToken)))
+        [42, 42, .. as u8s] -> utf8_list_to_ts_token_list_inner(AsteriskAsteriskToken, u8s, List.append(token_list, Ok(AsteriskAsteriskToken)))
+        [61, 61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(EqualsEqualsEqualsToken, u8s, List.append(token_list, Ok(EqualsEqualsEqualsToken)))
+        [33, 61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(ExclamationEqualsEqualsToken, u8s, List.append(token_list, Ok(ExclamationEqualsEqualsToken)))
+        [61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(EqualsEqualsToken, u8s, List.append(token_list, Ok(EqualsEqualsToken)))
+        [33, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(ExclamationEqualsToken, u8s, List.append(token_list, Ok(ExclamationEqualsToken)))
+        [61, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(EqualsGreaterThanToken, u8s, List.append(token_list, Ok(EqualsGreaterThanToken)))
+        [43, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(PlusEqualsToken, u8s, List.append(token_list, Ok(PlusEqualsToken)))
+        [45, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(MinusEqualsToken, u8s, List.append(token_list, Ok(MinusEqualsToken)))
+        [42, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(AsteriskEqualsToken, u8s, List.append(token_list, Ok(AsteriskEqualsToken)))
+        [47, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(SlashEqualsToken, u8s, List.append(token_list, Ok(SlashEqualsToken)))
+        [37, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(PercentEqualsToken, u8s, List.append(token_list, Ok(PercentEqualsToken)))
+        [60, 60, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanLessThanEqualsToken, u8s, List.append(token_list, Ok(LessThanLessThanEqualsToken)))
+        [62, 62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanGreaterThanEqualsToken, u8s, List.append(token_list, Ok(GreaterThanGreaterThanEqualsToken)))
+        [62, 62, 62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanGreaterThanGreaterThanEqualsToken, u8s, List.append(token_list, Ok(GreaterThanGreaterThanGreaterThanEqualsToken)))
+        [38, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(AmpersandEqualsToken, u8s, List.append(token_list, Ok(AmpersandEqualsToken)))
+        [124, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(BarEqualsToken, u8s, List.append(token_list, Ok(BarEqualsToken)))
+        [94, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(CaretEqualsToken, u8s, List.append(token_list, Ok(CaretEqualsToken)))
+        [38, 38, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(AmpersandAmpersandEqualsToken, u8s, List.append(token_list, Ok(AmpersandAmpersandEqualsToken)))
+        [124, 124, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(BarBarEqualsToken, u8s, List.append(token_list, Ok(BarBarEqualsToken)))
+        [63, 63, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(QuestionQuestionEqualsToken, u8s, List.append(token_list, Ok(QuestionQuestionEqualsToken)))
+        [60, 60, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanLessThanToken, u8s, List.append(token_list, Ok(LessThanLessThanToken)))
+        [62, 62, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanGreaterThanGreaterThanToken, u8s, List.append(token_list, Ok(GreaterThanGreaterThanGreaterThanToken)))
+        [62, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanGreaterThanToken, u8s, List.append(token_list, Ok(GreaterThanGreaterThanToken)))
+        [60, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanEqualsToken, u8s, List.append(token_list, Ok(LessThanEqualsToken)))
+        [62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanEqualsToken, u8s, List.append(token_list, Ok(GreaterThanEqualsToken)))
+        [38, 38, .. as u8s] -> utf8_list_to_ts_token_list_inner(AmpersandAmpersandToken, u8s, List.append(token_list, Ok(AmpersandAmpersandToken)))
+        [124, 124, .. as u8s] -> utf8_list_to_ts_token_list_inner(BarBarToken, u8s, List.append(token_list, Ok(BarBarToken)))
+        [63, 63, .. as u8s] -> utf8_list_to_ts_token_list_inner(QuestionQuestionToken, u8s, List.append(token_list, Ok(QuestionQuestionToken)))
+        [43, 43, .. as u8s] -> utf8_list_to_ts_token_list_inner(PlusPlusToken, u8s, List.append(token_list, Ok(PlusPlusToken)))
+        [45, 45, .. as u8s] -> utf8_list_to_ts_token_list_inner(MinusMinusToken, u8s, List.append(token_list, Ok(MinusMinusToken)))
+        [60, 47, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanSlashToken, u8s, List.append(token_list, Ok(LessThanSlashToken))) # For JSX
+        # --- Single Character Punctuation and Operators ---
+        [123, .. as u8s] -> utf8_list_to_ts_token_list_inner(OpenBraceToken, u8s, List.append(token_list, Ok(OpenBraceToken)))
+        [125, .. as u8s] -> utf8_list_to_ts_token_list_inner(CloseBraceToken, u8s, List.append(token_list, Ok(CloseBraceToken)))
+        [40, .. as u8s] -> utf8_list_to_ts_token_list_inner(OpenParenToken, u8s, List.append(token_list, Ok(OpenParenToken)))
+        [41, .. as u8s] -> utf8_list_to_ts_token_list_inner(CloseParenToken, u8s, List.append(token_list, Ok(CloseParenToken)))
+        [91, .. as u8s] -> utf8_list_to_ts_token_list_inner(OpenBracketToken, u8s, List.append(token_list, Ok(OpenBracketToken)))
+        [93, .. as u8s] -> utf8_list_to_ts_token_list_inner(CloseBracketToken, u8s, List.append(token_list, Ok(CloseBracketToken)))
+        [46, .. as u8s] -> utf8_list_to_ts_token_list_inner(DotToken, u8s, List.append(token_list, Ok(DotToken)))
+        [59, .. as u8s] -> utf8_list_to_ts_token_list_inner(SemicolonToken, u8s, List.append(token_list, Ok(SemicolonToken)))
+        [44, .. as u8s] -> utf8_list_to_ts_token_list_inner(CommaToken, u8s, List.append(token_list, Ok(CommaToken)))
+        [60, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanToken, u8s, List.append(token_list, Ok(LessThanToken)))
+        [62, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanToken, u8s, List.append(token_list, Ok(GreaterThanToken)))
+        [61, .. as u8s] -> utf8_list_to_ts_token_list_inner(EqualsToken, u8s, List.append(token_list, Ok(EqualsToken)))
+        [43, .. as u8s] -> utf8_list_to_ts_token_list_inner(PlusToken, u8s, List.append(token_list, Ok(PlusToken)))
+        [45, .. as u8s] -> utf8_list_to_ts_token_list_inner(MinusToken, u8s, List.append(token_list, Ok(MinusToken)))
+        [42, .. as u8s] -> utf8_list_to_ts_token_list_inner(AsteriskToken, u8s, List.append(token_list, Ok(AsteriskToken)))
+        [47, .. as u8s] -> utf8_list_to_ts_token_list_inner(SlashToken, u8s, List.append(token_list, Ok(SlashToken))) # Needs context for Regex
+        [37, .. as u8s] -> utf8_list_to_ts_token_list_inner(PercentToken, u8s, List.append(token_list, Ok(PercentToken)))
+        [38, .. as u8s] -> utf8_list_to_ts_token_list_inner(AmpersandToken, u8s, List.append(token_list, Ok(AmpersandToken)))
+        [124, .. as u8s] -> utf8_list_to_ts_token_list_inner(BarToken, u8s, List.append(token_list, Ok(BarToken)))
+        [94, .. as u8s] -> utf8_list_to_ts_token_list_inner(CaretToken, u8s, List.append(token_list, Ok(CaretToken)))
+        [33, .. as u8s] -> utf8_list_to_ts_token_list_inner(ExclamationToken, u8s, List.append(token_list, Ok(ExclamationToken)))
+        [126, .. as u8s] -> utf8_list_to_ts_token_list_inner(TildeToken, u8s, List.append(token_list, Ok(TildeToken)))
+        [63, .. as u8s] -> utf8_list_to_ts_token_list_inner(QuestionToken, u8s, List.append(token_list, Ok(QuestionToken)))
+        [58, .. as u8s] -> utf8_list_to_ts_token_list_inner(ColonToken, u8s, List.append(token_list, Ok(ColonToken)))
+        [64, .. as u8s] -> utf8_list_to_ts_token_list_inner(AtToken, u8s, List.append(token_list, Ok(AtToken)))
+        # Backtick and Hash are primarily JSDoc or handled differently (template literal start, private identifier start)
+        # [96, .. as u8s] -> ... handled by template literal case ...
+        # [35, .. as u8s] -> ... handled by identifier case ...
+        # --- Numeric Literal ---
+        [u8, .. as ignored] if is_digit(u8) ->
+            { token: num_token_res, rest: rest_after_num } = process_numeric_literal(u8_list)
+            current_token =
+                when num_token_res is
+                    # Get token for prev_token arg
+                    Ok(tok) -> tok
+                    Err(_) -> Unknown
+            utf8_list_to_ts_token_list_inner(current_token, rest_after_num, List.append(token_list, num_token_res))
 
-        [47, 42, .. as u8s] ->
-            process_block_comment(u8s, [], Bool.false, token_list)
+        # --- Identifier or Keyword or PrivateIdentifier ---
+        # Check for # first for PrivateIdentifier
+        [35, .. as u8s_after_hash] ->
+            # Assuming process_identifier handles the # prefix case
+            { token: ident_token_res, rest: rest_after_ident } = process_identifier(u8_list)
+            current_token =
+                when ident_token_res is
+                    Ok(tok) -> tok
+                    Err(_) -> Unknown
+            utf8_list_to_ts_token_list_inner(current_token, rest_after_ident, List.append(token_list, ident_token_res))
 
-        # Operators and punctuation - multi-character operators first
-        [61, 61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(TripleEqual, u8s, List.append(token_list, Ok(TripleEqual)))
+        [u8, .. as ignored] if is_identifier_start(u8) ->
+            { token: ident_token_res, rest: rest_after_ident } = process_identifier(u8_list)
+            current_token =
+                when ident_token_res is
+                    Ok(tok) -> tok
+                    Err(_) -> Unknown
+            utf8_list_to_ts_token_list_inner(current_token, rest_after_ident, List.append(token_list, ident_token_res))
 
-        [33, 61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(NotTripleEqual, u8s, List.append(token_list, Ok(NotTripleEqual)))
+        # --- Other Trivia ---
+        [35, 33, .. as u8s_after_shebang] -> # Shebang #!
+            # Consume until newline or EOF
+            consume_shebang = |bytes|
+                when bytes is
+                    [10, .. as rest] -> rest # Stop at \n
+                    [13, 10, .. as rest] -> rest # Stop at \r\n
+                    [_, .. as rest] -> consume_shebang(rest)
+                    [] -> []
+            rest_after_shebang = consume_shebang(u8s_after_shebang)
+            utf8_list_to_ts_token_list_inner(ShebangTrivia, rest_after_shebang, List.append(token_list, Ok(ShebangTrivia)))
 
-        [61, 62, .. as u8s] -> # => (Function Arrow)
-            utf8_list_to_ts_token_list_inner(FunctionArrow, u8s, List.append(token_list, Ok(FunctionArrow)))
-
-        [61, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(DoubleEqual, u8s, List.append(token_list, Ok(DoubleEqual)))
-
-        [33, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(NotDoubleEqual, u8s, List.append(token_list, Ok(NotDoubleEqual)))
-
-        [62, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(GreaterThanOrEqual, u8s, List.append(token_list, Ok(GreaterThanOrEqual)))
-
-        [60, 61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(LessThanOrEqual, u8s, List.append(token_list, Ok(LessThanOrEqual)))
-
-        [38, 38, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(LogicalAnd, u8s, List.append(token_list, Ok(LogicalAnd)))
-
-        [124, 124, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(LogicalOr, u8s, List.append(token_list, Ok(LogicalOr)))
-
-        [43, 43, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(PlusPlus, u8s, List.append(token_list, Ok(PlusPlus)))
-
-        [45, 45, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(MinusMinus, u8s, List.append(token_list, Ok(MinusMinus)))
-
-        # --- Shift Operators (Must come before single < and >) ---  # <-- ADDED SECTION
-        [62, 62, 62, .. as u8s] -> # >>> (Unsigned Right Shift)
-            utf8_list_to_ts_token_list_inner(UnsignedRightShift, u8s, List.append(token_list, Ok(UnsignedRightShift)))
-
-        [62, 62, .. as u8s] -> # >> (Signed Right Shift)
-            utf8_list_to_ts_token_list_inner(SignedRightShift, u8s, List.append(token_list, Ok(SignedRightShift)))
-
-        [60, 60, .. as u8s] -> # << (Left Shift)
-            utf8_list_to_ts_token_list_inner(LeftShift, u8s, List.append(token_list, Ok(LeftShift)))
-
-        # Single-character operators and punctuation
-        [40, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(OpenParen, u8s, List.append(token_list, Ok(OpenParen)))
-
-        [41, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(CloseParen, u8s, List.append(token_list, Ok(CloseParen)))
-
-        [123, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(OpenCurlyBracket, u8s, List.append(token_list, Ok(OpenCurlyBracket)))
-
-        [125, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(CloseCurlyBracket, u8s, List.append(token_list, Ok(CloseCurlyBracket)))
-
-        [91, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(OpenSquareBracket, u8s, List.append(token_list, Ok(OpenSquareBracket)))
-
-        [93, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(CloseSquareBracket, u8s, List.append(token_list, Ok(CloseSquareBracket)))
-
-        [59, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Semicolon, u8s, List.append(token_list, Ok(Semicolon)))
-
-        [44, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Comma, u8s, List.append(token_list, Ok(Comma)))
-
-        [46, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Period, u8s, List.append(token_list, Ok(Period)))
-
-        [58, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Colon, u8s, List.append(token_list, Ok(Colon)))
-
-        [63, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(QuestionMark, u8s, List.append(token_list, Ok(QuestionMark)))
-
-        [61, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Equal, u8s, List.append(token_list, Ok(Equal)))
-
-        [43, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Plus, u8s, List.append(token_list, Ok(Plus)))
-
-        [45, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Minus, u8s, List.append(token_list, Ok(Minus)))
-
-        [42, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Multiply, u8s, List.append(token_list, Ok(Multiply)))
-
-        [47, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Divide, u8s, List.append(token_list, Ok(Divide)))
-
-        [37, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Modulus, u8s, List.append(token_list, Ok(Modulus)))
-
-        [33, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(LogicalNegate, u8s, List.append(token_list, Ok(LogicalNegate)))
-
-        [62, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(GreaterThan, u8s, List.append(token_list, Ok(GreaterThan)))
-
-        [60, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(LessThan, u8s, List.append(token_list, Ok(LessThan)))
-
-        [38, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(BitwiseAnd, u8s, List.append(token_list, Ok(BitwiseAnd)))
-
-        [124, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(BitwiseOr, u8s, List.append(token_list, Ok(BitwiseOr)))
-
-        [94, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(BitwiseXor, u8s, List.append(token_list, Ok(BitwiseXor)))
-
-        [126, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(BitwiseNot, u8s, List.append(token_list, Ok(BitwiseNot)))
-
-        # Identifiers and keywords
-        [u8, .. as u8s] if is_identifier_start(u8) ->
-            process_identifier(u8, u8s, token_list)
-
-        # End of input or unknown character
-        [] -> token_list
-        [_, .. as u8s] ->
-            utf8_list_to_ts_token_list_inner(Unknown, u8s, List.append(token_list, Err(Unknown)))
+        # ConflictMarkerTrivia and NonTextFileMarkerTrivia are more complex/specific, omitted for brevity here
+        # but would follow similar patterns if needed.
+        # --- Unknown Character ---
+        [_, .. as u8s] -> # Catch-all for unrecognized bytes
+            utf8_list_to_ts_token_list_inner(Unknown, u8s, List.append(token_list, Ok(Unknown)))
 
 process_block_comment : List U8, List U8, Bool, List TsTokenResult -> List TsTokenResult
 process_block_comment = |u8s, acc, star_seen, token_list|
@@ -745,3 +1003,21 @@ keywords = [
     "async",
     "await",
 ]
+
+cc = {
+    slash: 47, asterisk: 42, backslash: 92,
+    lf: 10, cr: 13, space: 32, tab: 9,
+    underscore: 95, dollar: 36,
+    zero: 48, nine: 57,
+    a: 97, z: 122, A: 65, Z: 90,
+    openParen: 40, closeParen: 41,
+    openBrace: 123, closeBrace: 125,
+    openBracket: 91, closeBracket: 93,
+    lessThan: 60, greaterThan: 62, equals: 61,
+    plus: 43, minus: 45, percent: 37,
+    ampersand: 38, bar: 124, caret: 94, tilde: 126,
+    exclamation: 33, question: 63,
+    comma: 44, dot: 46, semicolon: 59, colon: 58,
+    singleQuote: 39, doubleQuote: 34, backtick: 96,
+    hash: 35, at: 64,
+}
