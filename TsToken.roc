@@ -10,13 +10,18 @@ TsToken : [
     Start, # Not used for AST. Just marking the start of the token stream.
     Unknown,
     EndOfFileToken,
-    SingleLineCommentTrivia,
-    MultiLineCommentTrivia,
-    NewLineTrivia,
-    WhitespaceTrivia,
-    ShebangTrivia,
-    ConflictMarkerTrivia,
-    NonTextFileMarkerTrivia,
+    DoubleSlashCommentStart,
+    BlockCommentBlockStart,
+    BlockCommentBlockEnd,
+    BlockCommentLineStart,
+    CommentText,
+    # SingleLineCommentTrivia,
+    # MultiLineCommentTrivia,
+    # NewLineTrivia,
+    # WhitespaceTrivia,
+    # ShebangTrivia,
+    # ConflictMarkerTrivia,
+    # NonTextFileMarkerTrivia,
     # Literals
     NumericLiteral Str,
     BigIntLiteral Str,
@@ -24,11 +29,11 @@ TsToken : [
     JsxText Str,
     JsxTextAllWhiteSpaces Str,
     RegularExpressionLiteral Str,
-    NoSubstitutionTemplateLiteral Str,
-    # Pseudo-literals
-    TemplateHead,
-    TemplateMiddle,
-    TemplateTail,
+    # NoSubstitutionTemplateLiteral Str,
+    # # Pseudo-literals
+    # TemplateHead,
+    # TemplateMiddle,
+    # TemplateTail,
     # Punctuation
     OpenBraceToken,
     CloseBraceToken,
@@ -205,13 +210,19 @@ ts_token_debug_display = |token|
         Start -> "Start"
         Unknown -> "Unknown"
         EndOfFileToken -> "EndOfFileToken"
-        SingleLineCommentTrivia -> "SingleLineCommentTrivia"
-        MultiLineCommentTrivia -> "MultiLineCommentTrivia"
-        NewLineTrivia -> "NewLineTrivia"
-        WhitespaceTrivia -> "WhitespaceTrivia"
-        ShebangTrivia -> "ShebangTrivia"
-        ConflictMarkerTrivia -> "ConflictMarkerTrivia"
-        NonTextFileMarkerTrivia -> "NonTextFileMarkerTrivia"
+        DoubleSlashCommentStart -> "DoubleSlashCommentStart"
+        BlockCommentBlockStart -> "BlockCommentBlockStart"
+        BlockCommentBlockEnd -> "BlockCommentBlockEnd"
+        BlockCommentLineStart -> "BlockCommentLineStart"
+        CommentText -> "SingleLineCommentText"
+        
+        # SingleLineCommentTrivia -> "SingleLineCommentTrivia"
+        # MultiLineCommentTrivia -> "MultiLineCommentTrivia"
+        # NewLineTrivia -> "NewLineTrivia"
+        # WhitespaceTrivia -> "WhitespaceTrivia"
+        # ShebangTrivia -> "ShebangTrivia"
+        # ConflictMarkerTrivia -> "ConflictMarkerTrivia"
+        # NonTextFileMarkerTrivia -> "NonTextFileMarkerTrivia"
         # Literals
         NumericLiteral(str) -> "NumericLiteral(${str})"
         BigIntLiteral(str) -> "BigIntLiteral(${str})"
@@ -219,11 +230,11 @@ ts_token_debug_display = |token|
         JsxText(str) -> "JsxText(${str})"
         JsxTextAllWhiteSpaces(str) -> "JsxTextAllWhiteSpaces(${str})"
         RegularExpressionLiteral(str) -> "RegularExpressionLiteral(${str})"
-        NoSubstitutionTemplateLiteral(str) -> "NoSubstitutionTemplateLiteral(${str})"
-        # Pseudo-literals
-        TemplateHead(str) -> "TemplateHead(${str})"
-        TemplateMiddle(str) -> "TemplateMiddle(${str})"
-        TemplateTail(str) -> "TemplateTail(${str})"
+        # NoSubstitutionTemplateLiteral(str) -> "NoSubstitutionTemplateLiteral(${str})"
+        # # Pseudo-literals
+        # TemplateHead(str) -> "TemplateHead(${str})"
+        # TemplateMiddle(str) -> "TemplateMiddle(${str})"
+        # TemplateTail(str) -> "TemplateTail(${str})"
         # Punctuation
         OpenBraceToken -> "OpenBraceToken"
         CloseBraceToken -> "CloseBraceToken"
@@ -445,14 +456,16 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
             { token: str_token_res, rest: rest_after_str } = process_string_literal(u8s_after_quote, 39) # Pass quote char
             utf8_list_to_ts_token_list_inner(StringLiteral(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
 
-        [96, .. as u8s_after_backtick] -> # ` Template Literal
-            { token: template_token_res, rest: rest_after_template } = process_template_literal(u8s_after_backtick)
-            # prev_token needs to be the actual token variant here
-            current_token =
-                when template_token_res is
-                    Ok(tok) -> tok
-                    Err(_) -> Unknown # Or handle error appropriately
-            utf8_list_to_ts_token_list_inner(current_token, rest_after_template, List.append(token_list, template_token_res))
+        [96, .. as u8s_after_backtick] -> # ` Template Literal (TODO: Fix this. We need to support template literals)
+            { token: str_token_res, rest: rest_after_str } = process_string_literal(u8s_after_backtick, 39) # Pass quote char
+            utf8_list_to_ts_token_list_inner(StringLiteral(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
+            # { token: template_token_res, rest: rest_after_template } = process_template_literal(u8s_after_backtick)
+            # # prev_token needs to be the actual token variant here
+            # current_token =
+            #     when template_token_res is
+            #         Ok(tok) -> tok
+            #         Err(_) -> Unknown # Or handle error appropriately
+            # utf8_list_to_ts_token_list_inner(current_token, rest_after_template, List.append(token_list, template_token_res))
 
         # --- Punctuation and Operators (Longest First) ---
         [46, 46, 46, .. as u8s] -> utf8_list_to_ts_token_list_inner(DotDotDotToken, u8s, List.append(token_list, Ok(DotDotDotToken)))
@@ -879,28 +892,28 @@ process_template_literal = |u8s, acc, token_list|
                     current_token_list,
                 )
 
-            # Handle expression interpolation - ${...}
-            [36, 123, .. as rest] ->
-                str_result = Str.from_utf8(current_acc)
-                when str_result is
-                    Ok(str) ->
-                        template_token = TemplateLitPart(str)
-                        updated_token_list = List.append(current_token_list, Ok(template_token))
-                        # Handle interpolation
-                        process_interpolation_wrapper(rest, 1, updated_token_list)
+            # # Handle expression interpolation - ${...}
+            # [36, 123, .. as rest] ->
+            #     str_result = Str.from_utf8(current_acc)
+            #     when str_result is
+            #         Ok(str) ->
+            #             template_token = TemplateLitPart(str)
+            #             updated_token_list = List.append(current_token_list, Ok(template_token))
+            #             # Handle interpolation
+            #             process_interpolation_wrapper(rest, 1, updated_token_list)
+            #
+            #         Err(_) ->
+            #             utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(current_token_list, Err(Unknown)))
 
-                    Err(_) ->
-                        utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(current_token_list, Err(Unknown)))
-
-            # End of template
-            [96, .. as rest] -> # backtick
-                str_result = Str.from_utf8(current_acc)
-                when str_result is
-                    Ok(str) ->
-                        utf8_list_to_ts_token_list_inner(TemplateLitEnd(str), rest, List.append(current_token_list, Ok(TemplateLitEnd(str))))
-
-                    Err(_) ->
-                        utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(current_token_list, Err(Unknown)))
+            # # End of template
+            # [96, .. as rest] -> # backtick
+            #     str_result = Str.from_utf8(current_acc)
+            #     when str_result is
+            #         Ok(str) ->
+            #             utf8_list_to_ts_token_list_inner(TemplateLitEnd(str), rest, List.append(current_token_list, Ok(TemplateLitEnd(str))))
+            #
+            #         Err(_) ->
+            #             utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(current_token_list, Err(Unknown)))
 
             # Collect template content
             [u8, .. as rest] ->
@@ -911,29 +924,30 @@ process_template_literal = |u8s, acc, token_list|
                 List.append(current_token_list, Err(UnclosedTemplate))
     inner_process(u8s, acc, token_list)
 
-process_interpolation_wrapper : List U8, Num _, List TsTokenResult -> List TsTokenResult
-process_interpolation_wrapper = |u8s, curly_bracket_depth, token_list|
-    process_interpolation : List U8, Num _, List TsTokenResult -> (List U8, List TsTokenResult)
-    process_interpolation = |current_u8s, current_depth, current_token_list|
-        when current_u8s is
-            [123, .. as rest] -> # Opening CurlyBracket increases depth
-                process_interpolation(rest, current_depth + 1, current_token_list)
-
-            [125, .. as rest] if current_depth == 1 -> # Closing CurlyBracket at depth 1 ends interpolation
-                (rest, List.append(current_token_list, Ok(InterpolationPart)))
-
-            [125, .. as rest] -> # Closing CurlyBracket decreases depth
-                process_interpolation(rest, current_depth - 1, current_token_list)
-
-            [_, .. as rest] ->
-                process_interpolation(rest, current_depth, current_token_list)
-
-            [] -> # Unclosed interpolation
-                ([], List.append(current_token_list, Err(UnclosedInterpolation)))
-
-    (new_remaining, updated_token_list) = process_interpolation(u8s, curly_bracket_depth, token_list)
-    # Continue processing the template
-    process_template_literal(new_remaining, [], updated_token_list)
+# TODO: Fix this. We need to support template literals
+# process_interpolation_wrapper : List U8, Num _, List TsTokenResult -> List TsTokenResult
+# process_interpolation_wrapper = |u8s, curly_bracket_depth, token_list|
+#     process_interpolation : List U8, Num _, List TsTokenResult -> (List U8, List TsTokenResult)
+#     process_interpolation = |current_u8s, current_depth, current_token_list|
+#         when current_u8s is
+#             [123, .. as rest] -> # Opening CurlyBracket increases depth
+#                 process_interpolation(rest, current_depth + 1, current_token_list)
+#
+#             [125, .. as rest] if current_depth == 1 -> # Closing CurlyBracket at depth 1 ends interpolation
+#                 (rest, List.append(current_token_list, Ok(InterpolationPart)))
+#
+#             [125, .. as rest] -> # Closing CurlyBracket decreases depth
+#                 process_interpolation(rest, current_depth - 1, current_token_list)
+#
+#             [_, .. as rest] ->
+#                 process_interpolation(rest, current_depth, current_token_list)
+#
+#             [] -> # Unclosed interpolation
+#                 ([], List.append(current_token_list, Err(UnclosedInterpolation)))
+#
+#     (new_remaining, updated_token_list) = process_interpolation(u8s, curly_bracket_depth, token_list)
+#     # Continue processing the template
+#     process_template_literal(new_remaining, [], updated_token_list)
 
 is_keyword : Str -> Bool
 is_keyword = |s|
