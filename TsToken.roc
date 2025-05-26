@@ -757,10 +757,7 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
             )
 
         [47, 42, .. as rest] -> # Block comment start (/*)
-            process_block_comment(rest)
-
-        [42, .. as rest] -> # Block comment line start (*)
-            process_block_comment_line_start(rest)
+            process_block_comment_start(rest)
 
         # --- Other Trivia ---
         [35, 33, .. as u8s_after_shebang] -> # Shebang #!
@@ -792,24 +789,75 @@ process_line_comment_text = |u8s|
     (comment_text, u8s_after_comment) = consume_until_newline(u8s)
     { token_result: Ok(LineCommentText(comment_text)), u8s_after_comment }
 
-# Function to parse block comments (/* ... */)
-process_block_comment_text : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
+# Process entire block comment after `BlockCommentStart` (`/*`) token
+process_block_comment_text : List U8 -> { token_results : List TsTokenResult, u8s_after_comment : List U8 }
 process_block_comment_text = |u8s|
-    consume_until_block_end = |bytes, acc|
+    consume_comment_text = |bytes, acc|
         when bytes is
             [42, 47, .. as rest] -> # "*/" ends comment
-                { token: Ok(BlockCommentBlockStart), rest: rest }
+                { token: Ok(CommentText(Str.from_utf8_lossy(acc))), u8s_after_comment_text: bytes }
+            [13, 10, .. as rest] -> # Stop at \r\n
+                { token: Ok(CommentText(Str.from_utf8_lossy(acc))), u8s_after_comment_text: bytes }
+            [13, .. as rest] -> # Stop at \r
+            [10, .. as rest] -> # Stop at \n
+                { token: Ok(CommentText(Str.from_utf8_lossy(acc))), u8s_after_comment_text: bytes }
+            [u8, .. as rest] ->
+                consume_comment_text(rest, List.append(acc, u8))
+            [] -> # End of comment
+                { token: Ok(CommentText(Str.from_utf8_lossy(acc))), u8s_after_comment_text: bytes }
+
+    consume_whitespace_until_star_or_end = |bytes, acc, token_result_list|
+        when bytes is
+            [42, .. as rest] ->
+                { token_result_list: List.append(token_result_list, Ok(BlockCommentLineStart)), u8s_after_comment: rest }
+            [u8, .. as rest] if is_single_line_whitespace(u8) ->
+                consume_whitespace_until_star_or_end(rest, List.append(acc, u8), List.append(token_result_list, Ok(WhitespaceTrivia)))
+            _ ->
+                { token_result_list: List.append(token_result_list, Err(Unknown)), u8s_after_comment: bytes }
+
+    consume_until_block_end = |prev_token, bytes, acc, token_result_list|
+        when prev_token is
+            Ok(BlockCommentBlockStart) ->
+                when bytes is
+                    [42, 47, .. as rest] -> # "*/" ends comment
+                        { token_result_list: List.append(token_result_list, Ok(BlockCommentBlockEnd)), u8s_after_comment: rest }
+                    [maybe_newline, .. as rest] ->
+                        # If '\n'
+                        if is_newline(maybe_newline) then
+                            {token_result_list, remaining_u8s} = consume_whitespace_until_star_or_end(rest, [], List.append(token_result_list, Ok(WhitespaceTrivia)))
+                            maybe_last_token = List.last(token_result_list)
+                            when maybe_last_token is
+                                Ok(tok) -> consume_until_block_end(Ok(tok), remaining_u8s, List.append(acc, 42), token_result_list)
+                                _ -> consume_until_block_end(Ok(BlockCommentLineStart), remaining_u8s, List.append(acc, 42), token_result_list)
+                            consume_until_block_end(Ok(BlockCommentLineStart), remaining_u8s, List.append(acc, 42), token_result_list)
+                        else if is_eof(maybe_newline) then
+                            { token_result_list: List.append(token_result_list, Err(UnclosedBlockComment)), u8s_after_comment: rest }
+                        
+                    [u8, .. as rest_after_star] if is_star(u8) ->
+                        consume_until_block_end(Ok(BlockCommentLineStart), rest, List.append(acc, u8), List.append(token_result_list, Ok(BlockCommentBlockStart)))
+
+                    [u8, .. as rest_after_star] ->
+                        consume_until_block_end(Ok(BlockCommentBlockStart), rest, List.append(acc,
+        when bytes is
+            [42, 47, .. as rest] -> # "*/" ends comment
+                { token_result_list: List.append(token_result_list, Ok(BlockCommentBlockEnd)), u8s_after_comment: rest }
+            [maybe_newline, .. as rest] when is_newline(maybe_newline) ->
+                #  Consume single-line whitespace until star (*), newline (LF or CR), EOF, `BlockCommentBlockEnd` (`*/`), or unclosed block comment
+                when rest is
+                    [42, 47, .. as u8s_after_comment] -> # End of block comment
+                        { token_result_list: List.append(token_result_list, Ok(BlockCommentBlockEnd)), u8s_after_comment }
+                    [u8, .. as rest_after_star] if is_star(u8) ->
 
             [u8, .. as rest] ->
                 consume_until_block_end(rest, List.append(acc, u8))
 
             [] -> # Unclosed block comment
-                { token: Err(Unknown), rest: [] }
-    consume_until_block_end(u8s, [])
+                { token: Err(Unknown), u8s_after_comment: [], token_result_list  }
 
-# Function to parse block comment line start
-process_block_comment_line_start : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
-process_block_comment_line_start = |u8s|
+    consume_until_block_end(Ok(`BlockCommentBlockStart`), u8s, [], [])
+
+process_block_comment_text : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
+process_block_comment_text = |u8s|
     when u8s is
         [42, .. as rest] -> # '*' indicates a block comment line start
             { token: Ok(BlockCommentLineStart), rest: rest }
