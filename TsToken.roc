@@ -747,6 +747,21 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                     Err(_) -> Unknown
             utf8_list_to_ts_token_list_inner(current_token, u8s_after_ident, List.append(token_list, token_result))
 
+        # --- Comments ---
+        [47, 47, .. as rest] -> # Line comment (//)
+            { token_result, u8s_after_comment } = process_line_comment_text(rest)
+            utf8_list_to_ts_token_list_inner(
+                token_result,
+                u8s_after_comment,
+                token_list |> List.append(Ok(LineCommentStart)) |> List.append(token_result),
+            )
+
+        [47, 42, .. as rest] -> # Block comment start (/*)
+            process_block_comment(rest)
+
+        [42, .. as rest] -> # Block comment line start (*)
+            process_block_comment_line_start(rest)
+
         # --- Other Trivia ---
         [35, 33, .. as u8s_after_shebang] -> # Shebang #!
             # Consume until newline or EOF
@@ -766,20 +781,20 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
             utf8_list_to_ts_token_list_inner(Unknown, u8s, List.append(token_list, Ok(Unknown)))
 
 # Function to parse line comments (//)
-process_line_comment : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
-process_line_comment = |u8s|
-    consume_until_newline = |bytes|
-        when bytes is
-            [10, .. as rest] -> rest # Stop at newline (\n)
-            [13, 10, .. as rest] -> rest # Stop at \r\n
-            [_, .. as rest] -> consume_until_newline(rest)
-            [] -> [] # End of input
-    rest_after_comment = consume_until_newline(u8s)
-    { token: Ok(LineCommentStart), rest: rest_after_comment }
+process_line_comment_text : List U8 -> { token_result : TsTokenResult, u8s_after_comment : List U8 }
+process_line_comment_text = |u8s|
+    consume_until_newline = |comment_text_u8s, remaining_u8s|
+        when remaining_u8s is
+            [10, .. as rest] -> (List.append(comment_text_u8s, 10), rest) # Stop at newline (\n)
+            [13, 10, .. as rest] -> (comment_text_u8s |> List.append(13) |> List.append(10), rest) # Stop at \r\n
+            [next_u8, .. as rest] -> consume_until_newline(List.append(comment_text_u8s, next_u8), rest)
+            [] -> (comment_text_u8s, []) # End of input
+    (comment_text, u8s_after_comment) = consume_until_newline(u8s)
+    { token_result: Ok(LineCommentText(comment_text)), u8s_after_comment }
 
 # Function to parse block comments (/* ... */)
-process_block_comment : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
-process_block_comment = |u8s|
+process_block_comment_text : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
+process_block_comment_text = |u8s|
     consume_until_block_end = |bytes, acc|
         when bytes is
             [42, 47, .. as rest] -> # "*/" ends comment
@@ -808,13 +823,13 @@ process_comment_text = |u8s|
     consume_until_comment_end = |bytes, acc|
         when bytes is
             [10, .. as rest] -> # Stop at newline (\n)
-                { token: Ok(CommentText), rest: rest }
+                { token: Ok(CommentText), rest: bytes }
 
             [13, 10, .. as rest] -> # Stop at \r\n
-                { token: Ok(CommentText), rest: rest }
+                { token: Ok(CommentText), rest: bytes }
 
             [42, 47, .. as rest] -> # Stop at block comment end (*/)
-                { token: Ok(CommentText), rest: rest }
+                { token: Ok(CommentText), rest: bytes }
 
             [u8, .. as rest] ->
                 consume_until_comment_end(rest, List.append(acc, u8))
@@ -824,20 +839,25 @@ process_comment_text = |u8s|
     consume_until_comment_end(u8s, [])
 
 # Main function to parse comments
-process_comment : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
-process_comment = |u8s|
-    when u8s is
-        [47, 47, .. as rest] -> # Line comment (//)
-            process_line_comment(rest)
-
-        [47, 42, .. as rest] -> # Block comment start (/*)
-            process_block_comment(rest)
-
-        [42, .. as rest] -> # Block comment line start (*)
-            process_block_comment_line_start(rest)
-
-        _ -> # Default to parsing comment text
-            process_comment_text(u8s)
+# process_comment : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
+# process_comment = |u8s|
+#     when u8s is
+#         [47, 47, .. as rest] -> # Line comment (//)
+#             { token_result, u8s_after_comment } = process_line_comment_text(rest)
+#             utf8_list_to_ts_token_list_inner(
+#                 token_result,
+#                 u8s_after_comment,
+#                 token_list |> List.append(Ok(LineCommentStart)) |> List.append(token_result),
+#             )
+#
+#         [47, 42, .. as rest] -> # Block comment start (/*)
+#             process_block_comment(rest)
+#
+#         [42, .. as rest] -> # Block comment line start (*)
+#             process_block_comment_line_start(rest)
+#
+#         _ -> # Default to parsing comment text
+#             process_comment_text(u8s)
 
 # process_block_comment : List U8, List U8, Bool, List TsTokenResult -> List TsTokenResult
 # process_block_comment = |u8s, acc, star_seen, token_list|
