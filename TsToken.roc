@@ -11,9 +11,8 @@ TsToken : [
     Unknown,
     EndOfFileToken,
     LineCommentStart,
-    BlockCommentBlockStart,
+    BlockCommentStart,
     BlockCommentBlockEnd,
-    BlockCommentLineStart,
     CommentText,
     # SingleLineCommentTrivia,
     # MultiLineCommentTrivia,
@@ -211,10 +210,9 @@ ts_token_debug_display = |token|
         Unknown -> "Unknown"
         EndOfFileToken -> "EndOfFileToken"
         LineCommentStart -> "LineCommentStart"
-        BlockCommentBlockStart -> "BlockCommentBlockStart"
-        BlockCommentBlockEnd -> "BlockCommentBlockEnd"
-        BlockCommentLineStart -> "BlockCommentLineStart"
-        CommentText(str) -> "CommentText"
+        BlockCommentStart -> "BlockCommentStart"
+        BlockCommentEnd -> "BlockCommentBlockEnd"
+        CommentText(str) -> "CommentText(${str})"
         # SingleLineCommentTrivia -> "SingleLineCommentTrivia"
         # MultiLineCommentTrivia -> "MultiLineCommentTrivia"
         # NewLineTrivia -> "NewLineTrivia"
@@ -413,204 +411,204 @@ utf8_list_to_ts_token_list = |u8_list_|
     utf8_list_to_ts_token_list_inner(Start, u8_list_, [])
 
 # Main recursive tokenizer function with accumulator
-utf8_list_to_ts_token_list_inner : TsToken, List U8, List TsTokenResult -> List TsTokenResult
+utf8_list_to_ts_token_list_inner : TsTokenResult, List U8, List TsTokenResult -> List TsTokenResult
 utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_token often not needed in this style
     when u8_list is
         # --- End of File ---
         [] -> List.append(token_list, Ok(EndOfFileToken))
         # --- Keywords ---
         [098, 114, 101, 097, 107, .. as u8s] -> # break
-            utf8_list_to_ts_token_list_inner(BreakKeyword, u8s, List.append(token_list, Ok(BreakKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(BreakKeyword), u8s, List.append(token_list, Ok(BreakKeyword)))
 
         [099, 097, 115, 101, .. as u8s] -> # case
-            utf8_list_to_ts_token_list_inner(CaseKeyword, u8s, List.append(token_list, Ok(CaseKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(CaseKeyword), u8s, List.append(token_list, Ok(CaseKeyword)))
 
         [099, 097, 116, 099, 104, .. as u8s] -> # catch
-            utf8_list_to_ts_token_list_inner(CatchKeyword, u8s, List.append(token_list, Ok(CatchKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(CatchKeyword), u8s, List.append(token_list, Ok(CatchKeyword)))
 
         [099, 108, 097, 115, 115, .. as u8s] -> # class
-            utf8_list_to_ts_token_list_inner(ClassKeyword, u8s, List.append(token_list, Ok(ClassKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ClassKeyword), u8s, List.append(token_list, Ok(ClassKeyword)))
 
         [099, 111, 110, 115, 116, .. as u8s] -> # const
-            utf8_list_to_ts_token_list_inner(ConstKeyword, u8s, List.append(token_list, Ok(ConstKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ConstKeyword), u8s, List.append(token_list, Ok(ConstKeyword)))
 
         [099, 111, 110, 116, 105, 110, 117, 101, .. as u8s] -> # continue
-            utf8_list_to_ts_token_list_inner(ContinueKeyword, u8s, List.append(token_list, Ok(ContinueKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ContinueKeyword), u8s, List.append(token_list, Ok(ContinueKeyword)))
 
         [100, 101, 098, 117, 103, 103, 101, 114, .. as u8s] -> # debugger
-            utf8_list_to_ts_token_list_inner(DebuggerKeyword, u8s, List.append(token_list, Ok(DebuggerKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(DebuggerKeyword), u8s, List.append(token_list, Ok(DebuggerKeyword)))
 
         [100, 101, 102, 097, 117, 108, 116, .. as u8s] -> # default
-            utf8_list_to_ts_token_list_inner(DefaultKeyword, u8s, List.append(token_list, Ok(DefaultKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(DefaultKeyword), u8s, List.append(token_list, Ok(DefaultKeyword)))
 
         [100, 101, 108, 101, 116, 101, .. as u8s] -> # delete
-            utf8_list_to_ts_token_list_inner(DeleteKeyword, u8s, List.append(token_list, Ok(DeleteKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(DeleteKeyword), u8s, List.append(token_list, Ok(DeleteKeyword)))
 
         [100, 111, .. as u8s] -> # do
-            utf8_list_to_ts_token_list_inner(DoKeyword, u8s, List.append(token_list, Ok(DoKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(DoKeyword), u8s, List.append(token_list, Ok(DoKeyword)))
 
         [101, 108, 115, 101, .. as u8s] -> # else
-            utf8_list_to_ts_token_list_inner(ElseKeyword, u8s, List.append(token_list, Ok(ElseKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ElseKeyword), u8s, List.append(token_list, Ok(ElseKeyword)))
 
         [101, 110, 117, 109, .. as u8s] -> # enum
-            utf8_list_to_ts_token_list_inner(EnumKeyword, u8s, List.append(token_list, Ok(EnumKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(EnumKeyword), u8s, List.append(token_list, Ok(EnumKeyword)))
 
         [101, 120, 112, 111, 114, 116, .. as u8s] -> # export
-            utf8_list_to_ts_token_list_inner(ExportKeyword, u8s, List.append(token_list, Ok(ExportKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ExportKeyword), u8s, List.append(token_list, Ok(ExportKeyword)))
 
         [101, 120, 116, 101, 110, 100, 115, .. as u8s] -> # extends
-            utf8_list_to_ts_token_list_inner(ExtendsKeyword, u8s, List.append(token_list, Ok(ExtendsKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ExtendsKeyword), u8s, List.append(token_list, Ok(ExtendsKeyword)))
 
         [102, 097, 108, 115, 101, .. as u8s] -> # false
-            utf8_list_to_ts_token_list_inner(FalseKeyword, u8s, List.append(token_list, Ok(FalseKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(FalseKeyword), u8s, List.append(token_list, Ok(FalseKeyword)))
 
         [102, 105, 110, 097, 108, 108, 121, .. as u8s] -> # finally
-            utf8_list_to_ts_token_list_inner(FinallyKeyword, u8s, List.append(token_list, Ok(FinallyKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(FinallyKeyword), u8s, List.append(token_list, Ok(FinallyKeyword)))
 
         [102, 111, 114, .. as u8s] -> # for
-            utf8_list_to_ts_token_list_inner(ForKeyword, u8s, List.append(token_list, Ok(ForKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ForKeyword), u8s, List.append(token_list, Ok(ForKeyword)))
 
         [102, 117, 110, 099, 116, 105, 111, 110, .. as u8s] -> # function
-            utf8_list_to_ts_token_list_inner(FunctionKeyword, u8s, List.append(token_list, Ok(FunctionKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(FunctionKeyword), u8s, List.append(token_list, Ok(FunctionKeyword)))
 
         [105, 102, .. as u8s] -> # if
-            utf8_list_to_ts_token_list_inner(IfKeyword, u8s, List.append(token_list, Ok(IfKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(IfKeyword), u8s, List.append(token_list, Ok(IfKeyword)))
 
         [105, 109, 112, 111, 114, 116, .. as u8s] -> # import
-            utf8_list_to_ts_token_list_inner(ImportKeyword, u8s, List.append(token_list, Ok(ImportKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ImportKeyword), u8s, List.append(token_list, Ok(ImportKeyword)))
 
         [105, 110, 115, 116, 097, 110, 099, 101, 111, 102, .. as u8s] -> # instanceof
-            utf8_list_to_ts_token_list_inner(InstanceOfKeyword, u8s, List.append(token_list, Ok(InstanceOfKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(InstanceOfKeyword), u8s, List.append(token_list, Ok(InstanceOfKeyword)))
 
         [105, 110, .. as u8s] -> # in
-            utf8_list_to_ts_token_list_inner(InKeyword, u8s, List.append(token_list, Ok(InKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(InKeyword), u8s, List.append(token_list, Ok(InKeyword)))
 
         [110, 101, 119, .. as u8s] -> # new
-            utf8_list_to_ts_token_list_inner(NewKeyword, u8s, List.append(token_list, Ok(NewKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(NewKeyword), u8s, List.append(token_list, Ok(NewKeyword)))
 
         [110, 117, 108, 108, .. as u8s] -> # null
-            utf8_list_to_ts_token_list_inner(NullKeyword, u8s, List.append(token_list, Ok(NullKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(NullKeyword), u8s, List.append(token_list, Ok(NullKeyword)))
 
         [114, 101, 116, 117, 114, 110, .. as u8s] -> # return
-            utf8_list_to_ts_token_list_inner(ReturnKeyword, u8s, List.append(token_list, Ok(ReturnKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ReturnKeyword), u8s, List.append(token_list, Ok(ReturnKeyword)))
 
         [115, 117, 112, 101, 114, .. as u8s] -> # super
-            utf8_list_to_ts_token_list_inner(SuperKeyword, u8s, List.append(token_list, Ok(SuperKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(SuperKeyword), u8s, List.append(token_list, Ok(SuperKeyword)))
 
         [115, 119, 105, 116, 099, 104, .. as u8s] -> # switch
-            utf8_list_to_ts_token_list_inner(SwitchKeyword, u8s, List.append(token_list, Ok(SwitchKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(SwitchKeyword), u8s, List.append(token_list, Ok(SwitchKeyword)))
 
         [116, 104, 105, 115, .. as u8s] -> # this
-            utf8_list_to_ts_token_list_inner(ThisKeyword, u8s, List.append(token_list, Ok(ThisKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ThisKeyword), u8s, List.append(token_list, Ok(ThisKeyword)))
 
         [116, 104, 114, 111, 119, .. as u8s] -> # throw
-            utf8_list_to_ts_token_list_inner(ThrowKeyword, u8s, List.append(token_list, Ok(ThrowKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ThrowKeyword), u8s, List.append(token_list, Ok(ThrowKeyword)))
 
         [116, 114, 117, 101, .. as u8s] -> # true
-            utf8_list_to_ts_token_list_inner(TrueKeyword, u8s, List.append(token_list, Ok(TrueKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(TrueKeyword), u8s, List.append(token_list, Ok(TrueKeyword)))
 
         [116, 114, 121, .. as u8s] -> # try
-            utf8_list_to_ts_token_list_inner(TryKeyword, u8s, List.append(token_list, Ok(TryKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(TryKeyword), u8s, List.append(token_list, Ok(TryKeyword)))
 
         [116, 121, 112, 101, 111, 102, .. as u8s] -> # typeof
-            utf8_list_to_ts_token_list_inner(TypeOfKeyword, u8s, List.append(token_list, Ok(TypeOfKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(TypeOfKeyword), u8s, List.append(token_list, Ok(TypeOfKeyword)))
 
         [118, 097, 114, .. as u8s] -> # var
-            utf8_list_to_ts_token_list_inner(VarKeyword, u8s, List.append(token_list, Ok(VarKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(VarKeyword), u8s, List.append(token_list, Ok(VarKeyword)))
 
         [118, 111, 105, 100, .. as u8s] -> # void
-            utf8_list_to_ts_token_list_inner(VoidKeyword, u8s, List.append(token_list, Ok(VoidKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(VoidKeyword), u8s, List.append(token_list, Ok(VoidKeyword)))
 
         [119, 104, 105, 108, 101, .. as u8s] -> # while
-            utf8_list_to_ts_token_list_inner(WhileKeyword, u8s, List.append(token_list, Ok(WhileKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(WhileKeyword), u8s, List.append(token_list, Ok(WhileKeyword)))
 
         [119, 105, 116, 104, .. as u8s] -> # with
-            utf8_list_to_ts_token_list_inner(WithKeyword, u8s, List.append(token_list, Ok(WithKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(WithKeyword), u8s, List.append(token_list, Ok(WithKeyword)))
 
         [097, 115, .. as u8s] -> # as
-            utf8_list_to_ts_token_list_inner(AsKeyword, u8s, List.append(token_list, Ok(AsKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(AsKeyword), u8s, List.append(token_list, Ok(AsKeyword)))
 
         [105, 109, 112, 108, 101, 109, 101, 110, 116, 115, .. as u8s] -> # implements
-            utf8_list_to_ts_token_list_inner(ImplementsKeyword, u8s, List.append(token_list, Ok(ImplementsKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ImplementsKeyword), u8s, List.append(token_list, Ok(ImplementsKeyword)))
 
         [105, 110, 116, 101, 114, 102, 097, 099, 101, .. as u8s] -> # interface
-            utf8_list_to_ts_token_list_inner(InterfaceKeyword, u8s, List.append(token_list, Ok(InterfaceKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(InterfaceKeyword), u8s, List.append(token_list, Ok(InterfaceKeyword)))
 
         [108, 101, 116, .. as u8s] -> # let
-            utf8_list_to_ts_token_list_inner(LetKeyword, u8s, List.append(token_list, Ok(LetKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(LetKeyword), u8s, List.append(token_list, Ok(LetKeyword)))
 
         [112, 097, 099, 107, 097, 103, 101, .. as u8s] -> # package
-            utf8_list_to_ts_token_list_inner(PackageKeyword, u8s, List.append(token_list, Ok(PackageKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(PackageKeyword), u8s, List.append(token_list, Ok(PackageKeyword)))
 
         [112, 114, 105, 118, 097, 116, 101, .. as u8s] -> # private
-            utf8_list_to_ts_token_list_inner(PrivateKeyword, u8s, List.append(token_list, Ok(PrivateKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(PrivateKeyword), u8s, List.append(token_list, Ok(PrivateKeyword)))
 
         [112, 114, 111, 116, 101, 099, 116, 101, 100, .. as u8s] -> # protected
-            utf8_list_to_ts_token_list_inner(ProtectedKeyword, u8s, List.append(token_list, Ok(ProtectedKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ProtectedKeyword), u8s, List.append(token_list, Ok(ProtectedKeyword)))
 
         [112, 117, 098, 108, 105, 099, .. as u8s] -> # public
-            utf8_list_to_ts_token_list_inner(PublicKeyword, u8s, List.append(token_list, Ok(PublicKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(PublicKeyword), u8s, List.append(token_list, Ok(PublicKeyword)))
 
         [115, 116, 097, 116, 105, 099, .. as u8s] -> # static
-            utf8_list_to_ts_token_list_inner(StaticKeyword, u8s, List.append(token_list, Ok(StaticKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(StaticKeyword), u8s, List.append(token_list, Ok(StaticKeyword)))
 
         [121, 105, 101, 108, 100, .. as u8s] -> # yield
-            utf8_list_to_ts_token_list_inner(YieldKeyword, u8s, List.append(token_list, Ok(YieldKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(YieldKeyword), u8s, List.append(token_list, Ok(YieldKeyword)))
 
         [097, 110, 121, .. as u8s] -> # any
-            utf8_list_to_ts_token_list_inner(AnyKeyword, u8s, List.append(token_list, Ok(AnyKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(AnyKeyword), u8s, List.append(token_list, Ok(AnyKeyword)))
 
         [098, 111, 111, 108, 101, 097, 110, .. as u8s] -> # boolean
-            utf8_list_to_ts_token_list_inner(BooleanKeyword, u8s, List.append(token_list, Ok(BooleanKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(BooleanKeyword), u8s, List.append(token_list, Ok(BooleanKeyword)))
 
         [099, 111, 110, 115, 116, 114, 117, 099, 116, 111, 114, .. as u8s] -> # constructor
-            utf8_list_to_ts_token_list_inner(ConstructorKeyword, u8s, List.append(token_list, Ok(ConstructorKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ConstructorKeyword), u8s, List.append(token_list, Ok(ConstructorKeyword)))
 
         [100, 101, 099, 108, 097, 114, 101, .. as u8s] -> # declare
-            utf8_list_to_ts_token_list_inner(DeclareKeyword, u8s, List.append(token_list, Ok(DeclareKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(DeclareKeyword), u8s, List.append(token_list, Ok(DeclareKeyword)))
 
         [103, 101, 116, .. as u8s] -> # get
-            utf8_list_to_ts_token_list_inner(GetKeyword, u8s, List.append(token_list, Ok(GetKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(GetKeyword), u8s, List.append(token_list, Ok(GetKeyword)))
 
         [109, 111, 100, 117, 108, 101, .. as u8s] -> # module
-            utf8_list_to_ts_token_list_inner(ModuleKeyword, u8s, List.append(token_list, Ok(ModuleKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(ModuleKeyword), u8s, List.append(token_list, Ok(ModuleKeyword)))
 
         [114, 101, 113, 117, 105, 114, 101, .. as u8s] -> # require
-            utf8_list_to_ts_token_list_inner(RequireKeyword, u8s, List.append(token_list, Ok(RequireKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(RequireKeyword), u8s, List.append(token_list, Ok(RequireKeyword)))
 
         [110, 117, 109, 098, 101, 114, .. as u8s] -> # number
-            utf8_list_to_ts_token_list_inner(NumberKeyword, u8s, List.append(token_list, Ok(NumberKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(NumberKeyword), u8s, List.append(token_list, Ok(NumberKeyword)))
 
         [115, 101, 116, .. as u8s] -> # set
-            utf8_list_to_ts_token_list_inner(SetKeyword, u8s, List.append(token_list, Ok(SetKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(SetKeyword), u8s, List.append(token_list, Ok(SetKeyword)))
 
         [115, 116, 114, 105, 110, 103, .. as u8s] -> # string
-            utf8_list_to_ts_token_list_inner(StringKeyword, u8s, List.append(token_list, Ok(StringKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(StringKeyword), u8s, List.append(token_list, Ok(StringKeyword)))
 
         [115, 121, 109, 098, 111, 108, .. as u8s] -> # symbol
-            utf8_list_to_ts_token_list_inner(SymbolKeyword, u8s, List.append(token_list, Ok(SymbolKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(SymbolKeyword), u8s, List.append(token_list, Ok(SymbolKeyword)))
 
         [116, 121, 112, 101, .. as u8s] -> # type
-            utf8_list_to_ts_token_list_inner(TypeKeyword, u8s, List.append(token_list, Ok(TypeKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(TypeKeyword), u8s, List.append(token_list, Ok(TypeKeyword)))
 
         [102, 114, 111, 109, .. as u8s] -> # from
-            utf8_list_to_ts_token_list_inner(FromKeyword, u8s, List.append(token_list, Ok(FromKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(FromKeyword), u8s, List.append(token_list, Ok(FromKeyword)))
 
         [111, 102, .. as u8s] -> # of
-            utf8_list_to_ts_token_list_inner(OfKeyword, u8s, List.append(token_list, Ok(OfKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(OfKeyword), u8s, List.append(token_list, Ok(OfKeyword)))
 
         [097, 115, 121, 110, 099, .. as u8s] -> # async
-            utf8_list_to_ts_token_list_inner(AsyncKeyword, u8s, List.append(token_list, Ok(AsyncKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(AsyncKeyword), u8s, List.append(token_list, Ok(AsyncKeyword)))
 
         [097, 119, 097, 105, 116, .. as u8s] -> # await
-            utf8_list_to_ts_token_list_inner(AwaitKeyword, u8s, List.append(token_list, Ok(AwaitKeyword)))
+            utf8_list_to_ts_token_list_inner(Ok(AwaitKeyword), u8s, List.append(token_list, Ok(AwaitKeyword)))
 
         # --- Trivia: Newlines and Whitespace ---
         [10, .. as u8s] -> # \n
-            utf8_list_to_ts_token_list_inner(NewLineTrivia, u8s, List.append(token_list, Ok(NewLineTrivia)))
+            utf8_list_to_ts_token_list_inner(Ok(NewLineTrivia), u8s, List.append(token_list, Ok(NewLineTrivia)))
 
         [13, 10, .. as u8s] -> # \r\n
-            utf8_list_to_ts_token_list_inner(NewLineTrivia, u8s, List.append(token_list, Ok(NewLineTrivia)))
+            utf8_list_to_ts_token_list_inner(Ok(NewLineTrivia), u8s, List.append(token_list, Ok(NewLineTrivia)))
 
         [u8, .. as u8s] if u8 == 32 or u8 == 9 or u8 == 11 or u8 == 12 -> # Space, Tab, VT, FF
             # Consume all contiguous whitespace
@@ -621,31 +619,43 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                     [194, 160, .. as rest] -> consume_whitespace(rest)
                     _ -> bytes
             rest_after_whitespace = consume_whitespace(u8s)
-            utf8_list_to_ts_token_list_inner(WhitespaceTrivia, rest_after_whitespace, List.append(token_list, Ok(WhitespaceTrivia)))
+            utf8_list_to_ts_token_list_inner(
+                Ok(WhitespaceTrivia),
+                rest_after_whitespace,
+                List.append(token_list, Ok(WhitespaceTrivia)),
+            )
 
         # --- Trivia: Comments ---
         [47, 47, .. as u8s_after_slash_slash] -> # // Single Line Comment
             # Assume process_line_comment consumes until newline and returns the rest
-            { token: comment_token_res, rest: rest_after_comment } = process_line_comment(u8s_after_slash_slash)
-            utf8_list_to_ts_token_list_inner(LineCommentStart, rest_after_comment, List.append(token_list, comment_token_res)) # Should return Ok(SingleLineCommentTrivia)
+            { token_result, rest: rest_after_comment } = process_line_comment(u8s_after_slash_slash)
+            utf8_list_to_ts_token_list_inner(
+                Ok(LineCommentStart),
+                rest_after_comment,
+                List.append(token_list, token_result),
+            ) # Should return Ok(SingleLineCommentTrivia)
 
         [47, 42, .. as u8s_after_slash_star] -> # /* Multi Line Comment */
-            # Assume process_block_comment consumes until */ and returns the rest
-            { token: comment_token_res, rest: rest_after_comment } = process_block_comment(u8s_after_slash_star)
-            utf8_list_to_ts_token_list_inner(BlockCommentBlockStart, rest_after_comment, List.append(token_list, comment_token_res)) # Should return Ok(MultiLineCommentTrivia)
+            # Assume process_block_comment_text consumes until */ and returns the rest
+            { token: comment_token_res, rest: rest_after_comment } = process_block_comment_text(u8s_after_slash_star)
+            utf8_list_to_ts_token_list_inner(
+                Ok(BlockCommentStart),
+                rest_after_comment,
+                List.append(token_list, comment_token_res),
+            ) # Should return Ok(MultiLineCommentTrivia)
         # --- Literals ---
 
         [34, .. as u8s_after_quote] -> # " String Literal
             { token: str_token_res, rest: rest_after_str } = process_string_literal(34, "\"", u8s_after_quote, token_list) # Pass quote char
-            utf8_list_to_ts_token_list_inner(StringLiteral(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
+            utf8_list_to_ts_token_list_inner(Ok(StringLiteral)(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
 
         [39, .. as u8s_after_quote] -> # ' String Literal
             { token: str_token_res, rest: rest_after_str } = process_string_literal(u8s_after_quote, 39) # Pass quote char
-            utf8_list_to_ts_token_list_inner(StringLiteral(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
+            utf8_list_to_ts_token_list_inner(Ok(StringLiteral)(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
 
         [96, .. as u8s_after_backtick] -> # ` Template Literal (TODO: Fix this. We need to support template literals)
             { token: str_token_res, rest: rest_after_str } = process_string_literal(u8s_after_backtick, 39) # Pass quote char
-            utf8_list_to_ts_token_list_inner(StringLiteral(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
+            utf8_list_to_ts_token_list_inner(Ok(StringLiteral)(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
         # { token: template_token_res, rest: rest_after_template } = process_template_literal(u8s_after_backtick)
         # # prev_token needs to be the actual token variant here
         # current_token =
@@ -655,109 +665,104 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         # utf8_list_to_ts_token_list_inner(current_token, rest_after_template, List.append(token_list, template_token_res))
         # --- Punctuation and Operators (Longest First) ---
 
-        [46, 46, 46, .. as u8s] -> utf8_list_to_ts_token_list_inner(DotDotDotToken, u8s, List.append(token_list, Ok(DotDotDotToken)))
-        [63, 46, .. as u8s] -> utf8_list_to_ts_token_list_inner(QuestionDotToken, u8s, List.append(token_list, Ok(QuestionDotToken)))
-        [42, 42, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(AsteriskAsteriskEqualsToken, u8s, List.append(token_list, Ok(AsteriskAsteriskEqualsToken)))
-        [42, 42, .. as u8s] -> utf8_list_to_ts_token_list_inner(AsteriskAsteriskToken, u8s, List.append(token_list, Ok(AsteriskAsteriskToken)))
-        [61, 61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(EqualsEqualsEqualsToken, u8s, List.append(token_list, Ok(EqualsEqualsEqualsToken)))
-        [33, 61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(ExclamationEqualsEqualsToken, u8s, List.append(token_list, Ok(ExclamationEqualsEqualsToken)))
-        [61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(EqualsEqualsToken, u8s, List.append(token_list, Ok(EqualsEqualsToken)))
-        [33, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(ExclamationEqualsToken, u8s, List.append(token_list, Ok(ExclamationEqualsToken)))
-        [61, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(EqualsGreaterThanToken, u8s, List.append(token_list, Ok(EqualsGreaterThanToken)))
-        [43, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(PlusEqualsToken, u8s, List.append(token_list, Ok(PlusEqualsToken)))
-        [45, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(MinusEqualsToken, u8s, List.append(token_list, Ok(MinusEqualsToken)))
-        [42, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(AsteriskEqualsToken, u8s, List.append(token_list, Ok(AsteriskEqualsToken)))
-        [47, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(SlashEqualsToken, u8s, List.append(token_list, Ok(SlashEqualsToken)))
-        [37, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(PercentEqualsToken, u8s, List.append(token_list, Ok(PercentEqualsToken)))
-        [60, 60, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanLessThanEqualsToken, u8s, List.append(token_list, Ok(LessThanLessThanEqualsToken)))
-        [62, 62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanGreaterThanEqualsToken, u8s, List.append(token_list, Ok(GreaterThanGreaterThanEqualsToken)))
-        [62, 62, 62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanGreaterThanGreaterThanEqualsToken, u8s, List.append(token_list, Ok(GreaterThanGreaterThanGreaterThanEqualsToken)))
-        [38, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(AmpersandEqualsToken, u8s, List.append(token_list, Ok(AmpersandEqualsToken)))
-        [124, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(BarEqualsToken, u8s, List.append(token_list, Ok(BarEqualsToken)))
-        [94, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(CaretEqualsToken, u8s, List.append(token_list, Ok(CaretEqualsToken)))
-        [38, 38, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(AmpersandAmpersandEqualsToken, u8s, List.append(token_list, Ok(AmpersandAmpersandEqualsToken)))
-        [124, 124, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(BarBarEqualsToken, u8s, List.append(token_list, Ok(BarBarEqualsToken)))
-        [63, 63, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(QuestionQuestionEqualsToken, u8s, List.append(token_list, Ok(QuestionQuestionEqualsToken)))
-        [60, 60, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanLessThanToken, u8s, List.append(token_list, Ok(LessThanLessThanToken)))
-        [62, 62, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanGreaterThanGreaterThanToken, u8s, List.append(token_list, Ok(GreaterThanGreaterThanGreaterThanToken)))
-        [62, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanGreaterThanToken, u8s, List.append(token_list, Ok(GreaterThanGreaterThanToken)))
-        [60, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanEqualsToken, u8s, List.append(token_list, Ok(LessThanEqualsToken)))
-        [62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanEqualsToken, u8s, List.append(token_list, Ok(GreaterThanEqualsToken)))
-        [38, 38, .. as u8s] -> utf8_list_to_ts_token_list_inner(AmpersandAmpersandToken, u8s, List.append(token_list, Ok(AmpersandAmpersandToken)))
-        [124, 124, .. as u8s] -> utf8_list_to_ts_token_list_inner(BarBarToken, u8s, List.append(token_list, Ok(BarBarToken)))
-        [63, 63, .. as u8s] -> utf8_list_to_ts_token_list_inner(QuestionQuestionToken, u8s, List.append(token_list, Ok(QuestionQuestionToken)))
-        [43, 43, .. as u8s] -> utf8_list_to_ts_token_list_inner(PlusPlusToken, u8s, List.append(token_list, Ok(PlusPlusToken)))
-        [45, 45, .. as u8s] -> utf8_list_to_ts_token_list_inner(MinusMinusToken, u8s, List.append(token_list, Ok(MinusMinusToken)))
-        [60, 47, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanSlashToken, u8s, List.append(token_list, Ok(LessThanSlashToken))) # For JSX
+        [46, 46, 46, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(DotDotDotToken), u8s, List.append(token_list, Ok(DotDotDotToken)))
+        [63, 46, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(QuestionDotToken), u8s, List.append(token_list, Ok(QuestionDotToken)))
+        [42, 42, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AsteriskAsteriskEqualsToken), u8s, List.append(token_list, Ok(AsteriskAsteriskEqualsToken)))
+        [42, 42, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AsteriskAsteriskToken), u8s, List.append(token_list, Ok(AsteriskAsteriskToken)))
+        [61, 61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(EqualsEqualsEqualsToken), u8s, List.append(token_list, Ok(EqualsEqualsEqualsToken)))
+        [33, 61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(ExclamationEqualsEqualsToken), u8s, List.append(token_list, Ok(ExclamationEqualsEqualsToken)))
+        [61, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(EqualsEqualsToken), u8s, List.append(token_list, Ok(EqualsEqualsToken)))
+        [33, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(ExclamationEqualsToken), u8s, List.append(token_list, Ok(ExclamationEqualsToken)))
+        [61, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(EqualsGreaterThanToken), u8s, List.append(token_list, Ok(EqualsGreaterThanToken)))
+        [43, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(PlusEqualsToken), u8s, List.append(token_list, Ok(PlusEqualsToken)))
+        [45, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(MinusEqualsToken), u8s, List.append(token_list, Ok(MinusEqualsToken)))
+        [42, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AsteriskEqualsToken), u8s, List.append(token_list, Ok(AsteriskEqualsToken)))
+        [47, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(SlashEqualsToken), u8s, List.append(token_list, Ok(SlashEqualsToken)))
+        [37, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(PercentEqualsToken), u8s, List.append(token_list, Ok(PercentEqualsToken)))
+        [60, 60, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(LessThanLessThanEqualsToken), u8s, List.append(token_list, Ok(LessThanLessThanEqualsToken)))
+        [62, 62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(GreaterThanGreaterThanEqualsToken), u8s, List.append(token_list, Ok(GreaterThanGreaterThanEqualsToken)))
+        [62, 62, 62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(GreaterThanGreaterThanGreaterThanEqualsToken), u8s, List.append(token_list, Ok(GreaterThanGreaterThanGreaterThanEqualsToken)))
+        [38, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AmpersandEqualsToken), u8s, List.append(token_list, Ok(AmpersandEqualsToken)))
+        [124, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(BarEqualsToken), u8s, List.append(token_list, Ok(BarEqualsToken)))
+        [94, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(CaretEqualsToken), u8s, List.append(token_list, Ok(CaretEqualsToken)))
+        [38, 38, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AmpersandAmpersandEqualsToken), u8s, List.append(token_list, Ok(AmpersandAmpersandEqualsToken)))
+        [124, 124, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(BarBarEqualsToken), u8s, List.append(token_list, Ok(BarBarEqualsToken)))
+        [63, 63, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(QuestionQuestionEqualsToken), u8s, List.append(token_list, Ok(QuestionQuestionEqualsToken)))
+        [60, 60, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(LessThanLessThanToken), u8s, List.append(token_list, Ok(LessThanLessThanToken)))
+        [62, 62, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(GreaterThanGreaterThanGreaterThanToken), u8s, List.append(token_list, Ok(GreaterThanGreaterThanGreaterThanToken)))
+        [62, 62, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(GreaterThanGreaterThanToken), u8s, List.append(token_list, Ok(GreaterThanGreaterThanToken)))
+        [60, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(LessThanEqualsToken), u8s, List.append(token_list, Ok(LessThanEqualsToken)))
+        [62, 61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(GreaterThanEqualsToken), u8s, List.append(token_list, Ok(GreaterThanEqualsToken)))
+        [38, 38, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AmpersandAmpersandToken), u8s, List.append(token_list, Ok(AmpersandAmpersandToken)))
+        [124, 124, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(BarBarToken), u8s, List.append(token_list, Ok(BarBarToken)))
+        [63, 63, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(QuestionQuestionToken), u8s, List.append(token_list, Ok(QuestionQuestionToken)))
+        [43, 43, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(PlusPlusToken), u8s, List.append(token_list, Ok(PlusPlusToken)))
+        [45, 45, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(MinusMinusToken), u8s, List.append(token_list, Ok(MinusMinusToken)))
+        [60, 47, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(LessThanSlashToken), u8s, List.append(token_list, Ok(LessThanSlashToken))) # For JSX
         # --- Single Character Punctuation and Operators ---
-        [123, .. as u8s] -> utf8_list_to_ts_token_list_inner(OpenBraceToken, u8s, List.append(token_list, Ok(OpenBraceToken)))
-        [125, .. as u8s] -> utf8_list_to_ts_token_list_inner(CloseBraceToken, u8s, List.append(token_list, Ok(CloseBraceToken)))
-        [40, .. as u8s] -> utf8_list_to_ts_token_list_inner(OpenParenToken, u8s, List.append(token_list, Ok(OpenParenToken)))
-        [41, .. as u8s] -> utf8_list_to_ts_token_list_inner(CloseParenToken, u8s, List.append(token_list, Ok(CloseParenToken)))
-        [91, .. as u8s] -> utf8_list_to_ts_token_list_inner(OpenBracketToken, u8s, List.append(token_list, Ok(OpenBracketToken)))
-        [93, .. as u8s] -> utf8_list_to_ts_token_list_inner(CloseBracketToken, u8s, List.append(token_list, Ok(CloseBracketToken)))
-        [46, .. as u8s] -> utf8_list_to_ts_token_list_inner(DotToken, u8s, List.append(token_list, Ok(DotToken)))
-        [59, .. as u8s] -> utf8_list_to_ts_token_list_inner(SemicolonToken, u8s, List.append(token_list, Ok(SemicolonToken)))
-        [44, .. as u8s] -> utf8_list_to_ts_token_list_inner(CommaToken, u8s, List.append(token_list, Ok(CommaToken)))
-        [60, .. as u8s] -> utf8_list_to_ts_token_list_inner(LessThanToken, u8s, List.append(token_list, Ok(LessThanToken)))
-        [62, .. as u8s] -> utf8_list_to_ts_token_list_inner(GreaterThanToken, u8s, List.append(token_list, Ok(GreaterThanToken)))
-        [61, .. as u8s] -> utf8_list_to_ts_token_list_inner(EqualsToken, u8s, List.append(token_list, Ok(EqualsToken)))
-        [43, .. as u8s] -> utf8_list_to_ts_token_list_inner(PlusToken, u8s, List.append(token_list, Ok(PlusToken)))
-        [45, .. as u8s] -> utf8_list_to_ts_token_list_inner(MinusToken, u8s, List.append(token_list, Ok(MinusToken)))
-        [42, .. as u8s] -> utf8_list_to_ts_token_list_inner(AsteriskToken, u8s, List.append(token_list, Ok(AsteriskToken)))
-        [47, .. as u8s] -> utf8_list_to_ts_token_list_inner(SlashToken, u8s, List.append(token_list, Ok(SlashToken))) # Needs context for Regex
-        [37, .. as u8s] -> utf8_list_to_ts_token_list_inner(PercentToken, u8s, List.append(token_list, Ok(PercentToken)))
-        [38, .. as u8s] -> utf8_list_to_ts_token_list_inner(AmpersandToken, u8s, List.append(token_list, Ok(AmpersandToken)))
-        [124, .. as u8s] -> utf8_list_to_ts_token_list_inner(BarToken, u8s, List.append(token_list, Ok(BarToken)))
-        [94, .. as u8s] -> utf8_list_to_ts_token_list_inner(CaretToken, u8s, List.append(token_list, Ok(CaretToken)))
-        [33, .. as u8s] -> utf8_list_to_ts_token_list_inner(ExclamationToken, u8s, List.append(token_list, Ok(ExclamationToken)))
-        [126, .. as u8s] -> utf8_list_to_ts_token_list_inner(TildeToken, u8s, List.append(token_list, Ok(TildeToken)))
-        [63, .. as u8s] -> utf8_list_to_ts_token_list_inner(QuestionToken, u8s, List.append(token_list, Ok(QuestionToken)))
-        [58, .. as u8s] -> utf8_list_to_ts_token_list_inner(ColonToken, u8s, List.append(token_list, Ok(ColonToken)))
-        [64, .. as u8s] -> utf8_list_to_ts_token_list_inner(AtToken, u8s, List.append(token_list, Ok(AtToken)))
+        [123, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(OpenBraceToken), u8s, List.append(token_list, Ok(OpenBraceToken)))
+        [125, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(CloseBraceToken), u8s, List.append(token_list, Ok(CloseBraceToken)))
+        [40, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(OpenParenToken), u8s, List.append(token_list, Ok(OpenParenToken)))
+        [41, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(CloseParenToken), u8s, List.append(token_list, Ok(CloseParenToken)))
+        [91, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(OpenBracketToken), u8s, List.append(token_list, Ok(OpenBracketToken)))
+        [93, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(CloseBracketToken), u8s, List.append(token_list, Ok(CloseBracketToken)))
+        [46, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(DotToken), u8s, List.append(token_list, Ok(DotToken)))
+        [59, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(SemicolonToken), u8s, List.append(token_list, Ok(SemicolonToken)))
+        [44, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(CommaToken), u8s, List.append(token_list, Ok(CommaToken)))
+        [60, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(LessThanToken), u8s, List.append(token_list, Ok(LessThanToken)))
+        [62, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(GreaterThanToken), u8s, List.append(token_list, Ok(GreaterThanToken)))
+        [61, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(EqualsToken), u8s, List.append(token_list, Ok(EqualsToken)))
+        [43, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(PlusToken), u8s, List.append(token_list, Ok(PlusToken)))
+        [45, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(MinusToken), u8s, List.append(token_list, Ok(MinusToken)))
+        [42, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AsteriskToken), u8s, List.append(token_list, Ok(AsteriskToken)))
+        [47, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(SlashToken), u8s, List.append(token_list, Ok(SlashToken))) # Needs context for Regex
+        [37, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(PercentToken), u8s, List.append(token_list, Ok(PercentToken)))
+        [38, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AmpersandToken), u8s, List.append(token_list, Ok(AmpersandToken)))
+        [124, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(BarToken), u8s, List.append(token_list, Ok(BarToken)))
+        [94, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(CaretToken), u8s, List.append(token_list, Ok(CaretToken)))
+        [33, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(ExclamationToken), u8s, List.append(token_list, Ok(ExclamationToken)))
+        [126, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(TildeToken), u8s, List.append(token_list, Ok(TildeToken)))
+        [63, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(QuestionToken), u8s, List.append(token_list, Ok(QuestionToken)))
+        [58, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(ColonToken), u8s, List.append(token_list, Ok(ColonToken)))
+        [64, .. as u8s] -> utf8_list_to_ts_token_list_inner(Ok(AtToken), u8s, List.append(token_list, Ok(AtToken)))
         # Backtick and Hash are primarily JSDoc or handled differently (template literal start, private identifier start)
         # [96, .. as u8s] -> ... handled by template literal case ...
         # [35, .. as u8s] -> ... handled by identifier case ...
         # --- Numeric Literal ---
         [u8, .. as ignored] if is_digit(u8) ->
             { token: num_token_res, rest: rest_after_num } = process_numeric_literal(u8, u8_list, token_list)
-            current_token =
-                when num_token_res is
-                    # Get token for prev_token arg
-                    Ok(tok) -> tok
-                    Err(_) -> Unknown
-            utf8_list_to_ts_token_list_inner(current_token, rest_after_num, List.append(token_list, num_token_res))
+            utf8_list_to_ts_token_list_inner(num_token_res, rest_after_num, List.append(token_list, num_token_res))
 
         # --- Identifier or Keyword or PrivateIdentifier ---
         # Check for # first for PrivateIdentifier
         [35, first_char, .. as u8s_after_first_char] ->
             # Assuming process_identifier handles the # prefix case
             { token_result, u8s_after_ident } = process_identifier(first_char, u8s_after_first_char)
-            current_token =
-                when token_result is
-                    Ok(tok) -> tok
-                    Err(_) -> Unknown
-            utf8_list_to_ts_token_list_inner(current_token, u8s_after_ident, List.append(token_list, token_result))
+            utf8_list_to_ts_token_list_inner(token_result, u8s_after_ident, List.append(token_list, token_result))
 
         [first_char, .. as u8s_after_first_char] if is_identifier_start(first_char) ->
             { token_result, u8s_after_ident } = process_identifier(first_char, u8s_after_first_char)
-            current_token =
-                when token_result is
-                    Ok(tok) -> tok
-                    Err(_) -> Unknown
-            utf8_list_to_ts_token_list_inner(current_token, u8s_after_ident, List.append(token_list, token_result))
+            utf8_list_to_ts_token_list_inner(token_result, u8s_after_ident, List.append(token_list, token_result))
 
         # --- Comments ---
         [47, 47, .. as rest] -> # Line comment (//)
-            { token_result, u8s_after_comment } = process_line_comment_text(rest)
+            { token_result, u8s_after_comment } = process_line_comment(rest)
             utf8_list_to_ts_token_list_inner(
                 token_result,
                 u8s_after_comment,
-                token_list |> List.append(Ok(LineCommentStart)) |> List.append(token_result),
+                token_list |> List.append(Ok(LineCommentStart)),
             )
 
         [47, 42, .. as rest] -> # Block comment start (/*)
-            process_block_comment_start(rest)
+            { token_result, u8s_after_comment } = process_block_comment_text(rest)
+            utf8_list_to_ts_token_list_inner(
+                token_result,
+                u8s_after_comment,
+                token_list
+                |> List.append(Ok(BlockCommentStart))
+                |> List.append(token_result)
+                |> List.append(BlockCommentEnd),
+            )
 
         # --- Other Trivia ---
         [35, 33, .. as u8s_after_shebang] -> # Shebang #!
@@ -769,101 +774,82 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                     [_, .. as rest] -> consume_shebang(rest)
                     [] -> []
             rest_after_shebang = consume_shebang(u8s_after_shebang)
-            utf8_list_to_ts_token_list_inner(ShebangTrivia, rest_after_shebang, List.append(token_list, Ok(ShebangTrivia)))
+            utf8_list_to_ts_token_list_inner(Ok(ShebangTrivia), rest_after_shebang, List.append(token_list, Ok(ShebangTrivia)))
 
         # ConflictMarkerTrivia and NonTextFileMarkerTrivia are more complex/specific, omitted for brevity here
         # but would follow similar patterns if needed.
         # --- Unknown Character ---
         [_, .. as u8s] -> # Catch-all for unrecognized bytes
-            utf8_list_to_ts_token_list_inner(Unknown, u8s, List.append(token_list, Ok(Unknown)))
+            utf8_list_to_ts_token_list_inner(Err(Unknown), u8s, List.append(token_list, Ok(Unknown)))
 
 # Function to parse line comments (//)
-process_line_comment_text : List U8 -> { token_result : TsTokenResult, u8s_after_comment : List U8 }
-process_line_comment_text = |u8s|
+process_line_comment :
+    List U8
+    -> {
+        token_result : TsTokenResult,
+        u8s_after_comment : List U8,
+    }
+process_line_comment = |u8s, token_list|
     consume_until_newline = |comment_text_u8s, remaining_u8s|
         when remaining_u8s is
             [10, .. as rest] -> (List.append(comment_text_u8s, 10), rest) # Stop at newline (\n)
             [13, 10, .. as rest] -> (comment_text_u8s |> List.append(13) |> List.append(10), rest) # Stop at \r\n
-            [next_u8, .. as rest] -> consume_until_newline(List.append(comment_text_u8s, next_u8), rest)
+            [next_u8, .. as rest] -> consume_until_newline(List.append(comment_text_u8s, next_u8), rest) # Continue
             [] -> (comment_text_u8s, []) # End of input
     (comment_text, u8s_after_comment) = consume_until_newline(u8s)
-    { token_result: Ok(LineCommentText(comment_text)), u8s_after_comment }
+    token_result = Ok(LineCommentText(comment_text))
+    {
+        token_result,
+        u8s_after_comment,
+    }
 
-# Process entire block comment after `BlockCommentStart` (`/*`) token
-process_block_comment_text : List U8 -> { token_results : List TsTokenResult, u8s_after_comment : List U8 }
+# Process entire block comment after `BlockCommentStart` (`/*`) token until `BlockCommentBlockEnd` (`*/`), with `CommentText` in the middle
+process_block_comment_text :
+    List U8
+    ->
+    {
+        token_result : TsTokenResult,
+        u8s_after_comment : List U8,
+    }
 process_block_comment_text = |u8s|
-    consume_comment_text = |bytes, acc|
-        when bytes is
+    inner_process = |current_u8s, current_acc, current_token_list|
+        when current_u8s is
             [42, 47, .. as rest] -> # "*/" ends comment
-                { token: Ok(CommentText(Str.from_utf8_lossy(acc))), u8s_after_comment_text: bytes }
-            [13, 10, .. as rest] -> # Stop at \r\n
-                { token: Ok(CommentText(Str.from_utf8_lossy(acc))), u8s_after_comment_text: bytes }
-            [13, .. as rest] -> # Stop at \r
-            [10, .. as rest] -> # Stop at \n
-                { token: Ok(CommentText(Str.from_utf8_lossy(acc))), u8s_after_comment_text: bytes }
-            [u8, .. as rest] ->
-                consume_comment_text(rest, List.append(acc, u8))
-            [] -> # End of comment
-                { token: Ok(CommentText(Str.from_utf8_lossy(acc))), u8s_after_comment_text: bytes }
+                comment_result = Str.from_utf8(current_acc)
+                when comment_result is
+                    Ok(comment) ->
+                        {
+                            token_result: Ok(CommentText(comment)),
+                            u8s_after_comment: rest,
+                        }
 
-    consume_whitespace_until_star_or_end = |bytes, acc, token_result_list|
-        when bytes is
-            [42, .. as rest] ->
-                { token_result_list: List.append(token_result_list, Ok(BlockCommentLineStart)), u8s_after_comment: rest }
-            [u8, .. as rest] if is_single_line_whitespace(u8) ->
-                consume_whitespace_until_star_or_end(rest, List.append(acc, u8), List.append(token_result_list, Ok(WhitespaceTrivia)))
-            _ ->
-                { token_result_list: List.append(token_result_list, Err(Unknown)), u8s_after_comment: bytes }
-
-    consume_until_block_end = |prev_token, bytes, acc, token_result_list|
-        when prev_token is
-            Ok(BlockCommentBlockStart) ->
-                when bytes is
-                    [42, 47, .. as rest] -> # "*/" ends comment
-                        { token_result_list: List.append(token_result_list, Ok(BlockCommentBlockEnd)), u8s_after_comment: rest }
-                    [maybe_newline, .. as rest] ->
-                        # If '\n'
-                        if is_newline(maybe_newline) then
-                            {token_result_list, remaining_u8s} = consume_whitespace_until_star_or_end(rest, [], List.append(token_result_list, Ok(WhitespaceTrivia)))
-                            maybe_last_token = List.last(token_result_list)
-                            when maybe_last_token is
-                                Ok(tok) -> consume_until_block_end(Ok(tok), remaining_u8s, List.append(acc, 42), token_result_list)
-                                _ -> consume_until_block_end(Ok(BlockCommentLineStart), remaining_u8s, List.append(acc, 42), token_result_list)
-                            consume_until_block_end(Ok(BlockCommentLineStart), remaining_u8s, List.append(acc, 42), token_result_list)
-                        else if is_eof(maybe_newline) then
-                            { token_result_list: List.append(token_result_list, Err(UnclosedBlockComment)), u8s_after_comment: rest }
-                        
-                    [u8, .. as rest_after_star] if is_star(u8) ->
-                        consume_until_block_end(Ok(BlockCommentLineStart), rest, List.append(acc, u8), List.append(token_result_list, Ok(BlockCommentBlockStart)))
-
-                    [u8, .. as rest_after_star] ->
-                        consume_until_block_end(Ok(BlockCommentBlockStart), rest, List.append(acc,
-        when bytes is
-            [42, 47, .. as rest] -> # "*/" ends comment
-                { token_result_list: List.append(token_result_list, Ok(BlockCommentBlockEnd)), u8s_after_comment: rest }
-            [maybe_newline, .. as rest] when is_newline(maybe_newline) ->
-                #  Consume single-line whitespace until star (*), newline (LF or CR), EOF, `BlockCommentBlockEnd` (`*/`), or unclosed block comment
-                when rest is
-                    [42, 47, .. as u8s_after_comment] -> # End of block comment
-                        { token_result_list: List.append(token_result_list, Ok(BlockCommentBlockEnd)), u8s_after_comment }
-                    [u8, .. as rest_after_star] if is_star(u8) ->
+                    Err(_) ->
+                        {
+                            token_result: Err(Unknown),
+                            u8s_after_comment: current_u8s,
+                        }
 
             [u8, .. as rest] ->
-                consume_until_block_end(rest, List.append(acc, u8))
+                inner_process(
+                    rest,
+                    List.append(current_acc, u8),
+                )
 
             [] -> # Unclosed block comment
-                { token: Err(Unknown), u8s_after_comment: [], token_result_list  }
+                comment_result = Str.from_utf8(current_acc)
+                when comment_result is
+                    Ok(comment) ->
+                        List.append(
+                            current_token_list,
+                            Ok(Comment(comment)),
+                        ) # Add comment token
 
-    consume_until_block_end(Ok(`BlockCommentBlockStart`), u8s, [], [])
-
-process_block_comment_text : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
-process_block_comment_text = |u8s|
-    when u8s is
-        [42, .. as rest] -> # '*' indicates a block comment line start
-            { token: Ok(BlockCommentLineStart), rest: rest }
-
-        _ ->
-            { token: Err(Unknown), rest: u8s }
+                    Err(_) ->
+                        List.append(
+                            current_token_list,
+                            Err(Unknown),
+                        ) # Add unknown token
+    inner_process(u8s)
 
 # Function to parse comment text
 process_comment_text : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
@@ -885,60 +871,6 @@ process_comment_text = |u8s|
             [] -> # End of input
                 { token: Ok(CommentText), rest: [] }
     consume_until_comment_end(u8s, [])
-
-# Main function to parse comments
-# process_comment : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
-# process_comment = |u8s|
-#     when u8s is
-#         [47, 47, .. as rest] -> # Line comment (//)
-#             { token_result, u8s_after_comment } = process_line_comment_text(rest)
-#             utf8_list_to_ts_token_list_inner(
-#                 token_result,
-#                 u8s_after_comment,
-#                 token_list |> List.append(Ok(LineCommentStart)) |> List.append(token_result),
-#             )
-#
-#         [47, 42, .. as rest] -> # Block comment start (/*)
-#             process_block_comment(rest)
-#
-#         [42, .. as rest] -> # Block comment line start (*)
-#             process_block_comment_line_start(rest)
-#
-#         _ -> # Default to parsing comment text
-#             process_comment_text(u8s)
-
-# process_block_comment : List U8, List U8, Bool, List TsTokenResult -> List TsTokenResult
-# process_block_comment = |u8s, acc, star_seen, token_list|
-#     inner_process : List U8, List U8, Bool, List TsTokenResult -> List TsTokenResult
-#     inner_process = |current_u8s, current_acc, current_star_seen, current_token_list|
-#         when current_u8s is
-#             [42, 47, .. as rest] -> # "*/" ends comment
-#                 comment_result = Str.from_utf8(current_acc)
-#                 when comment_result is
-#                     Ok(comment) ->
-#                         utf8_list_to_ts_token_list_inner(Comment(comment), rest, List.append(current_token_list, Ok(Comment(comment))))
-#
-#                     Err(_) ->
-#                         utf8_list_to_ts_token_list_inner(Unknown, current_u8s, List.append(current_token_list, Err(Unknown)))
-#
-#             [42, .. as rest] ->
-#                 inner_process(rest, List.append(current_acc, 42), Bool.true, current_token_list)
-#
-#             [47, .. as rest] if current_star_seen ->
-#                 inner_process(rest, List.append(current_acc, 47), Bool.false, current_token_list)
-#
-#             [u8, .. as rest] ->
-#                 inner_process(rest, List.append(current_acc, u8), Bool.false, current_token_list)
-#
-#             [] -> # Unclosed block comment
-#                 comment_result = Str.from_utf8(current_acc)
-#                 when comment_result is
-#                     Ok(comment) ->
-#                         List.append(current_token_list, Ok(Comment(comment)))
-#
-#                     Err(_) ->
-#                         List.append(current_token_list, Err(Unknown))
-#     inner_process(u8s, acc, star_seen, token_list)
 
 is_identifier_start : U8 -> Bool
 is_identifier_start = |u8|
@@ -1184,103 +1116,6 @@ process_string_literal = |u8s, quote_type, acc, token_list|
             [] ->
                 List.append(current_token_list, Err(UnclosedString))
     inner_process(u8s, quote_type, acc, token_list)
-
-# process_line_comment : List U8, List U8, List TsTokenResult -> List TsTokenResult
-# process_line_comment = |u8s, acc, token_list|
-#     inner_process : List U8, List U8, List TsTokenResult -> List TsTokenResult
-#     inner_process = |current_u8s, current_acc, current_token_list|
-#         when current_u8s is
-#             [10, .. as rest] -> # Newline ends comment
-#                 comment_result = Str.from_utf8(current_acc)
-#                 when comment_result is
-#                     Ok(comment) ->
-#                         utf8_list_to_ts_token_list_inner(Comment(comment), rest, List.append(current_token_list, Ok(Comment(comment))))
-#
-#                     Err(_) ->
-#                         utf8_list_to_ts_token_list_inner(Unknown, current_u8s, List.append(current_token_list, Err(Unknown)))
-#
-#             [u8, .. as rest] ->
-#                 inner_process(rest, List.append(current_acc, u8), current_token_list)
-#
-#             [] -> # End of input
-#                 comment_result = Str.from_utf8(current_acc)
-#                 when comment_result is
-#                     Ok(comment) ->
-#                         List.append(current_token_list, Ok(Comment(comment)))
-#
-#                     Err(_) ->
-#                         List.append(current_token_list, Err(Unknown))
-#     inner_process(u8s, acc, token_list)
-
-process_template_literal : List U8, List U8, List TsTokenResult -> List TsTokenResult
-process_template_literal = |u8s, acc, token_list|
-    inner_process : List U8, List U8, List TsTokenResult -> List TsTokenResult
-    inner_process = |current_u8s, current_acc, current_token_list|
-        when current_u8s is
-            # Handle escape sequences
-            [92, next, .. as rest] -> # backslash followed by any character
-                inner_process(
-                    rest,
-                    current_acc
-                    |> List.append(92)
-                    |> List.append(next),
-                    current_token_list,
-                )
-
-            # # Handle expression interpolation - ${...}
-            # [36, 123, .. as rest] ->
-            #     str_result = Str.from_utf8(current_acc)
-            #     when str_result is
-            #         Ok(str) ->
-            #             template_token = TemplateLitPart(str)
-            #             updated_token_list = List.append(current_token_list, Ok(template_token))
-            #             # Handle interpolation
-            #             process_interpolation_wrapper(rest, 1, updated_token_list)
-            #
-            #         Err(_) ->
-            #             utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(current_token_list, Err(Unknown)))
-            # # End of template
-            # [96, .. as rest] -> # backtick
-            #     str_result = Str.from_utf8(current_acc)
-            #     when str_result is
-            #         Ok(str) ->
-            #             utf8_list_to_ts_token_list_inner(TemplateLitEnd(str), rest, List.append(current_token_list, Ok(TemplateLitEnd(str))))
-            #
-            #         Err(_) ->
-            #             utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(current_token_list, Err(Unknown)))
-            # Collect template content
-            [u8, .. as rest] ->
-                inner_process(rest, List.append(current_acc, u8), current_token_list)
-
-            # Unclosed template
-            [] ->
-                List.append(current_token_list, Err(UnclosedTemplate))
-    inner_process(u8s, acc, token_list)
-
-# TODO: Fix this. We need to support template literals
-# process_interpolation_wrapper : List U8, Num _, List TsTokenResult -> List TsTokenResult
-# process_interpolation_wrapper = |u8s, curly_bracket_depth, token_list|
-#     process_interpolation : List U8, Num _, List TsTokenResult -> (List U8, List TsTokenResult)
-#     process_interpolation = |current_u8s, current_depth, current_token_list|
-#         when current_u8s is
-#             [123, .. as rest] -> # Opening CurlyBracket increases depth
-#                 process_interpolation(rest, current_depth + 1, current_token_list)
-#
-#             [125, .. as rest] if current_depth == 1 -> # Closing CurlyBracket at depth 1 ends interpolation
-#                 (rest, List.append(current_token_list, Ok(InterpolationPart)))
-#
-#             [125, .. as rest] -> # Closing CurlyBracket decreases depth
-#                 process_interpolation(rest, current_depth - 1, current_token_list)
-#
-#             [_, .. as rest] ->
-#                 process_interpolation(rest, current_depth, current_token_list)
-#
-#             [] -> # Unclosed interpolation
-#                 ([], List.append(current_token_list, Err(UnclosedInterpolation)))
-#
-#     (new_remaining, updated_token_list) = process_interpolation(u8s, curly_bracket_depth, token_list)
-#     # Continue processing the template
-#     process_template_literal(new_remaining, [], updated_token_list)
 
 is_keyword : Str -> Bool
 is_keyword = |s|
