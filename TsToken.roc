@@ -12,8 +12,8 @@ TsToken : [
     EndOfFileToken,
     LineCommentStart,
     BlockCommentStart,
-    BlockCommentBlockEnd,
-    CommentText,
+    BlockCommentEnd,
+    CommentText Str,
     # SingleLineCommentTrivia,
     # MultiLineCommentTrivia,
     NewLineTrivia,
@@ -215,11 +215,11 @@ ts_token_debug_display = |token|
         CommentText(str) -> "CommentText(${str})"
         # SingleLineCommentTrivia -> "SingleLineCommentTrivia"
         # MultiLineCommentTrivia -> "MultiLineCommentTrivia"
-        # NewLineTrivia -> "NewLineTrivia"
-        # WhitespaceTrivia -> "WhitespaceTrivia"
-        # ShebangTrivia -> "ShebangTrivia"
-        # ConflictMarkerTrivia -> "ConflictMarkerTrivia"
-        # NonTextFileMarkerTrivia -> "NonTextFileMarkerTrivia"
+        NewLineTrivia -> "NewLineTrivia"
+        WhitespaceTrivia -> "WhitespaceTrivia"
+        ShebangTrivia -> "ShebangTrivia"
+        ConflictMarkerTrivia -> "ConflictMarkerTrivia"
+        NonTextFileMarkerTrivia -> "NonTextFileMarkerTrivia"
         # Literals
         NumericLiteral(str) -> "NumericLiteral(${str})"
         BigIntLiteral(str) -> "BigIntLiteral(${str})"
@@ -300,8 +300,8 @@ ts_token_debug_display = |token|
         QuestionQuestionEqualsToken -> "QuestionQuestionEqualsToken"
         CaretEqualsToken -> "CaretEqualsToken"
         # Identifiers and PrivateIdentifiers
-        Identifier Str -> "Identifier"
-        PrivateIdentifier Str -> "PrivateIdentifier"
+        Identifier(str) -> "Identifier(${str})"
+        PrivateIdentifier(str) -> "PrivateIdentifier(${str})"
         #
         # /**
         # * Only the special JSDoc comment text scanner produces JSDocCommentTextTokes. One of these tokens spans all text after a tag comment's start and before the next @
@@ -408,7 +408,7 @@ utf8_list_to_ts_token_list = |u8_list_|
     # Helper processing functions with tail recursion
 
     # Start the tokenization
-    utf8_list_to_ts_token_list_inner(Start, u8_list_, [])
+    utf8_list_to_ts_token_list_inner(Ok(Start), u8_list_, [])
 
 # Main recursive tokenizer function with accumulator
 utf8_list_to_ts_token_list_inner : TsTokenResult, List U8, List TsTokenResult -> List TsTokenResult
@@ -627,35 +627,47 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
 
         # --- Trivia: Comments ---
         [47, 47, .. as u8s_after_slash_slash] -> # // Single Line Comment
-            # Assume process_line_comment consumes until newline and returns the rest
-            { token_result, rest: rest_after_comment } = process_line_comment(u8s_after_slash_slash)
+            # Assume process_line_comment_text consumes until newline and returns the rest
+            { token_result, u8s_after_comment } = process_line_comment_text(u8s_after_slash_slash)
             utf8_list_to_ts_token_list_inner(
                 Ok(LineCommentStart),
-                rest_after_comment,
+                u8s_after_comment,
                 List.append(token_list, token_result),
             ) # Should return Ok(SingleLineCommentTrivia)
 
         [47, 42, .. as u8s_after_slash_star] -> # /* Multi Line Comment */
             # Assume process_block_comment_text consumes until */ and returns the rest
-            { token: comment_token_res, rest: rest_after_comment } = process_block_comment_text(u8s_after_slash_star)
+            { token_result, u8s_after_comment } = process_block_comment_text(u8s_after_slash_star)
             utf8_list_to_ts_token_list_inner(
-                Ok(BlockCommentStart),
-                rest_after_comment,
-                List.append(token_list, comment_token_res),
+                token_result,
+                u8s_after_comment,
+                List.append(token_list, token_result),
             ) # Should return Ok(MultiLineCommentTrivia)
         # --- Literals ---
 
         [34, .. as u8s_after_quote] -> # " String Literal
-            { token: str_token_res, rest: rest_after_str } = process_string_literal(34, "\"", u8s_after_quote, token_list) # Pass quote char
-            utf8_list_to_ts_token_list_inner(Ok(StringLiteral)(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
+            { token_result, u8s_after_str_literal } = process_string_literal(u8s_after_quote, "\"") # Pass quote char
+            utf8_list_to_ts_token_list_inner(
+                token_result,
+                u8s_after_str_literal,
+                List.append(token_list, token_result),
+            ) # Placeholder prev_token
 
         [39, .. as u8s_after_quote] -> # ' String Literal
-            { token: str_token_res, rest: rest_after_str } = process_string_literal(u8s_after_quote, 39) # Pass quote char
-            utf8_list_to_ts_token_list_inner(Ok(StringLiteral)(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
+            { token_result, u8s_after_str_literal } = process_string_literal(u8s_after_quote, "'") # Pass quote char
+            utf8_list_to_ts_token_list_inner(
+                token_result,
+                u8s_after_str_literal,
+                List.append(token_list, token_result),
+            ) # Placeholder prev_token
 
         [96, .. as u8s_after_backtick] -> # ` Template Literal (TODO: Fix this. We need to support template literals)
-            { token: str_token_res, rest: rest_after_str } = process_string_literal(u8s_after_backtick, 39) # Pass quote char
-            utf8_list_to_ts_token_list_inner(Ok(StringLiteral)(""), rest_after_str, List.append(token_list, str_token_res)) # Placeholder prev_token
+            { token_result, u8s_after_str_literal } = process_string_literal(u8s_after_backtick, "`") # Pass quote char
+            utf8_list_to_ts_token_list_inner(
+                token_result,
+                u8s_after_str_literal,
+                List.append(token_list, token_result),
+            ) # Placeholder prev_token
         # { token: template_token_res, rest: rest_after_template } = process_template_literal(u8s_after_backtick)
         # # prev_token needs to be the actual token variant here
         # current_token =
@@ -730,8 +742,12 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         # [35, .. as u8s] -> ... handled by identifier case ...
         # --- Numeric Literal ---
         [u8, .. as ignored] if is_digit(u8) ->
-            { token: num_token_res, rest: rest_after_num } = process_numeric_literal(u8, u8_list, token_list)
-            utf8_list_to_ts_token_list_inner(num_token_res, rest_after_num, List.append(token_list, num_token_res))
+            { token_result, u8s_after_num_literal } = process_numeric_literal(u8, u8_list)
+            utf8_list_to_ts_token_list_inner(
+                token_result,
+                u8s_after_num_literal,
+                List.append(token_list, token_result),
+            )
 
         # --- Identifier or Keyword or PrivateIdentifier ---
         # Check for # first for PrivateIdentifier
@@ -746,7 +762,7 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
 
         # --- Comments ---
         [47, 47, .. as rest] -> # Line comment (//)
-            { token_result, u8s_after_comment } = process_line_comment(rest)
+            { token_result, u8s_after_comment } = process_line_comment_text(rest)
             utf8_list_to_ts_token_list_inner(
                 token_result,
                 u8s_after_comment,
@@ -761,7 +777,7 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 token_list
                 |> List.append(Ok(BlockCommentStart))
                 |> List.append(token_result)
-                |> List.append(BlockCommentEnd),
+                |> List.append(Ok(BlockCommentEnd)),
             )
 
         # --- Other Trivia ---
@@ -783,21 +799,22 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
             utf8_list_to_ts_token_list_inner(Err(Unknown), u8s, List.append(token_list, Ok(Unknown)))
 
 # Function to parse line comments (//)
-process_line_comment :
+process_line_comment_text :
     List U8
     -> {
         token_result : TsTokenResult,
         u8s_after_comment : List U8,
     }
-process_line_comment = |u8s, token_list|
+process_line_comment_text = |u8s|
     consume_until_newline = |comment_text_u8s, remaining_u8s|
         when remaining_u8s is
             [10, .. as rest] -> (List.append(comment_text_u8s, 10), rest) # Stop at newline (\n)
             [13, 10, .. as rest] -> (comment_text_u8s |> List.append(13) |> List.append(10), rest) # Stop at \r\n
             [next_u8, .. as rest] -> consume_until_newline(List.append(comment_text_u8s, next_u8), rest) # Continue
             [] -> (comment_text_u8s, []) # End of input
-    (comment_text, u8s_after_comment) = consume_until_newline(u8s)
-    token_result = Ok(LineCommentText(comment_text))
+    (comment_text, u8s_after_comment) = consume_until_newline([], u8s)
+    token_result : TsTokenResult
+    token_result = Ok(CommentText(Str.from_utf8_lossy(comment_text)))
     {
         token_result,
         u8s_after_comment,
@@ -812,14 +829,17 @@ process_block_comment_text :
         u8s_after_comment : List U8,
     }
 process_block_comment_text = |u8s|
-    inner_process = |current_u8s, current_acc, current_token_list|
+    # inner_process : List U8, List U8 -> { token_result : TsTokenResult, u8s_after_comment : List U8 }
+    inner_process = |current_u8s, acc|
         when current_u8s is
             [42, 47, .. as rest] -> # "*/" ends comment
-                comment_result = Str.from_utf8(current_acc)
+                comment_result = Str.from_utf8(acc)
                 when comment_result is
                     Ok(comment) ->
+                        token_result : TsTokenResult
+                        token_result = Ok(CommentText(comment))
                         {
-                            token_result: Ok(CommentText(comment)),
+                            token_result,
                             u8s_after_comment: rest,
                         }
 
@@ -830,47 +850,25 @@ process_block_comment_text = |u8s|
                         }
 
             [u8, .. as rest] ->
-                inner_process(
-                    rest,
-                    List.append(current_acc, u8),
-                )
+                inner_process(rest, List.append(acc, u8))
 
             [] -> # Unclosed block comment
-                comment_result = Str.from_utf8(current_acc)
+                comment_result = Str.from_utf8(acc)
                 when comment_result is
                     Ok(comment) ->
-                        List.append(
-                            current_token_list,
-                            Ok(Comment(comment)),
-                        ) # Add comment token
+                        token_result : TsTokenResult
+                        token_result = Ok(CommentText(comment))
+                        {
+                            token_result,
+                            u8s_after_comment: current_u8s,
+                        }
 
                     Err(_) ->
-                        List.append(
-                            current_token_list,
-                            Err(Unknown),
-                        ) # Add unknown token
-    inner_process(u8s)
-
-# Function to parse comment text
-process_comment_text : List U8 -> { token : Result TsToken [Unknown], rest : List U8 }
-process_comment_text = |u8s|
-    consume_until_comment_end = |bytes, acc|
-        when bytes is
-            [10, .. as rest] -> # Stop at newline (\n)
-                { token: Ok(CommentText), rest: bytes }
-
-            [13, 10, .. as rest] -> # Stop at \r\n
-                { token: Ok(CommentText), rest: bytes }
-
-            [42, 47, .. as rest] -> # Stop at block comment end (*/)
-                { token: Ok(CommentText), rest: bytes }
-
-            [u8, .. as rest] ->
-                consume_until_comment_end(rest, List.append(acc, u8))
-
-            [] -> # End of input
-                { token: Ok(CommentText), rest: [] }
-    consume_until_comment_end(u8s, [])
+                        {
+                            token_result: Err(Unknown),
+                            u8s_after_comment: current_u8s,
+                        }
+    inner_process(u8s, [])
 
 is_identifier_start : U8 -> Bool
 is_identifier_start = |u8|
@@ -893,11 +891,9 @@ is_digit = |u8| u8 >= 48 and u8 <= 57
 
 process_identifier :
     U8,
-    List U8,
-    List TsTokenResult
+    List U8
     -> {
         token_result : TsTokenResult,
-        new_token_list : List TsTokenResult,
         u8s_after_ident : List U8,
     }
 process_identifier = |first_char, rest|
@@ -915,6 +911,7 @@ process_identifier = |first_char, rest|
     (ident_chars, new_remaining) = collect_identifier_chars([first_char], rest)
     ident_result = Str.from_utf8(ident_chars)
 
+    token_result : TsTokenResult
     token_result =
         when ident_result is
             Ok(ident) -> Ok(Identifier(ident))
@@ -1039,8 +1036,14 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
     inner_collect(acc, remaining, has_decimal, has_exp, [], Ok({}))
 
 # Refactored function to process numeric literals using the modified collect_numeric_chars
-process_numeric_literal : U8, List U8, List TsTokenResult -> List TsTokenResult
-process_numeric_literal = |first_digit, rest, token_list|
+process_numeric_literal :
+    U8,
+    List U8
+    -> {
+        token_result : TsTokenResult,
+        u8s_after_num_literal : List U8,
+    }
+process_numeric_literal = |first_digit, rest|
     # Collect all potential numeric characters and determine validity
     collection_result = collect_numeric_chars([first_digit], rest, Bool.false, Bool.false)
 
@@ -1053,69 +1056,65 @@ process_numeric_literal = |first_digit, rest, token_list|
 
             # It should theoretically not be empty if first_digit was valid, but check anyway
             if List.is_empty(num_chars) then
-                utf8_list_to_ts_token_list_inner(Unknown, new_remaining, List.append(token_list, Err(Unknown)))
+                { token_result: Err(Unknown), u8s_after_num_literal: new_remaining }
             else
                 # Try converting the valid sequence to string
                 num_result = Str.from_utf8(num_chars)
                 when num_result is
                     Ok(num_str) ->
                         # Successfully created NumericLiteral token
-                        utf8_list_to_ts_token_list_inner(NumericLiteral(num_str), new_remaining, List.append(token_list, Ok(NumericLiteral(num_str))))
+                        { token_result: Ok(NumericLiteral(num_str)), u8s_after_num_literal: new_remaining }
 
                     Err(_) ->
                         # UTF8 error unlikely but possible? Treat as unknown.
-                        utf8_list_to_ts_token_list_inner(Unknown, new_remaining, List.append(token_list, Err(Unknown)))
+                        { token_result: Err(Unknown), u8s_after_num_literal: new_remaining }
 
         Err(InvalidNumericSeparator) ->
             # Invalid number sequence due to separator rules
-            # Add the error token
-            updated_token_list = List.append(token_list, Err(InvalidNumericSeparator))
-            # Continue tokenizing AFTER the consumed invalid sequence
-            utf8_list_to_ts_token_list_inner(Unknown, collection_result.rest, updated_token_list)
+            { token_result: Err(InvalidNumericSeparator), u8s_after_num_literal: collection_result.rest }
 
-process_string_literal : List U8, Str, List U8, List TsTokenResult -> List TsTokenResult
-process_string_literal = |u8s, quote_type, acc, token_list|
-    inner_process : List U8, Str, List U8, List TsTokenResult -> List TsTokenResult
-    inner_process = |current_u8s, current_quote_type, current_acc, current_token_list|
+process_string_literal : List U8, Str -> { token_result : TsTokenResult, u8s_after_str_literal : List U8 }
+process_string_literal = |u8s, quote_type|
+    inner_process : List U8, Str, List U8 -> { token_result : TsTokenResult, u8s_after_str_literal : List U8 }
+    inner_process = |current_u8s, current_quote_type, acc|
         when current_u8s is
             # Handle escape sequences
             [92, next, .. as rest] -> # backslash followed by any character
                 inner_process(
                     rest,
                     current_quote_type,
-                    current_acc
+                    acc
                     |> List.append(92)
                     |> List.append(next),
-                    current_token_list,
                 )
 
             # End of string based on quote type
             [34, .. as rest] if current_quote_type == "\"" -> # double quote
-                str_result = Str.from_utf8(current_acc)
+                str_result = Str.from_utf8(acc)
                 when str_result is
                     Ok(str) ->
-                        utf8_list_to_ts_token_list_inner(StringLiteral(str), rest, List.append(current_token_list, Ok(StringLiteral(str))))
+                        { token_result: Ok(StringLiteral(str)), u8s_after_str_literal: rest }
 
                     Err(_) ->
-                        utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(current_token_list, Err(Unknown)))
+                        { token_result: Err(Unknown), u8s_after_str_literal: rest }
 
             [39, .. as rest] if current_quote_type == "'" -> # single quote
-                str_result = Str.from_utf8(current_acc)
+                str_result = Str.from_utf8(acc)
                 when str_result is
                     Ok(str) ->
-                        utf8_list_to_ts_token_list_inner(StringLiteral(str), rest, List.append(current_token_list, Ok(StringLiteral(str))))
+                        { token_result: Ok(StringLiteral(str)), u8s_after_str_literal: rest }
 
                     Err(_) ->
-                        utf8_list_to_ts_token_list_inner(Unknown, rest, List.append(current_token_list, Err(Unknown)))
+                        { token_result: Err(Unknown), u8s_after_str_literal: rest }
 
             # Collect string content
             [u8, .. as rest] ->
-                inner_process(rest, current_quote_type, List.append(current_acc, u8), current_token_list)
+                inner_process(rest, current_quote_type, List.append(acc, u8))
 
             # Unclosed string
             [] ->
-                List.append(current_token_list, Err(UnclosedString))
-    inner_process(u8s, quote_type, acc, token_list)
+                { token_result: Err(UnclosedString), u8s_after_str_literal: current_u8s }
+    inner_process(u8s, quote_type, [])
 
 is_keyword : Str -> Bool
 is_keyword = |s|
