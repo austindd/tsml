@@ -6,7 +6,7 @@ module [
     EcmaNewline,
 ]
 
-TsToken : [
+Token : [
     Start, # Not used for AST. Just marking the start of the token stream.
     Unknown,
     EndOfFileToken,
@@ -198,12 +198,12 @@ TsToken : [
     OfKeyword, # LastKeyword and LastToken and LastContextualKeyword
 ]
 
-TsTokenResult : [
-    Ok TsToken,
+TokenResult : [
+    Ok Token,
     Err [Unknown, UnclosedString, UnclosedTemplate, UnclosedInterpolation, InvalidNumericSeparator],
 ]
 
-ts_token_debug_display : TsToken -> Str
+ts_token_debug_display : Token -> Str
 ts_token_debug_display = |token|
     when token is
         Start -> "Start"
@@ -401,7 +401,7 @@ EcmaWhitespace : [Space, Tab, Newline, LineTabulation, FormFeed, ZeroWidthNoBrea
 EcmaAlpha : [Alpha (List U8)]
 EcmaNewline : [Newline]
 
-utf8_list_to_ts_token_list : List U8 -> List TsTokenResult
+utf8_list_to_ts_token_list : List U8 -> List TokenResult
 utf8_list_to_ts_token_list = |u8_list_|
     # Helper functions
 
@@ -411,7 +411,7 @@ utf8_list_to_ts_token_list = |u8_list_|
     utf8_list_to_ts_token_list_inner(Ok(Start), u8_list_, [])
 
 # Main recursive tokenizer function with accumulator
-utf8_list_to_ts_token_list_inner : TsTokenResult, List U8, List TsTokenResult -> List TsTokenResult
+utf8_list_to_ts_token_list_inner : TokenResult, List U8, List TokenResult -> List TokenResult
 utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_token often not needed in this style
     when u8_list is
         # --- End of File ---
@@ -1428,7 +1428,7 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
 process_line_comment_text :
     List U8
     -> {
-        token_result : TsTokenResult,
+        token_result : TokenResult,
         remaining_u8s : List U8,
     }
 process_line_comment_text = |u8s|
@@ -1454,7 +1454,7 @@ process_line_comment_text = |u8s|
 
             [] -> (comment_text_u8s, []) # End of input
     (comment_text, remaining_u8s) = consume_until_newline([], u8s)
-    token_result : TsTokenResult
+    token_result : TokenResult
     token_result = Ok(CommentText(Str.from_utf8_lossy(comment_text)))
     {
         token_result,
@@ -1467,18 +1467,18 @@ process_block_comment_text :
     List U8
     ->
     {
-        token_result : TsTokenResult,
+        token_result : TokenResult,
         remaining_u8s : List U8,
     }
 process_block_comment_text = |u8s|
-    inner_process : List U8, List U8 -> { token_result : TsTokenResult, remaining_u8s : List U8 }
+    inner_process : List U8, List U8 -> { token_result : TokenResult, remaining_u8s : List U8 }
     inner_process = |current_u8s, acc|
         when current_u8s is
             [42, 47, .. as rest] -> # "*/" ends comment
                 comment_result = Str.from_utf8(acc)
                 when comment_result is
                     Ok(comment) ->
-                        token_result : TsTokenResult
+                        token_result : TokenResult
                         token_result = Ok(CommentText(comment))
                         {
                             token_result,
@@ -1498,7 +1498,7 @@ process_block_comment_text = |u8s|
                 comment_result = Str.from_utf8(acc)
                 when comment_result is
                     Ok(comment) ->
-                        token_result : TsTokenResult
+                        token_result : TokenResult
                         token_result = Ok(CommentText(comment))
                         {
                             token_result,
@@ -1535,7 +1535,7 @@ process_identifier :
     U8,
     List U8
     -> {
-        token_result : TsTokenResult,
+        token_result : TokenResult,
         remaining_u8s : List U8,
     }
 process_identifier = |first_char, rest|
@@ -1553,7 +1553,7 @@ process_identifier = |first_char, rest|
     (ident_chars, new_remaining) = collect_identifier_chars([first_char], rest)
     ident_result = Str.from_utf8(ident_chars)
 
-    token_result : TsTokenResult
+    token_result : TokenResult
     token_result =
         when ident_result is
             Ok(ident) -> Ok(Identifier(ident))
@@ -1755,7 +1755,7 @@ process_numeric_literal :
     U8,
     List U8
     -> {
-        token_result : TsTokenResult,
+        token_result : TokenResult,
         remaining_u8s : List U8,
     }
 process_numeric_literal = |first_digit, rest|
@@ -1805,7 +1805,7 @@ process_string_literal :
     List U8,
     Str
     -> {
-        token_result : TsTokenResult,
+        token_result : TokenResult,
         remaining_u8s : List U8,
     }
 process_string_literal = |u8s, quote_type|
@@ -1814,7 +1814,7 @@ process_string_literal = |u8s, quote_type|
         Str,
         List U8
         -> {
-            token_result : TsTokenResult,
+            token_result : TokenResult,
             remaining_u8s : List U8,
         }
     inner_process = |current_u8s, current_quote_type, acc|

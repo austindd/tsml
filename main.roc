@@ -3,7 +3,7 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import pf.Stdin
-import pf.Path
+# import pf.Path
 # import pf.File
 # import pf.Env
 # import Utf8Char
@@ -20,13 +20,13 @@ import pf.Path
 # import SymTblStack
 # import TsTypes.CoreTypes2
 # import ListMap
-import TsToken
+import Token
 # import TsAst
 
-get_file_contents! = |f_path_str|
-    f_path = Path.from_str f_path_str
-    output = Path.read_utf8! f_path
-    output
+# get_file_contents! = |f_path_str|
+#     f_path = Path.from_str f_path_str
+#     output = Path.read_utf8! f_path
+#     output
 
 # pathStrToPathStrList = \pathStr ->
 #    Str.splitOn pathStr "/"
@@ -57,12 +57,12 @@ main! = |_|
             |args|
                 args
                 |> Str.to_utf8
-                |> TsToken.utf8_list_to_ts_token_list
+                |> Token.utf8_list_to_ts_token_list
                 |> List.map(
                     |item|
                         item
                         |> Result.map_ok(
-                            TsToken.ts_token_debug_display,
+                            Token.ts_token_debug_display,
                         ),
                 ),
         )
