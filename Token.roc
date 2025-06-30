@@ -2045,4 +2045,10 @@ cc = {
 # of
 # async
 # await
-#
+
+# Tests
+expect
+    ts_string = ""
+    token_list = tokenize_str(ts_string)
+    token_list == [Ok(EndOfFileToken)]
+
