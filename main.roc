@@ -56,8 +56,7 @@ main! = |_|
         |> Result.map_ok(
             |args|
                 args
-                |> Str.to_utf8
-                |> Token.utf8_list_to_ts_token_list
+                |> Token.tokenize_str
                 |> List.map(
                     |item|
                         item

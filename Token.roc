@@ -1,6 +1,7 @@
 module [
     ts_token_debug_display,
-    utf8_list_to_ts_token_list,
+    tokenize_str,
+    tokenize_utf8_bytes,
     EcmaAlpha,
     EcmaWhitespace,
     EcmaNewline,
@@ -400,6 +401,17 @@ ts_token_debug_display = |token|
 EcmaWhitespace : [Space, Tab, Newline, LineTabulation, FormFeed, ZeroWidthNoBreakSpace]
 EcmaAlpha : [Alpha (List U8)]
 EcmaNewline : [Newline]
+
+tokenize_str : Str -> List TokenResult
+tokenize_str = |str|
+    str
+    |> Str.to_utf8
+    |> utf8_list_to_ts_token_list
+
+tokenize_utf8_bytes : List U8 -> List TokenResult
+tokenize_utf8_bytes = |u8_list|
+    u8_list
+    |> utf8_list_to_ts_token_list
 
 utf8_list_to_ts_token_list : List U8 -> List TokenResult
 utf8_list_to_ts_token_list = |u8_list_|
