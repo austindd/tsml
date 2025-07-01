@@ -2052,3 +2052,27 @@ expect
     token_list = tokenize_str(ts_string)
     token_list == [Ok(EndOfFileToken)]
 
+expect
+    ts_string = "\n"
+    token_list = tokenize_str(ts_string)
+    token_list == [Ok(NewLineTrivia), Ok(EndOfFileToken)]
+
+expect
+    ts_string = "\r\n"
+    token_list = tokenize_str(ts_string)
+    token_list == [Ok(NewLineTrivia), Ok(EndOfFileToken)]
+
+expect
+    ts_string = "\r"
+    token_list = tokenize_str(ts_string)
+    token_list == [Ok(Unknown), Ok(EndOfFileToken)]
+
+expect
+    ts_string = "const"
+    token_list = tokenize_str(ts_string)
+    token_list == [Ok(ConstKeyword), Ok(EndOfFileToken)]
+
+expect
+    ts_string = "const "
+    token_list = tokenize_str(ts_string)
+    token_list == [Ok(ConstKeyword), Ok(WhitespaceTrivia), Ok(EndOfFileToken)]
