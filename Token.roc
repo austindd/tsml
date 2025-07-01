@@ -2111,3 +2111,59 @@ expect
         Ok(SemicolonToken),
         Ok(EndOfFileToken),
     ]
+
+expect
+    ts_string = "-1.890e-1"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(MinusToken),
+        Ok(NumericLiteral("1.890e-1")),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "18.90e21"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(NumericLiteral("18.90e21")),
+        Ok(EndOfFileToken),
+    ]
+
+# TODO: Support hex literals
+# expect
+#     ts_string = "0x1A"
+#     token_list = tokenize_str(ts_string)
+#     token_list
+#     == [
+#         Ok(NumericLiteral("0x1A")),
+#         Ok(EndOfFileToken),
+#     ]
+
+expect
+    ts_string = "1_000_123"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(NumericLiteral("1_000_123")),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "1_000_123.456_789"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(NumericLiteral("1_000_123.456_789")),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "1_000_123.456_789e-1"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(NumericLiteral("1_000_123.456_789e-1")),
+        Ok(EndOfFileToken),
+    ]
