@@ -2185,3 +2185,45 @@ expect
         Ok(StringLiteral("'Hello, world!'")),
         Ok(EndOfFileToken),
     ]
+
+expect
+    ts_string = "\"Hello, world!\\n\""
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(StringLiteral("\"Hello, world!\\n\"")),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "for (let i = 0; i < 10; i++) {}"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(ForKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(OpenParenToken),
+        Ok(LetKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("i")),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("0")),
+        Ok(SemicolonToken),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("i")),
+        Ok(WhitespaceTrivia),
+        Ok(LessThanToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("10")),
+        Ok(SemicolonToken),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("i")),
+        Ok(PlusPlusToken),
+        Ok(CloseParenToken),
+        Ok(WhitespaceTrivia),
+        Ok(OpenBraceToken),
+        Ok(CloseBraceToken),
+        Ok(EndOfFileToken),
+    ]
