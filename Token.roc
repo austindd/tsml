@@ -2076,3 +2076,44 @@ expect
     ts_string = "const "
     token_list = tokenize_str(ts_string)
     token_list == [Ok(ConstKeyword), Ok(WhitespaceTrivia), Ok(EndOfFileToken)]
+
+expect
+    ts_string = "const\n"
+    token_list = tokenize_str(ts_string)
+    token_list == [Ok(ConstKeyword), Ok(NewLineTrivia), Ok(EndOfFileToken)]
+
+expect
+    ts_string = "const\r\n"
+    token_list = tokenize_str(ts_string)
+    token_list == [Ok(ConstKeyword), Ok(NewLineTrivia), Ok(EndOfFileToken)]
+
+expect
+    ts_string = "let x = 1"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(LetKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("x")),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("1")),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "var x = 23;"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(VarKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("x")),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("23")),
+        Ok(SemicolonToken),
+        Ok(EndOfFileToken),
+    ]
