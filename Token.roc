@@ -1837,7 +1837,7 @@ process_string_literal = |u8s, quote_type|
 
             # End of string based on quote type
             [34, .. as rest] if current_quote_type == "\"" -> # double quote
-                str_result = acc |> List.prepend(34) |> List.append(34) |> Str.from_utf8
+                str_result = acc |> List.append(34) |> Str.from_utf8
                 when str_result is
                     Ok(str) ->
                         { token_result: Ok(StringLiteral(str)), remaining_u8s: rest }
@@ -1846,7 +1846,7 @@ process_string_literal = |u8s, quote_type|
                         { token_result: Err(Unknown), remaining_u8s: rest }
 
             [39, .. as rest] if current_quote_type == "'" -> # single quote
-                str_result = acc |> List.prepend(39) |> List.append(39) |> Str.from_utf8
+                str_result = acc |> List.append(39) |> Str.from_utf8
                 when str_result is
                     Ok(str) ->
                         { token_result: Ok(StringLiteral(str)), remaining_u8s: rest }
@@ -1861,7 +1861,7 @@ process_string_literal = |u8s, quote_type|
             # Unclosed string
             [] ->
                 { token_result: Err(UnclosedString), remaining_u8s: current_u8s }
-    inner_process(u8s, quote_type, [])
+    inner_process(u8s, quote_type, Str.to_utf8(quote_type))
 
 is_keyword : Str -> Bool
 is_keyword = |s|
