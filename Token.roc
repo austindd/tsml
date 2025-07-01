@@ -1363,8 +1363,8 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         # [96, .. as u8s] -> ... handled by template literal case ...
         # [35, .. as u8s] -> ... handled by identifier case ...
         # --- Numeric Literal ---
-        [u8, .. as ignored] if is_digit(u8) ->
-            { token_result, remaining_u8s } = process_numeric_literal(u8, u8_list)
+        [u8, .. as rest] if is_digit(u8) ->
+            { token_result, remaining_u8s } = process_numeric_literal(u8, rest)
             utf8_list_to_ts_token_list_inner(
                 token_result,
                 remaining_u8s,
