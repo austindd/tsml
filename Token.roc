@@ -1837,7 +1837,7 @@ process_string_literal = |u8s, quote_type|
 
             # End of string based on quote type
             [34, .. as rest] if current_quote_type == "\"" -> # double quote
-                str_result = Str.from_utf8(acc)
+                str_result = acc |> List.prepend(34) |> List.append(34) |> Str.from_utf8
                 when str_result is
                     Ok(str) ->
                         { token_result: Ok(StringLiteral(str)), remaining_u8s: rest }
@@ -1846,7 +1846,7 @@ process_string_literal = |u8s, quote_type|
                         { token_result: Err(Unknown), remaining_u8s: rest }
 
             [39, .. as rest] if current_quote_type == "'" -> # single quote
-                str_result = Str.from_utf8(acc)
+                str_result = acc |> List.prepend(39) |> List.append(39) |> Str.from_utf8
                 when str_result is
                     Ok(str) ->
                         { token_result: Ok(StringLiteral(str)), remaining_u8s: rest }
@@ -2173,7 +2173,7 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(StringLiteral("Hello, world!")),
+        Ok(StringLiteral("\"Hello, world!\"")),
         Ok(EndOfFileToken),
     ]
 
@@ -2182,6 +2182,6 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(StringLiteral("Hello, world!")),
+        Ok(StringLiteral("'Hello, world!'")),
         Ok(EndOfFileToken),
     ]
