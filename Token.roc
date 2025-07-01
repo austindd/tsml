@@ -1593,14 +1593,13 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
         List U8,
         Bool,
         Bool,
-        List U8,
         Result {} [InvalidNumericSeparator]
         -> {
             consumed : List U8,
             rest : List U8,
             status : Result {} [InvalidNumericSeparator],
         }
-    inner_collect = |current_acc, current_remaining, current_decimal, current_exp, final_acc, current_status|
+    inner_collect = |current_acc, current_remaining, current_decimal, current_exp, current_status|
         when current_remaining is
             # --- Underscore Separator Handling ---
             [95, .. as rest_after_underscore] -> # Encountered an underscore '_'
@@ -1635,7 +1634,6 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                     rest_after_underscore,
                     current_decimal,
                     current_exp,
-                    final_acc,
                     new_status,
                 )
 
@@ -1663,7 +1661,6 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                     rest_chars,
                     Bool.true,
                     current_exp,
-                    final_acc,
                     new_status,
                 )
 
@@ -1696,7 +1693,6 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                     rest_chars,
                     current_decimal,
                     Bool.true,
-                    final_acc,
                     new_status,
                 )
 
@@ -1726,7 +1722,6 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                     rest_chars,
                     current_decimal,
                     current_exp,
-                    final_acc,
                     new_status,
                 )
 
@@ -1738,7 +1733,6 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                     rest_chars,
                     current_decimal,
                     current_exp,
-                    final_acc,
                     current_status,
                 )
 
@@ -1754,13 +1748,13 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
 
                 # Return the fully consumed sequence, the actual remaining input, and the final validity status
                 {
-                    consumed: List.concat(final_acc, current_acc),
+                    consumed: current_acc,
                     rest: current_remaining,
                     status: final_status,
                 }
 
     # Initial call to the inner helper, starting with Ok status
-    inner_collect(acc, remaining, has_decimal, has_exp, [], Ok({}))
+    inner_collect(acc, remaining, has_decimal, has_exp, Ok({}))
 
 # Refactored function to process numeric literals using the modified collect_numeric_chars
 process_numeric_literal :
