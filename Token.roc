@@ -2167,3 +2167,21 @@ expect
         Ok(NumericLiteral("1_000_123.456_789e-1")),
         Ok(EndOfFileToken),
     ]
+
+expect
+    ts_string = "\"Hello, world!\""
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(StringLiteral("Hello, world!")),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "'Hello, world!'"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(StringLiteral("Hello, world!")),
+        Ok(EndOfFileToken),
+    ]
