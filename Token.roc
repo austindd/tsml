@@ -369,7 +369,6 @@ ts_token_debug_display = |token|
         BooleanKeyword -> "BooleanKeyword"
         ConstructorKeyword -> "ConstructorKeyword"
         DeclareKeyword -> "DeclareKeyword"
-        DebuggerKeyword -> "DebuggerKeyword"
         GetKeyword -> "GetKeyword"
         InferKeyword -> "InferKeyword"
         IntrinsicKeyword -> "IntrinsicKeyword"
@@ -688,18 +687,18 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 List.append(token_list, Ok(AsKeyword)),
             )
 
-        [105, 109, 112, 108, 101, 109, 101, 110, 116, 115, .. as u8s] -> # implements
-            utf8_list_to_ts_token_list_inner(
-                Ok(ImplementsKeyword),
-                u8s,
-                List.append(token_list, Ok(ImplementsKeyword)),
-            )
-
         [105, 110, 116, 101, 114, 102, 097, 099, 101, .. as u8s] -> # interface
             utf8_list_to_ts_token_list_inner(
                 Ok(InterfaceKeyword),
                 u8s,
                 List.append(token_list, Ok(InterfaceKeyword)),
+            )
+
+        [105, 109, 112, 108, 101, 109, 101, 110, 116, 115, .. as u8s] -> # implements
+            utf8_list_to_ts_token_list_inner(
+                Ok(ImplementsKeyword),
+                u8s,
+                List.append(token_list, Ok(ImplementsKeyword)),
             )
 
         [108, 101, 116, .. as u8s] -> # let
