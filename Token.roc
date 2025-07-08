@@ -425,9 +425,50 @@ utf8_list_to_ts_token_list = |u8_list_|
 utf8_list_to_ts_token_list_inner : TokenResult, List U8, List TokenResult -> List TokenResult
 utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_token often not needed in this style
     when u8_list is
-        # --- End of File ---
         [] -> List.append(token_list, Ok(EndOfFileToken))
-        # --- Keywords ---
+        [47, 47, .. as rest] -> # Line comment (//)
+            { token_result, remaining_u8s } = process_line_comment_text(rest)
+            utf8_list_to_ts_token_list_inner(
+                token_result,
+                remaining_u8s,
+                token_list
+                |> List.append(Ok(LineCommentStart))
+                |> List.append(token_result),
+            )
+
+        [47, 42, .. as rest] -> # Block comment start (/*)
+            { token_result, remaining_u8s } = process_block_comment_text(rest)
+            utf8_list_to_ts_token_list_inner(
+                token_result,
+                remaining_u8s,
+                token_list
+                |> List.append(Ok(BlockCommentStart))
+                |> List.append(token_result)
+                |> List.append(Ok(BlockCommentEnd)),
+            )
+
+        [35, 33, .. as rest] -> # Shebang #!
+            # Consume until newline or EOF
+            consume_shebang = |bytes|
+                when bytes is
+                    [10, .. as rest_2] -> rest_2 # Stop at \n
+                    [13, 10, .. as rest_2] -> rest_2 # Stop at \r\n
+                    [_, .. as rest_2] -> consume_shebang(rest_2)
+                    [] -> []
+            rest_after_shebang = consume_shebang(rest)
+            utf8_list_to_ts_token_list_inner(
+                Ok(ShebangTrivia),
+                rest_after_shebang,
+                token_list |> List.append(Ok(ShebangTrivia)),
+            )
+
+        [105, 110, 116, 101, 114, 102, 097, 099, 101, .. as u8s] -> # interface
+            utf8_list_to_ts_token_list_inner(
+                Ok(InterfaceKeyword),
+                u8s,
+                List.append(token_list, Ok(InterfaceKeyword)),
+            )
+
         [098, 114, 101, 097, 107, .. as u8s] -> # break
             utf8_list_to_ts_token_list_inner(
                 Ok(BreakKeyword),
@@ -687,13 +728,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 List.append(token_list, Ok(AsKeyword)),
             )
 
-        [105, 110, 116, 101, 114, 102, 097, 099, 101, .. as u8s] -> # interface
-            utf8_list_to_ts_token_list_inner(
-                Ok(InterfaceKeyword),
-                u8s,
-                List.append(token_list, Ok(InterfaceKeyword)),
-            )
-
         [105, 109, 112, 108, 101, 109, 101, 110, 116, 115, .. as u8s] -> # implements
             utf8_list_to_ts_token_list_inner(
                 Ok(ImplementsKeyword),
@@ -892,26 +926,7 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 List.append(token_list, Ok(WhitespaceTrivia)),
             )
 
-        # --- Trivia: Comments ---
-        [47, 47, .. as rest] -> # // Single Line Comment
-            # Assume process_line_comment_text consumes until newline and returns the rest
-            { token_result, remaining_u8s } = process_line_comment_text(rest)
-            utf8_list_to_ts_token_list_inner(
-                Ok(LineCommentStart),
-                remaining_u8s,
-                List.append(token_list, token_result),
-            ) # Should return Ok(SingleLineCommentTrivia)
-
-        [47, 42, .. as rest] -> # /* Multi Line Comment */
-            # Assume process_block_comment_text consumes until */ and returns the rest
-            { token_result, remaining_u8s } = process_block_comment_text(rest)
-            utf8_list_to_ts_token_list_inner(
-                token_result,
-                remaining_u8s,
-                List.append(token_list, token_result),
-            ) # Should return Ok(MultiLineCommentTrivia)
         # --- Literals ---
-
         [34, .. as rest] -> # " String Literal
             { token_result, remaining_u8s } = process_string_literal(rest, "\"") # Pass quote char
             utf8_list_to_ts_token_list_inner(
@@ -1387,42 +1402,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 token_result,
                 remaining_u8s,
                 List.append(token_list, token_result),
-            )
-
-        # --- Comments ---
-        [47, 47, .. as rest] -> # Line comment (//)
-            { token_result, remaining_u8s } = process_line_comment_text(rest)
-            utf8_list_to_ts_token_list_inner(
-                token_result,
-                remaining_u8s,
-                token_list |> List.append(Ok(LineCommentStart)),
-            )
-
-        [47, 42, .. as rest] -> # Block comment start (/*)
-            { token_result, remaining_u8s } = process_block_comment_text(rest)
-            utf8_list_to_ts_token_list_inner(
-                token_result,
-                remaining_u8s,
-                token_list
-                |> List.append(Ok(BlockCommentStart))
-                |> List.append(token_result)
-                |> List.append(Ok(BlockCommentEnd)),
-            )
-
-        # --- Other Trivia ---
-        [35, 33, .. as rest] -> # Shebang #!
-            # Consume until newline or EOF
-            consume_shebang = |bytes|
-                when bytes is
-                    [10, .. as rest_2] -> rest_2 # Stop at \n
-                    [13, 10, .. as rest_2] -> rest_2 # Stop at \r\n
-                    [_, .. as rest_2] -> consume_shebang(rest_2)
-                    [] -> []
-            rest_after_shebang = consume_shebang(rest)
-            utf8_list_to_ts_token_list_inner(
-                Ok(ShebangTrivia),
-                rest_after_shebang,
-                token_list |> List.append(Ok(ShebangTrivia)),
             )
 
         # ConflictMarkerTrivia and NonTextFileMarkerTrivia are more complex/specific,
