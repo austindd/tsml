@@ -21,6 +21,7 @@ import pf.Stdin
 # import TsTypes.CoreTypes2
 # import ListMap
 import Token
+import TokenTest
 # import TsAst
 
 # get_file_contents! = |f_path_str|
