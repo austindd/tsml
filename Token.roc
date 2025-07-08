@@ -426,6 +426,20 @@ utf8_list_to_ts_token_list_inner : TokenResult, List U8, List TokenResult -> Lis
 utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_token often not needed in this style
     when u8_list is
         [] -> List.append(token_list, Ok(EndOfFileToken))
+        [099, 111, 110, 115, 116, 114, 117, 099, 116, 111, 114, .. as u8s] -> # constructor
+            utf8_list_to_ts_token_list_inner(
+                Ok(ConstructorKeyword),
+                u8s,
+                List.append(token_list, Ok(ConstructorKeyword)),
+            )
+
+        [097, 115, 121, 110, 099, .. as u8s] -> # async
+            utf8_list_to_ts_token_list_inner(
+                Ok(AsyncKeyword),
+                u8s,
+                List.append(token_list, Ok(AsyncKeyword)),
+            )
+
         [47, 47, .. as rest] -> # Line comment (//)
             { token_result, remaining_u8s } = process_line_comment_text(rest)
             utf8_list_to_ts_token_list_inner(
@@ -798,13 +812,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 List.append(token_list, Ok(BooleanKeyword)),
             )
 
-        [099, 111, 110, 115, 116, 114, 117, 099, 116, 111, 114, .. as u8s] -> # constructor
-            utf8_list_to_ts_token_list_inner(
-                Ok(ConstructorKeyword),
-                u8s,
-                List.append(token_list, Ok(ConstructorKeyword)),
-            )
-
         [100, 101, 099, 108, 097, 114, 101, .. as u8s] -> # declare
             utf8_list_to_ts_token_list_inner(
                 Ok(DeclareKeyword),
@@ -880,13 +887,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 Ok(OfKeyword),
                 u8s,
                 List.append(token_list, Ok(OfKeyword)),
-            )
-
-        [097, 115, 121, 110, 099, .. as u8s] -> # async
-            utf8_list_to_ts_token_list_inner(
-                Ok(AsyncKeyword),
-                u8s,
-                List.append(token_list, Ok(AsyncKeyword)),
             )
 
         [097, 119, 097, 105, 116, .. as u8s] -> # await
