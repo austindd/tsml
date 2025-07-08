@@ -188,3 +188,41 @@ expect
         Ok(CloseBraceToken),
         Ok(EndOfFileToken),
     ]
+
+expect
+    ts_string = "const x = 100 + y + (function() { return 42; })()"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(ConstKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("x")),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("100")),
+        Ok(WhitespaceTrivia),
+        Ok(PlusToken),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("y")),
+        Ok(WhitespaceTrivia),
+        Ok(PlusToken),
+        Ok(WhitespaceTrivia),
+        Ok(OpenParenToken),
+        Ok(FunctionKeyword),
+        Ok(OpenParenToken),
+        Ok(CloseParenToken),
+        Ok(WhitespaceTrivia),
+        Ok(OpenBraceToken),
+        Ok(WhitespaceTrivia),
+        Ok(ReturnKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("42")),
+        Ok(SemicolonToken),
+        Ok(WhitespaceTrivia),
+        Ok(CloseBraceToken),
+        Ok(CloseParenToken),
+        Ok(OpenParenToken),
+        Ok(CloseParenToken),
+        Ok(EndOfFileToken),
+    ]
