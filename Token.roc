@@ -950,14 +950,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 remaining_u8s,
                 List.append(token_list, token_result),
             ) # Placeholder prev_token
-        # { token_result, remaining_u8s } = process_template_literal(rest)
-        # # prev_token needs to be the actual token variant here
-        # current_token =
-        #     when token_result is
-        #         Ok(tok) -> tok
-        #         Err(_) -> Unknown # Or handle error appropriately
-        # utf8_list_to_ts_token_list_inner(current_token, rest, List.append(token_list, token_result))
-        # --- Punctuation and Operators (Longest First) ---
 
         [46, 46, 46, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
