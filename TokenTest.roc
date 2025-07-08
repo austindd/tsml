@@ -226,3 +226,152 @@ expect
         Ok(CloseParenToken),
         Ok(EndOfFileToken),
     ]
+
+expect
+    ts_string = "interface A {}"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(InterfaceKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("A")),
+        Ok(WhitespaceTrivia),
+        Ok(OpenBraceToken),
+        Ok(CloseBraceToken),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "const x: number = 42;"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(ConstKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("x")),
+        Ok(ColonToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumberKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("42")),
+        Ok(SemicolonToken),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "let message: string = \"Hello, World!\";"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(LetKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("message")),
+        Ok(ColonToken),
+        Ok(WhitespaceTrivia),
+        Ok(StringKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(StringLiteral("\"Hello, World!\"")),
+        Ok(SemicolonToken),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "const pi: number = 3.14159;"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(ConstKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("pi")),
+        Ok(ColonToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumberKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("3.14159")),
+        Ok(SemicolonToken),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "let names: string[] = [\"Alice\", \"Bob\", \"Charlie\"];"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(LetKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("names")),
+        Ok(ColonToken),
+        Ok(WhitespaceTrivia),
+        Ok(StringKeyword),
+        Ok(OpenBracketToken),
+        Ok(CloseBracketToken),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(OpenBracketToken),
+        Ok(StringLiteral("\"Alice\"")),
+        Ok(CommaToken),
+        Ok(WhitespaceTrivia),
+        Ok(StringLiteral("\"Bob\"")),
+        Ok(CommaToken),
+        Ok(WhitespaceTrivia),
+        Ok(StringLiteral("\"Charlie\"")),
+        Ok(CloseBracketToken),
+        Ok(SemicolonToken),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "enum Color { Red, Green, Blue }"
+    token_list = tokenize_str(ts_string)
+    token_list == [
+        Ok(EnumKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("Color")),
+        Ok(WhitespaceTrivia),
+        Ok(OpenBraceToken),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("Red")),
+        Ok(CommaToken),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("Green")),
+        Ok(CommaToken),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("Blue")),
+        Ok(WhitespaceTrivia),
+        Ok(CloseBraceToken),
+        Ok(EndOfFileToken),
+    ]
+
+expect
+    ts_string = "enum Status { Active = 1, Inactive = 0 }"
+    token_list = tokenize_str(ts_string)
+    token_list == [
+        Ok(EnumKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("Status")),
+        Ok(WhitespaceTrivia),
+        Ok(OpenBraceToken),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("Active")),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("1")),
+        Ok(CommaToken),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("Inactive")),
+        Ok(WhitespaceTrivia),
+        Ok(EqualsToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumericLiteral("0")),
+        Ok(WhitespaceTrivia),
+        Ok(CloseBraceToken),
+        Ok(EndOfFileToken),
+    ]
