@@ -18,7 +18,7 @@ Token : [
     # SingleLineCommentTrivia,
     # MultiLineCommentTrivia,
     NewLineTrivia,
-    WhitespaceTrivia,
+    WhitespaceTrivia U32,
     ShebangTrivia,
     ConflictMarkerTrivia,
     NonTextFileMarkerTrivia,
@@ -217,7 +217,7 @@ ts_token_debug_display = |token|
         # SingleLineCommentTrivia -> "SingleLineCommentTrivia"
         # MultiLineCommentTrivia -> "MultiLineCommentTrivia"
         NewLineTrivia -> "NewLineTrivia"
-        WhitespaceTrivia -> "WhitespaceTrivia"
+        WhitespaceTrivia(count) -> "WhitespaceTrivia(${Num.to_str(count)})"
         ShebangTrivia -> "ShebangTrivia"
         ConflictMarkerTrivia -> "ConflictMarkerTrivia"
         NonTextFileMarkerTrivia -> "NonTextFileMarkerTrivia"
@@ -913,17 +913,18 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
 
         [u8, .. as u8s] if u8 == 32 or u8 == 9 or u8 == 11 or u8 == 12 -> # Space, Tab, VT, FF
             # Consume all contiguous whitespace
-            consume_whitespace = |bytes|
+            consume_whitespace = |count, bytes|
                 when bytes is
-                    [b, .. as rest] if b == 32 or b == 9 or b == 11 or b == 12 -> consume_whitespace(rest)
+                    [b, .. as rest] if b == 32 or b == 9 or b == 11 or b == 12 -> consume_whitespace(count + 1, rest)
                     # Check for non-breaking space (U+00A0 = C2 A0) - Optional
-                    [194, 160, .. as rest] -> consume_whitespace(rest)
-                    _ -> bytes
-            rest_after_whitespace = consume_whitespace(u8s)
+                    [194, 160, .. as rest] -> consume_whitespace(count + 1, rest)
+                    _ -> (count, bytes)
+            (ws_count, rest_after_whitespace) = consume_whitespace(1, u8s)
+            tok = WhitespaceTrivia(ws_count)
             utf8_list_to_ts_token_list_inner(
-                Ok(WhitespaceTrivia),
+                Ok(tok),
                 rest_after_whitespace,
-                List.append(token_list, Ok(WhitespaceTrivia)),
+                List.append(token_list, Ok(tok)),
             )
 
         # --- Literals ---
