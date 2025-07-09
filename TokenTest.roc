@@ -375,3 +375,32 @@ expect
         Ok(CloseBraceToken),
         Ok(EndOfFileToken),
     ]
+
+expect
+    ts_string = "interface Person {\n  name: string;\n  age: number;\n}"
+    token_list = tokenize_str(ts_string)
+    token_list
+    == [
+        Ok(InterfaceKeyword),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("Person")),
+        Ok(WhitespaceTrivia),
+        Ok(OpenBraceToken),
+        Ok(NewLineTrivia),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("name")),
+        Ok(ColonToken),
+        Ok(WhitespaceTrivia),
+        Ok(StringKeyword),
+        Ok(SemicolonToken),
+        Ok(NewLineTrivia),
+        Ok(WhitespaceTrivia),
+        Ok(Identifier("age")),
+        Ok(ColonToken),
+        Ok(WhitespaceTrivia),
+        Ok(NumberKeyword),
+        Ok(SemicolonToken),
+        Ok(NewLineTrivia),
+        Ok(CloseBraceToken),
+        Ok(EndOfFileToken),
+    ]
