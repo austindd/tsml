@@ -17,7 +17,7 @@ Token : [
     CommentText Str,
     # SingleLineCommentTrivia,
     # MultiLineCommentTrivia,
-    NewLineTrivia,
+    NewLineTrivia U32,
     WhitespaceTrivia U32,
     ShebangTrivia,
     ConflictMarkerTrivia,
@@ -216,7 +216,7 @@ ts_token_debug_display = |token|
         CommentText(str) -> "CommentText(${str})"
         # SingleLineCommentTrivia -> "SingleLineCommentTrivia"
         # MultiLineCommentTrivia -> "MultiLineCommentTrivia"
-        NewLineTrivia -> "NewLineTrivia"
+        NewLineTrivia(count) -> "NewLineTrivia (${Num.to_str(count)})"
         WhitespaceTrivia(count) -> "WhitespaceTrivia(${Num.to_str(count)})"
         ShebangTrivia -> "ShebangTrivia"
         ConflictMarkerTrivia -> "ConflictMarkerTrivia"
@@ -898,17 +898,27 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
 
         # --- Trivia: Newlines and Whitespace ---
         [10, .. as u8s] -> # \n
+            consume_new_lines = |count, bytes|
+                when bytes is
+                    [10, .. as rest] -> consume_new_lines(count + 1, rest)
+                    _ -> (count, bytes)
+            (nl_count, rest_after_newline) = consume_new_lines(1, u8s)
             utf8_list_to_ts_token_list_inner(
-                Ok(NewLineTrivia),
-                u8s,
-                List.append(token_list, Ok(NewLineTrivia)),
+                Ok(NewLineTrivia(nl_count)),
+                rest_after_newline,
+                List.append(token_list, Ok(NewLineTrivia(nl_count))),
             )
 
         [13, 10, .. as u8s] -> # \r\n
+            consume_new_lines = |count, bytes|
+                when bytes is
+                    [13, 10, .. as rest] -> consume_new_lines(count + 1, rest)
+                    _ -> (count, bytes)
+            (nl_count, rest_after_newline) = consume_new_lines(1, u8s)
             utf8_list_to_ts_token_list_inner(
-                Ok(NewLineTrivia),
-                u8s,
-                List.append(token_list, Ok(NewLineTrivia)),
+                Ok(NewLineTrivia(nl_count)),
+                rest_after_newline,
+                List.append(token_list, Ok(NewLineTrivia(nl_count))),
             )
 
         [u8, .. as u8s] if u8 == 32 or u8 == 9 or u8 == 11 or u8 == 12 -> # Space, Tab, VT, FF
@@ -1903,50 +1913,50 @@ keywords = [
     "await",
 ]
 
-cc = {
-    slash: 47,
-    asterisk: 42,
-    backslash: 92,
-    lf: 10,
-    cr: 13,
-    space: 32,
-    tab: 9,
-    underscore: 95,
-    dollar: 36,
-    zero: 48,
-    nine: 57,
-    a: 97,
-    z: 122,
-    cap_A: 65,
-    cap_Z: 90,
-    openParen: 40,
-    closeParen: 41,
-    openBrace: 123,
-    closeBrace: 125,
-    openBracket: 91,
-    closeBracket: 93,
-    lessThan: 60,
-    greaterThan: 62,
-    equals: 61,
-    plus: 43,
-    minus: 45,
-    percent: 37,
-    ampersand: 38,
-    bar: 124,
-    caret: 94,
-    tilde: 126,
-    exclamation: 33,
-    question: 63,
-    comma: 44,
-    dot: 46,
-    semicolon: 59,
-    colon: 58,
-    singleQuote: 39,
-    doubleQuote: 34,
-    backtick: 96,
-    hash: 35,
-    at: 64,
-}
+# cc = {
+#     slash: 47,
+#     asterisk: 42,
+#     backslash: 92,
+#     lf: 10,
+#     cr: 13,
+#     space: 32,
+#     tab: 9,
+#     underscore: 95,
+#     dollar: 36,
+#     zero: 48,
+#     nine: 57,
+#     a: 97,
+#     z: 122,
+#     cap_A: 65,
+#     cap_Z: 90,
+#     openParen: 40,
+#     closeParen: 41,
+#     openBrace: 123,
+#     closeBrace: 125,
+#     openBracket: 91,
+#     closeBracket: 93,
+#     lessThan: 60,
+#     greaterThan: 62,
+#     equals: 61,
+#     plus: 43,
+#     minus: 45,
+#     percent: 37,
+#     ampersand: 38,
+#     bar: 124,
+#     caret: 94,
+#     tilde: 126,
+#     exclamation: 33,
+#     question: 63,
+#     comma: 44,
+#     dot: 46,
+#     semicolon: 59,
+#     colon: 58,
+#     singleQuote: 39,
+#     doubleQuote: 34,
+#     backtick: 96,
+#     hash: 35,
+#     at: 64,
+# }
 
 # break
 # case

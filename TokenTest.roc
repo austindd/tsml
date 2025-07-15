@@ -10,12 +10,12 @@ expect
 expect
     ts_string = "\n"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(NewLineTrivia), Ok(EndOfFileToken)]
+    token_list == [Ok(NewLineTrivia(1)), Ok(EndOfFileToken)]
 
 expect
     ts_string = "\r\n"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(NewLineTrivia), Ok(EndOfFileToken)]
+    token_list == [Ok(NewLineTrivia(1)), Ok(EndOfFileToken)]
 
 expect
     ts_string = "\r"
@@ -35,12 +35,12 @@ expect
 expect
     ts_string = "const\n"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(ConstKeyword), Ok(NewLineTrivia), Ok(EndOfFileToken)]
+    token_list == [Ok(ConstKeyword), Ok(NewLineTrivia(1)), Ok(EndOfFileToken)]
 
 expect
     ts_string = "const\r\n"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(ConstKeyword), Ok(NewLineTrivia), Ok(EndOfFileToken)]
+    token_list == [Ok(ConstKeyword), Ok(NewLineTrivia(1)), Ok(EndOfFileToken)]
 
 expect
     ts_string = "let x = 1"
@@ -386,21 +386,21 @@ expect
         Ok(Identifier("Person")),
         Ok(WhitespaceTrivia(1)),
         Ok(OpenBraceToken),
-        Ok(NewLineTrivia),
+        Ok(NewLineTrivia(1)),
         Ok(WhitespaceTrivia(1)),
         Ok(Identifier("name")),
         Ok(ColonToken),
         Ok(WhitespaceTrivia(1)),
         Ok(StringKeyword),
         Ok(SemicolonToken),
-        Ok(NewLineTrivia),
+        Ok(NewLineTrivia(1)),
         Ok(WhitespaceTrivia(1)),
         Ok(Identifier("age")),
         Ok(ColonToken),
         Ok(WhitespaceTrivia(1)),
         Ok(NumberKeyword),
         Ok(SemicolonToken),
-        Ok(NewLineTrivia),
+        Ok(NewLineTrivia(1)),
         Ok(CloseBraceToken),
         Ok(EndOfFileToken),
     ]
