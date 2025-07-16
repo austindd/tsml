@@ -407,6 +407,7 @@ expect
         Ok(EndOfFileToken),
     ]
 
+# This makes sure that identifiers are not tokenized as keywords when they begin with keyword characters.
 expect
     ts_string = "any_ as_ async_ await_ boolean_ break_ case_ catch_ class_ const_ constructor_ continue_ debugger_ declare_ default_ delete_ do_ else_ enum_ export_ extends_ false_ finally_ for_ function_ get_ if_ implements_ import_ in_ instanceof_ interface_ let_ module_ new_ null_ number_ of_ package_ private_ protected_ public_ require_ return_ set_ static_ string_ super_ switch_ symbol_ this_ throw_ true_ try_ type_ typeof_ var_ void_ while_ with_ yield_"
     token_list = tokenize_str(ts_string)
