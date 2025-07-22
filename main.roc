@@ -22,7 +22,7 @@ import pf.Stdin
 # import ListMap
 import Token
 import TokenTest
-# import TsAst
+import Ast
 
 # get_file_contents! = |f_path_str|
 #     f_path = Path.from_str f_path_str

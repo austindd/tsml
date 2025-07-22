@@ -5,6 +5,8 @@ module [
     EcmaAlpha,
     EcmaWhitespace,
     EcmaNewline,
+    Token,
+    TokenResult,
 ]
 
 Token : [
