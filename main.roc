@@ -3,30 +3,31 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import pf.Stdin
-import pf.Path
+# import pf.Path
 # import pf.File
 # import pf.Env
 # import Utf8Char
 # import ListUtils
 # import Option
-import StrUtils
+# import StrUtils
 # import TsTypes.TsType
 # import Stack
-import TsTypes.TsConstraint
-import TsTypes.Constraint
-import StackMap
-import TsTypes.Constraint
-import SymTbl
-import SymTblStack
-import TsTypes.CoreTypes2
-import ListMap
-import TsToken
-import TsAst
+# import TsTypes.TsConstraint
+# import TsTypes.Constraint
+# import StackMap
+# import TsTypes.Constraint
+# import SymTbl
+# import SymTblStack
+# import TsTypes.CoreTypes2
+# import ListMap
+import Token
+import TokenTest
+import Ast
 
-get_file_contents! = |f_path_str|
-    f_path = Path.from_str f_path_str
-    output = Path.read_utf8! f_path
-    output
+# get_file_contents! = |f_path_str|
+#     f_path = Path.from_str f_path_str
+#     output = Path.read_utf8! f_path
+#     output
 
 # pathStrToPathStrList = \pathStr ->
 #    Str.splitOn pathStr "/"
@@ -56,13 +57,12 @@ main! = |_|
         |> Result.map_ok(
             |args|
                 args
-                |> Str.to_utf8
-                |> TsToken.utf8_list_to_ts_token_list
+                |> Token.tokenize_str
                 |> List.map(
                     |item|
                         item
                         |> Result.map_ok(
-                            TsToken.ts_token_debug_display,
+                            Token.ts_token_debug_display,
                         ),
                 ),
         )
