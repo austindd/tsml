@@ -97,17 +97,17 @@ LogicalOperator : [
 
 BinaryExpressionNode : [BinaryExpression { loc : Location, operator : BinaryOperator, left : ExpressionNode, right : ExpressionNode }]
 
-NormalMemberExpressionNode : [NormalMemberExpression { loc : Location, object : [ExpressionNode], property : [IdentifierNode] }]
+NormalMemberExpressionNode : [NormalMemberExpression { loc : Location, object : ExpressionNode, property : IdentifierNode }]
 
-ComputedMemberExpressionNode : [ComputedMemberExpression { loc : Location, object : [ExpressionNode], property : [ExpressionNode] }]
+ComputedMemberExpressionNode : [ComputedMemberExpression { loc : Location, object : ExpressionNode, property : ExpressionNode }]
 
-ConditionalExpression : [ConditionalExpression { test : [ExpressionNode], alternate : [ExpressionNode], consequent : [ExpressionNode] }]
+ConditionalExpression : [ConditionalExpression { test : [ExpressionNode], alternate : ExpressionNode, consequent : ExpressionNode }]
 
 PatternNode : [IdentifierNode]
 
 PropertyKeyNode : {
     loc : Location,
-    key : [LiteralNode, IdentifierNode],
+    key : [Literal LiteralNode, Identifier IdentifierNode],
     value : ExpressionNode,
     kind : [Init, Get, Set],
 }
