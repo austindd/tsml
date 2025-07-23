@@ -83,11 +83,11 @@ ArrayExpressionNode : [ArrayExpression { loc : Location, elements : List Express
 ObjectExpressionNode : [ObjectExpression { loc : Location, properties : List PropertyNode }]
 
 AssignmentExpressionNode : [
-    AssignmentExpression { operator : AssignmentOperator, left : [PatternNode, ExpressionNode], right : [ExpressionNode] },
+    AssignmentExpression { operator : AssignmentOperator, left : [Pattern PatternNode, Expression ExpressionNode], right : ExpressionNode },
 ]
 
 LogicalExpressionNode : [
-    LogicalExpression { operator : LogicalOperator, left : [ExpressionNode], right : [ExpressionNode] },
+    LogicalExpression { operator : LogicalOperator, left : ExpressionNode, right : ExpressionNode },
 ]
 
 LogicalOperator : [
@@ -101,7 +101,7 @@ NormalMemberExpressionNode : [NormalMemberExpression { loc : Location, object : 
 
 ComputedMemberExpressionNode : [ComputedMemberExpression { loc : Location, object : ExpressionNode, property : ExpressionNode }]
 
-ConditionalExpression : [ConditionalExpression { test : [ExpressionNode], alternate : ExpressionNode, consequent : ExpressionNode }]
+ConditionalExpression : [ConditionalExpression { test : ExpressionNode, alternate : ExpressionNode, consequent : ExpressionNode }]
 
 PatternNode : [IdentifierNode]
 
