@@ -95,6 +95,8 @@ LogicalOperator : [
     LogicalOr,
 ]
 
+BinaryExpressionNode : [BinaryExpression { loc : Location, operator : BinaryOperator, left : ExpressionNode, right : ExpressionNode }]
+
 NormalMemberExpressionNode : [NormalMemberExpression { loc : Location, object : [ExpressionNode], property : [IdentifierNode] }]
 
 ComputedMemberExpressionNode : [ComputedMemberExpression { loc : Location, object : [ExpressionNode], property : [ExpressionNode] }]
@@ -112,20 +114,19 @@ PropertyKeyNode : {
 
 PropertyNode : []
 
-BinaryExpressionNode : [BinaryExpression { loc : Location, operator : BinaryOperator, left : [Expression ExpressionNode], right : [Expression ExpressionNode] }]
-
 ExpressionNode : [
     ThisExpression ThisExpressionNode,
     ArrayExpression ArrayExpressionNode,
     ObjectExpression ObjectExpressionNode,
     Literal LiteralNode,
     Identifier IdentifierNode,
-    BinaryExpression BinaryExpressionNode ,
+    BinaryExpression, # BinaryExpressionNode ,
     # AssignmentExpression AssignmentExpressionNode ,
     # LogicalExpression LogicalExpressionNode ,
     # NormalMemberExpression NormalMemberExpressionNode ,
     # ComputedMemberExpression ComputedMemberExpressionNode ,
 ]
+
 
 # fn : ExpressionNode -> BinaryExpressionNode
 # fn = |expression|
@@ -269,20 +270,19 @@ UnaryOperator : [
 # - parseVariableDeclaration
 # - etc.
 
-# TypeAB : [A { loc : Location }, B { loc : Location }]
+# Compose a : []a
 #
-# TypeCD : [C { loc : Location }, D { loc : Location }]
+# TypeAB a : [A, B]a
 #
-# Composed : [
-#     ...TypeAB,
-#     ...TypeCD,
-# ]
+# TypeCD a : TypeAB [C, D]a
 #
-# get_location : Composed -> Location
+# TypeEF a : TypeCD [E, F]a
+#
+# TypeGH : TypeAB (TypeCD [G, H])
+#
+# get_location : TypeGH -> U8
 # get_location = |test1|
 #     when test1 is
-#         A({ loc }) -> loc
-#         B({ loc }) -> loc
-#         C({ loc }) -> loc
-#         D({ loc }) -> loc
+#         A -> 1
+#         B -> 2
 #
