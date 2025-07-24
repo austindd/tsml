@@ -1,5 +1,5 @@
-# app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.18.0/0APbwVN1_p1mJ96tXjaoiUCr8NBGamr8G8Ac_DrXR-o.tar.br" }
 app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.19.0/Hj-J_zxz7V9YurCSTFcFdu6cQJie4guzsPMUi5kBYUk.tar.br" }
+# app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.18.0/0APbwVN1_p1mJ96tXjaoiUCr8NBGamr8G8Ac_DrXR-o.tar.br" }
 
 import pf.Stdout
 import pf.Stdin
@@ -23,6 +23,7 @@ import pf.Stdin
 import Token
 import TokenTest
 import Ast
+import Ast2
 
 # get_file_contents! = |f_path_str|
 #     f_path = Path.from_str f_path_str

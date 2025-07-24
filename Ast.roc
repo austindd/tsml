@@ -6,13 +6,19 @@ module [
 import Token exposing [Token, TokenResult, tokenize_str]
 import Option exposing [Option, Some, None, is_some, is_none, map, map2, map3, join_map, unsafe_get, combine2, combine3, gather, compact]
 
-Location : {
-    start : U32,
-    end : U32,
-}
+WithLocation x : { start : U32, end : U32 }x
+
+Location : WithLocation {}
+
+WithBaseNode x : { loc : Location }x
+
+BaseNode : WithBaseNode {}
 
 # Literals
-IdentifierNode : [Identifier { loc : Location, name : Str }]
+IdentifierNode : [Identifier (WithBaseNode { name : Str })]
+test : IdentifierNode
+test = Identifier({ loc: { start: 0, end: 0 }, name: "test" })
+
 StringLiteralNode : [StringLiteral { loc : Location, value : Str }]
 BooleanLiteralNode : [BooleanLiteral { loc : Location, value : Bool }]
 NullLiteralNode : [NullLiteral { loc : Location }]
@@ -76,18 +82,24 @@ AssignmentOperator : [
     AmpersandEqual,
 ]
 
-ThisExpressionNode : [ThisExpression { loc : Location }]
+ThisExpressionNode : [
+    ThisExpression { loc : Location },
+]
 
-ArrayExpressionNode : [ArrayExpression { loc : Location, elements : List ExpressionNode }]
+ArrayExpressionNode : [
+    ArrayExpression { loc : Location, elements : List ExpressionNode },
+]
 
-ObjectExpressionNode : [ObjectExpression { loc : Location, properties : List PropertyNode }]
+ObjectExpressionNode : [
+    ObjectExpression { loc : Location, properties : List PropertyNode },
+]
 
 AssignmentExpressionNode : [
-    AssignmentExpression { operator : AssignmentOperator, left : [Pattern PatternNode, Expression ExpressionNode], right : ExpressionNode },
+    AssignmentExpression { loc : Location, operator : AssignmentOperator, left : [Pattern PatternNode, Expression ExpressionNode], right : ExpressionNode },
 ]
 
 LogicalExpressionNode : [
-    LogicalExpression { operator : LogicalOperator, left : ExpressionNode, right : ExpressionNode },
+    LogicalExpression { loc : Location, operator : LogicalOperator, left : ExpressionNode, right : ExpressionNode },
 ]
 
 LogicalOperator : [
@@ -95,15 +107,13 @@ LogicalOperator : [
     LogicalOr,
 ]
 
-BinaryExpressionNode : [BinaryExpression { loc : Location, operator : BinaryOperator, left : ExpressionNode, right : ExpressionNode }]
-
 NormalMemberExpressionNode : [NormalMemberExpression { loc : Location, object : ExpressionNode, property : IdentifierNode }]
 
 ComputedMemberExpressionNode : [ComputedMemberExpression { loc : Location, object : ExpressionNode, property : ExpressionNode }]
 
 ConditionalExpression : [ConditionalExpression { test : ExpressionNode, alternate : ExpressionNode, consequent : ExpressionNode }]
 
-PatternNode : [IdentifierNode]
+PatternNode : IdentifierNode
 
 PropertyKeyNode : {
     loc : Location,
@@ -115,18 +125,34 @@ PropertyKeyNode : {
 PropertyNode : []
 
 ExpressionNode : [
-    ThisExpression ThisExpressionNode,
-    ArrayExpression ArrayExpressionNode,
-    ObjectExpression ObjectExpressionNode,
-    Literal LiteralNode,
-    Identifier IdentifierNode,
-    BinaryExpression, # BinaryExpressionNode ,
-    # AssignmentExpression AssignmentExpressionNode ,
-    # LogicalExpression LogicalExpressionNode ,
-    # NormalMemberExpression NormalMemberExpressionNode ,
-    # ComputedMemberExpression ComputedMemberExpressionNode ,
+    ArrayExpression { loc : Location, elements : List ExpressionNode },
+    ObjectExpression { loc : Location, properties : List PropertyNode },
+    AssignmentExpression { loc : Location, operator : AssignmentOperator, left : [Pattern PatternNode, Expression ExpressionNode], right : ExpressionNode },
+    LogicalExpression { loc : Location, operator : LogicalOperator, left : ExpressionNode, right : ExpressionNode },
 ]
 
+# ExpressionNode : [
+#     ThisExpression ThisExpressionNode,
+#     ArrayExpression ArrayExpressionNode,
+#     ObjectExpression ObjectExpressionNode,
+#     Literal LiteralNode,
+#     Identifier IdentifierNode,
+#     # BinaryExpression BinaryExpressionNode ,
+#     # AssignmentExpression AssignmentExpressionNode ,
+#     # LogicalExpression LogicalExpressionNode,
+#     # NormalMemberExpression NormalMemberExpressionNode ,
+#     # ComputedMemberExpression ComputedMemberExpressionNode ,
+# ]
+
+get_loc : ExpressionNode -> Location
+get_loc = |expression|
+    when expression is
+        ArrayExpression({ loc }) -> loc
+        ObjectExpression({ loc }) -> loc
+        AssignmentExpression({ loc }) -> loc
+        LogicalExpression({ loc }) -> loc
+
+BinaryExpressionNode : [BinaryExpression { loc : Location, operator : BinaryOperator, left : ExpressionNode, right : ExpressionNode }]
 
 # fn : ExpressionNode -> BinaryExpressionNode
 # fn = |expression|
@@ -286,3 +312,29 @@ UnaryOperator : [
 #         A -> 1
 #         B -> 2
 #
+
+# ANode : {left : Sum, right : Sum}
+# BNode : {left : Sum, right : Sum}
+#
+# Sum : [
+#   A {left : Sum, right : Sum},
+#   B {left : Sum, right : Sum},
+#   None,
+# ]
+#
+# valueA : ANode
+# valueA = {left : None, right : None}
+#
+# valueB : BNode
+# valueB = {left : A({ left: None, right: None }), right : None}
+#
+# takeA : ANode -> ANode
+# takeA = |a|
+#   a
+#
+# result = takeA(valueB)
+#
+#
+
+WithTypeA x : { a : U8 }x
+TypeA : WithTypeA {}
