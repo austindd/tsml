@@ -114,19 +114,18 @@ WithLogicalExpressionNode x : [
 LogicalExpressionNode : WithLogicalExpressionNode []
 
 # ExpressionNode
-WithExpressionNode x y : [
+ExpressionNode : [
     AssignmentExpression (WithBaseNodeData {
                 operator : AssignmentOperator,
-                left : [Pattern WithPatternNode y, Expression (WithExpressionNode x y)],
-                right : WithExpressionNode x y,
+                left : [Pattern (PatternNode), Expression ExpressionNode ],
+                right : ExpressionNode,
             }),
     LogicalExpression (WithBaseNodeData {
                 operator : LogicalOperator,
-                left : WithExpressionNode x y,
-                right : WithExpressionNode x y,
+                left : ExpressionNode,
+                right : ExpressionNode,
             }),
-]x
-ExpressionNode : WithExpressionNode [] []
+]
 
 #################################################################
 #### Properties #################################################
@@ -149,10 +148,9 @@ PropertyNode : WithPropertyNode []
 #### Patterns ###################################################
 #################################################################
 # PatternNode
-WithPatternNode x y : [
-    ExpressionPattern (Rec {expr : WithExpressionNode y}),
-]x
-PatternNode : WithPatternNode [] []
+PatternNode : [
+    # ExpressionPattern {expr : ExpressionNode },
+]
 
 #################################################################
 #### Misc #######################################################

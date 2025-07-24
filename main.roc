@@ -21,6 +21,7 @@ import pf.Stdin
 # import TsTypes.CoreTypes2
 # import ListMap
 import Token
+import Scratch
 import TokenTest
 import Ast
 import Ast2
