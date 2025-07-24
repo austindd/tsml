@@ -1,5 +1,7 @@
 module []
 
+Rec x := x
+
 WithLocationData x : { start : U32, end : U32 }x
 
 LocationData : WithLocationData {}
@@ -53,6 +55,38 @@ LiteralNode : WithLiteralNode []
 #################################################################
 #### Expressions ################################################
 #################################################################
+
+# ThisExpressionNode
+WithThisExpressionData x :
+    WithBaseNodeData {}
+ThisExpressionData : WithThisExpressionData {}
+WithThisExpressionNode x : [
+    ThisExpression ThisExpressionData,
+]x
+ThisExpressionNode : WithThisExpressionNode []
+
+# ArrayExpressionNode
+WithArrayExpressionData x :
+    WithBaseNodeData {
+        elements : List ExpressionNode,
+    }x
+ArrayExpressionData : WithArrayExpressionData {}
+WithArrayExpressionNode x : [
+    ArrayExpression ArrayExpressionData,
+]x
+ArrayExpressionNode : WithArrayExpressionNode []
+
+# ObjectExpressionNode
+WithObjectExpressionData x :
+    WithBaseNodeData {
+        properties : List PropertyNode,
+    }x
+ObjectExpressionData : WithObjectExpressionData {}
+WithObjectExpressionNode x : [
+    ObjectExpression ObjectExpressionData,
+]x
+ObjectExpressionNode : WithObjectExpressionNode []
+
 # AssignmentExpressionNode
 WithAssignmentExpressionData x :
     WithBaseNodeData {
@@ -81,11 +115,35 @@ LogicalExpressionNode : WithLogicalExpressionNode []
 
 # ExpressionNode
 WithExpressionNode x : [
-    AssignmentExpression AssignmentExpressionData,
-    LogicalExpression LogicalExpressionData,
-]
+    AssignmentExpression (WithBaseNodeData {
+                operator : AssignmentOperator,
+                left : [Pattern PatternNode, Expression (WithExpressionNode x)],
+                right : WithExpressionNode x,
+            }),
+    LogicalExpression (WithBaseNodeData {
+                operator : LogicalOperator,
+                left : WithExpressionNode x,
+                right : WithExpressionNode x,
+            }),
+]x
 ExpressionNode : WithExpressionNode []
 
+#################################################################
+#### Properties #################################################
+#################################################################
+
+# PropertyNode
+WithPropertyData x :
+    WithBaseNodeData {
+        key : [Literal LiteralNode, Identifier IdentifierNode],
+        value : ExpressionNode,
+        kind : [Init, Get, Set],
+    }x
+PropertyData : WithPropertyData {}
+WithPropertyNode x : [
+    Property PropertyData,
+]x
+PropertyNode : WithPropertyNode []
 
 #################################################################
 #### Patterns ###################################################
@@ -93,7 +151,6 @@ ExpressionNode : WithExpressionNode []
 # PatternNode
 WithPatternNode x : []x
 PatternNode : WithPatternNode []
-
 
 #################################################################
 #### Misc #######################################################
@@ -118,10 +175,14 @@ LogicalOperator : [
     LogicalOr,
 ]
 
-# AssignmentExpressionNode : [
-#     AssignmentExpression { loc : Location, operator : AssignmentOperator, left : [Pattern PatternNode, Expression ExpressionNode], right : ExpressionNode },
-# ]
-#
-# LogicalExpressionNode : [
-#     LogicalExpression { loc : Location, operator : LogicalOperator, left : ExpressionNode, right : ExpressionNode },
-# ]
+#################################################################
+#### Tests ######################################################
+#################################################################
+
+take_expr_node : ExpressionNode -> U8
+take_expr_node = |expr|
+    when expr is
+        AssignmentExpression({ loc, operator, left, right }) -> 1
+        LogicalExpression({ loc, operator, left, right }) -> 2
+        _ -> crash("take_expr_node: not an expression node")
+
