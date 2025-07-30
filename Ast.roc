@@ -4,6 +4,22 @@ import Option exposing [
     Option,
 ]
 
+WithEsVersion x : [
+    Es5,
+    Es2015,
+    Es2016,
+    Es2017,
+    Es2018,
+    Es2019,
+    Es2020,
+    Es2021,
+    Es2022,
+    Es2025,
+    Es2026,
+]x
+
+EsVersion : WithEsVersion []
+
 WithPosition x : { line : U32, column : U32 }x
 
 Position : WithPosition {}
@@ -12,7 +28,7 @@ WithSourceLocation x : { source : Str, start : Position, end : Position, byte_in
 
 SourceLocation : WithSourceLocation {}
 
-WithBaseNodeData x : { loc : SourceLocation }x
+WithBaseNodeData x : { esVersion : EsVersion, loc : SourceLocation }x
 
 BaseNodeData : WithBaseNodeData {}
 
