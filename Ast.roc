@@ -1,24 +1,7 @@
 module []
-import Token exposing [
-    Token,
-    TokenResult,
-    # tokenize_str,
-]
+
 import Option exposing [
     Option,
-    Some,
-    None,
-    # is_some,
-    # is_none,
-    # map,
-    # map2,
-    # map3,
-    # join_map,
-    # unsafe_get,
-    # combine2,
-    # combine3,
-    # gather,
-    # compact,
 ]
 
 WithPosition x : { line : U32, column : U32 }x
