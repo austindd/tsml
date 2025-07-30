@@ -23,7 +23,7 @@ import pf.Stdin
 import Token
 import Scratch
 import TokenTest
-import Ast3
+import Ast
 
 # get_file_contents! = |f_path_str|
 #     f_path = Path.from_str f_path_str
