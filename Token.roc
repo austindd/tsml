@@ -2,16 +2,12 @@ module [
     ts_token_debug_display,
     tokenize_str,
     tokenize_utf8_bytes,
-    EcmaAlpha,
-    EcmaWhitespace,
-    EcmaNewline,
     Token,
     TokenResult,
 ]
 
 Token : [
-    Start, # Not used for AST. Just marking the start of the token stream.
-    Unknown,
+    UnknownToken (List U8),
     EndOfFileToken,
     LineCommentStart,
     BlockCommentStart,
@@ -203,14 +199,13 @@ Token : [
 
 TokenResult : [
     Ok Token,
-    Err [Unknown, UnclosedString, UnclosedTemplate, UnclosedInterpolation, InvalidNumericSeparator],
+    Err [UnknownToken (List U8), UnclosedString, UnclosedTemplate, UnclosedInterpolation, InvalidNumericSeparator],
 ]
 
 ts_token_debug_display : Token -> Str
 ts_token_debug_display = |token|
     when token is
-        Start -> "Start"
-        Unknown -> "Unknown"
+        UnknownToken(u8s) -> "UnknownToken(${Str.from_utf8_lossy(u8s)})"
         EndOfFileToken -> "EndOfFileToken"
         LineCommentStart -> "LineCommentStart"
         BlockCommentStart -> "BlockCommentStart"
@@ -398,10 +393,6 @@ ts_token_debug_display = |token|
         BigIntKeyword -> "BigIntKeyword"
         OverrideKeyword -> "OverrideKeyword"
         OfKeyword -> "OfKeyword"
-
-EcmaWhitespace : [Space, Tab, Newline, LineTabulation, FormFeed, ZeroWidthNoBreakSpace]
-EcmaAlpha : [Alpha (List U8)]
-EcmaNewline : [Newline]
 
 tokenize_str : Str -> List TokenResult
 tokenize_str = |str|
@@ -1198,10 +1189,23 @@ utf8_list_to_ts_token_list_inner = |u8_list, token_list|
         # ConflictMarkerTrivia and NonTextFileMarkerTrivia are more complex/specific,
         # omitted for brevity here but would follow similar patterns if needed.
         # --- Unknown Character ---
-        [_, .. as u8s] -> # Catch-all for unrecognized bytes
+        [u8, .. as u8s] -> # Catch-all for unrecognized bytes
+            consume_until_whitespace_or_newline_or_eof : List U8, List U8 -> { unknown_bytes : List U8, remaining_u8s : List U8 }
+            consume_until_whitespace_or_newline_or_eof = |current_u8s, acc|
+                when current_u8s is
+                    [byte, .. as rest] if byte == 32 or byte == 9 or byte == 11 or byte == 12 ->
+                        consume_until_whitespace_or_newline_or_eof(rest, acc)
+
+                    [byte, .. as rest] if byte == 10 or byte == 13 ->
+                        consume_until_whitespace_or_newline_or_eof(rest, acc)
+
+                    _ ->
+                        { unknown_bytes: acc, remaining_u8s: current_u8s }
+
+            { unknown_bytes, remaining_u8s } = consume_until_whitespace_or_newline_or_eof(u8_list, [])
             utf8_list_to_ts_token_list_inner(
-                u8s,
-                List.append(token_list, Err(Unknown)),
+                remaining_u8s,
+                List.append(token_list, Err(UnknownToken(unknown_bytes))),
             )
 
 # Function to parse line comments (//)
@@ -1267,7 +1271,7 @@ process_block_comment_text = |u8s|
 
                     Err(_) ->
                         {
-                            token_result: Err(Unknown),
+                            token_result: Err(UnknownToken(acc)),
                             remaining_u8s: current_u8s,
                         }
 
@@ -1287,7 +1291,7 @@ process_block_comment_text = |u8s|
 
                     Err(_) ->
                         {
-                            token_result: Err(Unknown),
+                            token_result: Err(UnknownToken(acc)),
                             remaining_u8s: current_u8s,
                         }
     inner_process(u8s, [])
@@ -1337,7 +1341,7 @@ process_identifier = |first_char, rest|
     token_result =
         when ident_result is
             Ok(ident) -> Ok(Identifier(ident))
-            Err(_) -> Err(Unknown)
+            Err(_) -> Err(UnknownToken(ident_chars))
     { token_result, remaining_u8s: new_remaining }
 
 # Changed return type: returns the consumed sequence, the rest of the input,
@@ -1547,7 +1551,7 @@ process_numeric_literal = |first_digit, rest|
             # valid, but check anyway
             if List.is_empty(num_chars) then
                 {
-                    token_result: Err(Unknown),
+                    token_result: Err(UnknownToken([])),
                     remaining_u8s: new_remaining,
                 }
             else
@@ -1564,7 +1568,7 @@ process_numeric_literal = |first_digit, rest|
                     Err(_) ->
                         # UTF8 error unlikely but possible? Treat as unknown.
                         {
-                            token_result: Err(Unknown),
+                            token_result: Err(UnknownToken(num_chars)),
                             remaining_u8s: new_remaining,
                         }
 
@@ -1611,7 +1615,7 @@ process_string_literal = |u8s, quote_type|
                         { token_result: Ok(StringLiteral(str)), remaining_u8s: rest }
 
                     Err(_) ->
-                        { token_result: Err(Unknown), remaining_u8s: rest }
+                        { token_result: Err(UnknownToken(acc)), remaining_u8s: rest }
 
             [39, .. as rest] if current_quote_type == "'" -> # single quote
                 str_result = acc |> List.append(39) |> Str.from_utf8
@@ -1620,7 +1624,7 @@ process_string_literal = |u8s, quote_type|
                         { token_result: Ok(StringLiteral(str)), remaining_u8s: rest }
 
                     Err(_) ->
-                        { token_result: Err(Unknown), remaining_u8s: rest }
+                        { token_result: Err(UnknownToken(acc)), remaining_u8s: rest }
 
             # Collect string content
             [u8, .. as rest] ->

@@ -20,7 +20,7 @@ expect
 expect
     ts_string = "\r"
     token_list = tokenize_str(ts_string)
-    token_list == [Err(Unknown), Ok(EndOfFileToken)]
+    token_list == [Err(UnknownToken([])), Ok(EndOfFileToken)]
 
 expect
     ts_string = "const"
