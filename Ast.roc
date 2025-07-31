@@ -1,4 +1,20 @@
-module []
+module [
+    EsVersion,
+    Node,
+    ProgramKind,
+    VariableDeclarationKind,
+    PropertyKind,
+    AssignmentOperator,
+    LogicalOperator,
+    BinaryOperator,
+    UnaryOperator,
+    UpdateOperator,
+    LiteralNode,
+]
+
+import Token exposing [
+    Token,
+]
 
 import Option exposing [
     Option,
@@ -20,6 +36,27 @@ WithEsVersion x : [
 
 EsVersion : WithEsVersion []
 
+get_es_version_rank : EsVersion -> U8
+get_es_version_rank = |version|
+    when version is
+        Es5 -> 1
+        Es2015 -> 2
+        Es2016 -> 3
+        Es2017 -> 4
+        Es2018 -> 5
+        Es2019 -> 6
+        Es2020 -> 7
+        Es2021 -> 8
+        Es2022 -> 9
+        Es2025 -> 10
+        Es2026 -> 11
+
+es_version_cmp : EsVersion, EsVersion -> [EQ, LT, GT]
+es_version_cmp = |a, b|
+    rank_a = get_es_version_rank(a)
+    rank_b = get_es_version_rank(b)
+    Num.compare(rank_a, rank_b)
+
 WithPosition x : { line : U32, column : U32 }x
 
 Position : WithPosition {}
@@ -28,7 +65,7 @@ WithSourceLocation x : { source : Str, start : Position, end : Position, byte_in
 
 SourceLocation : WithSourceLocation {}
 
-WithBaseNodeData x : { esVersion : EsVersion, loc : SourceLocation }x
+WithBaseNodeData x : { esVersion : EsVersion, loc : SourceLocation, tokens : List Token }x
 
 BaseNodeData : WithBaseNodeData {}
 
