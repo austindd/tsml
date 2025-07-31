@@ -421,7 +421,7 @@ utf8_list_to_ts_token_list = |u8_list_|
     # Helper processing functions with tail recursion
 
     # Start the tokenization
-    utf8_list_to_ts_token_list_inner(Ok(Start), u8_list_, [])
+    utf8_list_to_ts_token_list_inner(u8_list_, [])
 
 handle_possible_keyword : Token, List U8, List U8 -> (Token, List U8)
 handle_possible_keyword = |keyword_token, current_bytes, trailing_bytes|
@@ -453,8 +453,8 @@ handle_possible_keyword = |keyword_token, current_bytes, trailing_bytes|
         [] -> (keyword_token, trailing_bytes)
 
 # Main recursive tokenizer function with accumulator
-utf8_list_to_ts_token_list_inner : TokenResult, List U8, List TokenResult -> List TokenResult
-utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_token often not needed in this style
+utf8_list_to_ts_token_list_inner : List U8, List TokenResult -> List TokenResult
+utf8_list_to_ts_token_list_inner = |u8_list, token_list|
     when u8_list is
         [] -> List.append(token_list, Ok(EndOfFileToken))
         [099, 111, 110, 115, 116, 114, 117, 099, 116, 111, 114, .. as u8s] -> # constructor
@@ -464,7 +464,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 u8s,
             )
             utf8_list_to_ts_token_list_inner(
-                Ok(token),
                 rest,
                 List.append(token_list, Ok(token)),
             )
@@ -476,7 +475,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                 u8s,
             )
             utf8_list_to_ts_token_list_inner(
-                Ok(token),
                 rest,
                 List.append(token_list, Ok(token)),
             )
@@ -484,7 +482,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         [47, 47, .. as rest] -> # Line comment (//)
             { token_result, remaining_u8s } = process_line_comment_text(rest)
             utf8_list_to_ts_token_list_inner(
-                token_result,
                 remaining_u8s,
                 token_list
                 |> List.append(Ok(LineCommentStart))
@@ -494,7 +491,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         [47, 42, .. as rest] -> # Block comment start (/*)
             { token_result, remaining_u8s } = process_block_comment_text(rest)
             utf8_list_to_ts_token_list_inner(
-                token_result,
                 remaining_u8s,
                 token_list
                 |> List.append(Ok(BlockCommentStart))
@@ -512,250 +508,249 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                     [] -> []
             rest_after_shebang = consume_shebang(rest)
             utf8_list_to_ts_token_list_inner(
-                Ok(ShebangTrivia),
                 rest_after_shebang,
                 token_list |> List.append(Ok(ShebangTrivia)),
             )
 
         [105, 110, 116, 101, 114, 102, 097, 099, 101, .. as u8s] -> # interface
             (token, rest) = handle_possible_keyword(InterfaceKeyword, [105, 110, 116, 101, 114, 102, 097, 099, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [098, 114, 101, 097, 107, .. as u8s] -> # break
             (token, rest) = handle_possible_keyword(BreakKeyword, [098, 114, 101, 097, 107], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [099, 097, 115, 101, .. as u8s] -> # case
             (token, rest) = handle_possible_keyword(CaseKeyword, [099, 097, 115, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [099, 097, 116, 099, 104, .. as u8s] -> # catch
             (token, rest) = handle_possible_keyword(CatchKeyword, [099, 097, 116, 099, 104], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [099, 108, 097, 115, 115, .. as u8s] -> # class
             (token, rest) = handle_possible_keyword(ClassKeyword, [099, 108, 097, 115, 115], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [099, 111, 110, 115, 116, .. as u8s] -> # const
             (token, rest) = handle_possible_keyword(ConstKeyword, [099, 111, 110, 115, 116], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [099, 111, 110, 116, 105, 110, 117, 101, .. as u8s] -> # continue
             (token, rest) = handle_possible_keyword(ContinueKeyword, [099, 111, 110, 116, 105, 110, 117, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [100, 101, 098, 117, 103, 103, 101, 114, .. as u8s] -> # debugger
             (token, rest) = handle_possible_keyword(DebuggerKeyword, [100, 101, 098, 117, 103, 103, 101, 114], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [100, 101, 102, 097, 117, 108, 116, .. as u8s] -> # default
             (token, rest) = handle_possible_keyword(DefaultKeyword, [100, 101, 102, 097, 117, 108, 116], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [100, 101, 108, 101, 116, 101, .. as u8s] -> # delete
             (token, rest) = handle_possible_keyword(DeleteKeyword, [100, 101, 108, 101, 116, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [100, 111, .. as u8s] -> # do
             (token, rest) = handle_possible_keyword(DoKeyword, [100, 111], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [101, 108, 115, 101, .. as u8s] -> # else
             (token, rest) = handle_possible_keyword(ElseKeyword, [101, 108, 115, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [101, 110, 117, 109, .. as u8s] -> # enum
             (token, rest) = handle_possible_keyword(EnumKeyword, [101, 110, 117, 109], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [101, 120, 112, 111, 114, 116, .. as u8s] -> # export
             (token, rest) = handle_possible_keyword(ExportKeyword, [101, 120, 112, 111, 114, 116], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [101, 120, 116, 101, 110, 100, 115, .. as u8s] -> # extends
             (token, rest) = handle_possible_keyword(ExtendsKeyword, [101, 120, 116, 101, 110, 100, 115], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [102, 097, 108, 115, 101, .. as u8s] -> # false
             (token, rest) = handle_possible_keyword(FalseKeyword, [102, 097, 108, 115, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [102, 105, 110, 097, 108, 108, 121, .. as u8s] -> # finally
             (token, rest) = handle_possible_keyword(FinallyKeyword, [102, 105, 110, 097, 108, 108, 121], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [102, 111, 114, .. as u8s] -> # for
             (token, rest) = handle_possible_keyword(ForKeyword, [102, 111, 114], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [102, 117, 110, 099, 116, 105, 111, 110, .. as u8s] -> # function
             (token, rest) = handle_possible_keyword(FunctionKeyword, [102, 117, 110, 099, 116, 105, 111, 110], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [105, 102, .. as u8s] -> # if
             (token, rest) = handle_possible_keyword(IfKeyword, [105, 102], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [105, 109, 112, 111, 114, 116, .. as u8s] -> # import
             (token, rest) = handle_possible_keyword(ImportKeyword, [105, 109, 112, 111, 114, 116], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [105, 110, 115, 116, 097, 110, 099, 101, 111, 102, .. as u8s] -> # instanceof
             (token, rest) = handle_possible_keyword(InstanceOfKeyword, [105, 110, 115, 116, 097, 110, 099, 101, 111, 102], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [105, 110, .. as u8s] -> # in
             (token, rest) = handle_possible_keyword(InKeyword, [105, 110], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [110, 101, 119, .. as u8s] -> # new
             (token, rest) = handle_possible_keyword(NewKeyword, [110, 101, 119], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [110, 117, 108, 108, .. as u8s] -> # null
             (token, rest) = handle_possible_keyword(NullKeyword, [110, 117, 108, 108], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [114, 101, 116, 117, 114, 110, .. as u8s] -> # return
             (token, rest) = handle_possible_keyword(ReturnKeyword, [114, 101, 116, 117, 114, 110], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [115, 117, 112, 101, 114, .. as u8s] -> # super
             (token, rest) = handle_possible_keyword(SuperKeyword, [115, 117, 112, 101, 114], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [115, 119, 105, 116, 099, 104, .. as u8s] -> # switch
             (token, rest) = handle_possible_keyword(SwitchKeyword, [115, 119, 105, 116, 099, 104], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [116, 104, 105, 115, .. as u8s] -> # this
             (token, rest) = handle_possible_keyword(ThisKeyword, [116, 104, 105, 115], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [116, 104, 114, 111, 119, .. as u8s] -> # throw
             (token, rest) = handle_possible_keyword(ThrowKeyword, [116, 104, 114, 111, 119], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [116, 114, 117, 101, .. as u8s] -> # true
             (token, rest) = handle_possible_keyword(TrueKeyword, [116, 114, 117, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [116, 114, 121, .. as u8s] -> # try
             (token, rest) = handle_possible_keyword(TryKeyword, [116, 114, 121], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [116, 121, 112, 101, 111, 102, .. as u8s] -> # typeof
             (token, rest) = handle_possible_keyword(TypeOfKeyword, [116, 121, 112, 101, 111, 102], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [118, 097, 114, .. as u8s] -> # var
             (token, rest) = handle_possible_keyword(VarKeyword, [118, 097, 114], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [118, 111, 105, 100, .. as u8s] -> # void
             (token, rest) = handle_possible_keyword(VoidKeyword, [118, 111, 105, 100], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [119, 104, 105, 108, 101, .. as u8s] -> # while
             (token, rest) = handle_possible_keyword(WhileKeyword, [119, 104, 105, 108, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [119, 105, 116, 104, .. as u8s] -> # with
             (token, rest) = handle_possible_keyword(WithKeyword, [119, 105, 116, 104], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [097, 115, .. as u8s] -> # as
             (token, rest) = handle_possible_keyword(AsKeyword, [097, 115], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [105, 109, 112, 108, 101, 109, 101, 110, 116, 115, .. as u8s] -> # implements
             (token, rest) = handle_possible_keyword(ImplementsKeyword, [105, 109, 112, 108, 101, 109, 101, 110, 116, 115], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [108, 101, 116, .. as u8s] -> # let
             (token, rest) = handle_possible_keyword(LetKeyword, [108, 101, 116], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [112, 097, 099, 107, 097, 103, 101, .. as u8s] -> # package
             (token, rest) = handle_possible_keyword(PackageKeyword, [112, 097, 099, 107, 097, 103, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [112, 114, 105, 118, 097, 116, 101, .. as u8s] -> # private
             (token, rest) = handle_possible_keyword(PrivateKeyword, [112, 114, 105, 118, 097, 116, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [112, 114, 111, 116, 101, 099, 116, 101, 100, .. as u8s] -> # protected
             (token, rest) = handle_possible_keyword(ProtectedKeyword, [112, 114, 111, 116, 101, 099, 116, 101, 100], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [112, 117, 098, 108, 105, 099, .. as u8s] -> # public
             (token, rest) = handle_possible_keyword(PublicKeyword, [112, 117, 098, 108, 105, 099], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [115, 116, 097, 116, 105, 099, .. as u8s] -> # static
             (token, rest) = handle_possible_keyword(StaticKeyword, [115, 116, 097, 116, 105, 099], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [121, 105, 101, 108, 100, .. as u8s] -> # yield
             (token, rest) = handle_possible_keyword(YieldKeyword, [121, 105, 101, 108, 100], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [097, 110, 121, .. as u8s] -> # any
             (token, rest) = handle_possible_keyword(AnyKeyword, [097, 110, 121], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [098, 111, 111, 108, 101, 097, 110, .. as u8s] -> # boolean
             (token, rest) = handle_possible_keyword(BooleanKeyword, [098, 111, 111, 108, 101, 097, 110], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [100, 101, 099, 108, 097, 114, 101, .. as u8s] -> # declare
             (token, rest) = handle_possible_keyword(DeclareKeyword, [100, 101, 099, 108, 097, 114, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [103, 101, 116, .. as u8s] -> # get
             (token, rest) = handle_possible_keyword(GetKeyword, [103, 101, 116], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [109, 111, 100, 117, 108, 101, .. as u8s] -> # module
             (token, rest) = handle_possible_keyword(ModuleKeyword, [109, 111, 100, 117, 108, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [114, 101, 113, 117, 105, 114, 101, .. as u8s] -> # require
             (token, rest) = handle_possible_keyword(RequireKeyword, [114, 101, 113, 117, 105, 114, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [110, 117, 109, 098, 101, 114, .. as u8s] -> # number
             (token, rest) = handle_possible_keyword(NumberKeyword, [110, 117, 109, 098, 101, 114], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [115, 101, 116, .. as u8s] -> # set
             (token, rest) = handle_possible_keyword(SetKeyword, [115, 101, 116], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [115, 116, 114, 105, 110, 103, .. as u8s] -> # string
             (token, rest) = handle_possible_keyword(StringKeyword, [115, 116, 114, 105, 110, 103], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [115, 121, 109, 098, 111, 108, .. as u8s] -> # symbol
             (token, rest) = handle_possible_keyword(SymbolKeyword, [115, 121, 109, 098, 111, 108], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [116, 121, 112, 101, .. as u8s] -> # type
             (token, rest) = handle_possible_keyword(TypeKeyword, [116, 121, 112, 101], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [102, 114, 111, 109, .. as u8s] -> # from
             (token, rest) = handle_possible_keyword(FromKeyword, [102, 114, 111, 109], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [111, 102, .. as u8s] -> # of
             (token, rest) = handle_possible_keyword(OfKeyword, [111, 102], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [097, 119, 097, 105, 116, .. as u8s] -> # await
             (token, rest) = handle_possible_keyword(AwaitKeyword, [097, 119, 097, 105, 116], u8s)
-            utf8_list_to_ts_token_list_inner(Ok(token), rest, List.append(token_list, Ok(token)))
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         # --- Trivia: Newlines and Whitespace ---
         [10, .. as u8s] -> # \n
@@ -765,7 +760,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                     _ -> (count, bytes)
             (nl_count, rest_after_newline) = consume_new_lines(1, u8s)
             utf8_list_to_ts_token_list_inner(
-                Ok(NewLineTrivia(nl_count)),
                 rest_after_newline,
                 List.append(token_list, Ok(NewLineTrivia(nl_count))),
             )
@@ -777,7 +771,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
                     _ -> (count, bytes)
             (nl_count, rest_after_newline) = consume_new_lines(1, u8s)
             utf8_list_to_ts_token_list_inner(
-                Ok(NewLineTrivia(nl_count)),
                 rest_after_newline,
                 List.append(token_list, Ok(NewLineTrivia(nl_count))),
             )
@@ -793,7 +786,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
             (ws_count, rest_after_whitespace) = consume_whitespace(1, u8s)
             tok = WhitespaceTrivia(ws_count)
             utf8_list_to_ts_token_list_inner(
-                Ok(tok),
                 rest_after_whitespace,
                 List.append(token_list, Ok(tok)),
             )
@@ -802,7 +794,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         [34, .. as rest] -> # " String Literal
             { token_result, remaining_u8s } = process_string_literal(rest, "\"") # Pass quote char
             utf8_list_to_ts_token_list_inner(
-                token_result,
                 remaining_u8s,
                 List.append(token_list, token_result),
             ) # Placeholder prev_token
@@ -810,7 +801,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         [39, .. as rest] -> # ' String Literal
             { token_result, remaining_u8s } = process_string_literal(rest, "'") # Pass quote char
             utf8_list_to_ts_token_list_inner(
-                token_result,
                 remaining_u8s,
                 List.append(token_list, token_result),
             ) # Placeholder prev_token
@@ -818,245 +808,210 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         [96, .. as rest] -> # ` Template Literal (TODO: Fix this. We need to support template literals)
             { token_result, remaining_u8s } = process_string_literal(rest, "`") # Pass quote char
             utf8_list_to_ts_token_list_inner(
-                token_result,
                 remaining_u8s,
                 List.append(token_list, token_result),
             ) # Placeholder prev_token
 
         [46, 46, 46, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(DotDotDotToken),
                 u8s,
                 List.append(token_list, Ok(DotDotDotToken)),
             )
 
         [63, 46, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(QuestionDotToken),
                 u8s,
                 List.append(token_list, Ok(QuestionDotToken)),
             )
 
         [42, 42, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AsteriskAsteriskEqualsToken),
                 u8s,
                 List.append(token_list, Ok(AsteriskAsteriskEqualsToken)),
             )
 
         [42, 42, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AsteriskAsteriskToken),
                 u8s,
                 List.append(token_list, Ok(AsteriskAsteriskToken)),
             )
 
         [61, 61, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(EqualsEqualsEqualsToken),
                 u8s,
                 List.append(token_list, Ok(EqualsEqualsEqualsToken)),
             )
 
         [33, 61, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(ExclamationEqualsEqualsToken),
                 u8s,
                 List.append(token_list, Ok(ExclamationEqualsEqualsToken)),
             )
 
         [61, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(EqualsEqualsToken),
                 u8s,
                 List.append(token_list, Ok(EqualsEqualsToken)),
             )
 
         [33, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(ExclamationEqualsToken),
                 u8s,
                 List.append(token_list, Ok(ExclamationEqualsToken)),
             )
 
         [61, 62, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(EqualsGreaterThanToken),
                 u8s,
                 List.append(token_list, Ok(EqualsGreaterThanToken)),
             )
 
         [43, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(PlusEqualsToken),
                 u8s,
                 List.append(token_list, Ok(PlusEqualsToken)),
             )
 
         [45, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(MinusEqualsToken),
                 u8s,
                 List.append(token_list, Ok(MinusEqualsToken)),
             )
 
         [42, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AsteriskEqualsToken),
                 u8s,
                 List.append(token_list, Ok(AsteriskEqualsToken)),
             )
 
         [47, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(SlashEqualsToken),
                 u8s,
                 List.append(token_list, Ok(SlashEqualsToken)),
             )
 
         [37, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(PercentEqualsToken),
                 u8s,
                 List.append(token_list, Ok(PercentEqualsToken)),
             )
 
         [60, 60, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(LessThanLessThanEqualsToken),
                 u8s,
                 List.append(token_list, Ok(LessThanLessThanEqualsToken)),
             )
 
         [62, 62, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(GreaterThanGreaterThanEqualsToken),
                 u8s,
                 List.append(token_list, Ok(GreaterThanGreaterThanEqualsToken)),
             )
 
         [62, 62, 62, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(GreaterThanGreaterThanGreaterThanEqualsToken),
                 u8s,
                 List.append(token_list, Ok(GreaterThanGreaterThanGreaterThanEqualsToken)),
             )
 
         [38, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AmpersandEqualsToken),
                 u8s,
                 List.append(token_list, Ok(AmpersandEqualsToken)),
             )
 
         [124, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(BarEqualsToken),
                 u8s,
                 List.append(token_list, Ok(BarEqualsToken)),
             )
 
         [94, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(CaretEqualsToken),
                 u8s,
                 List.append(token_list, Ok(CaretEqualsToken)),
             )
 
         [38, 38, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AmpersandAmpersandEqualsToken),
                 u8s,
                 List.append(token_list, Ok(AmpersandAmpersandEqualsToken)),
             )
 
         [124, 124, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(BarBarEqualsToken),
                 u8s,
                 List.append(token_list, Ok(BarBarEqualsToken)),
             )
 
         [63, 63, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(QuestionQuestionEqualsToken),
                 u8s,
                 List.append(token_list, Ok(QuestionQuestionEqualsToken)),
             )
 
         [60, 60, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(LessThanLessThanToken),
                 u8s,
                 List.append(token_list, Ok(LessThanLessThanToken)),
             )
 
         [62, 62, 62, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(GreaterThanGreaterThanGreaterThanToken),
                 u8s,
                 List.append(token_list, Ok(GreaterThanGreaterThanGreaterThanToken)),
             )
 
         [62, 62, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(GreaterThanGreaterThanToken),
                 u8s,
                 List.append(token_list, Ok(GreaterThanGreaterThanToken)),
             )
 
         [60, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(LessThanEqualsToken),
                 u8s,
                 List.append(token_list, Ok(LessThanEqualsToken)),
             )
 
         [62, 61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(GreaterThanEqualsToken),
                 u8s,
                 List.append(token_list, Ok(GreaterThanEqualsToken)),
             )
 
         [38, 38, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AmpersandAmpersandToken),
                 u8s,
                 List.append(token_list, Ok(AmpersandAmpersandToken)),
             )
 
         [124, 124, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(BarBarToken),
                 u8s,
                 List.append(token_list, Ok(BarBarToken)),
             )
 
         [63, 63, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(QuestionQuestionToken),
                 u8s,
                 List.append(token_list, Ok(QuestionQuestionToken)),
             )
 
         [43, 43, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(PlusPlusToken),
                 u8s,
                 List.append(token_list, Ok(PlusPlusToken)),
             )
 
         [45, 45, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(MinusMinusToken),
                 u8s,
                 List.append(token_list, Ok(MinusMinusToken)),
             )
 
         [60, 47, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(LessThanSlashToken),
                 u8s,
                 List.append(token_list, Ok(LessThanSlashToken)),
             ) # For JSX
@@ -1064,175 +1019,150 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
 
         [123, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(OpenBraceToken),
                 u8s,
                 List.append(token_list, Ok(OpenBraceToken)),
             )
 
         [125, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(CloseBraceToken),
                 u8s,
                 List.append(token_list, Ok(CloseBraceToken)),
             )
 
         [40, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(OpenParenToken),
                 u8s,
                 List.append(token_list, Ok(OpenParenToken)),
             )
 
         [41, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(CloseParenToken),
                 u8s,
                 List.append(token_list, Ok(CloseParenToken)),
             )
 
         [91, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(OpenBracketToken),
                 u8s,
                 List.append(token_list, Ok(OpenBracketToken)),
             )
 
         [93, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(CloseBracketToken),
                 u8s,
                 List.append(token_list, Ok(CloseBracketToken)),
             )
 
         [46, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(DotToken),
                 u8s,
                 List.append(token_list, Ok(DotToken)),
             )
 
         [59, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(SemicolonToken),
                 u8s,
                 List.append(token_list, Ok(SemicolonToken)),
             )
 
         [44, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(CommaToken),
                 u8s,
                 List.append(token_list, Ok(CommaToken)),
             )
 
         [60, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(LessThanToken),
                 u8s,
                 List.append(token_list, Ok(LessThanToken)),
             )
 
         [62, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(GreaterThanToken),
                 u8s,
                 List.append(token_list, Ok(GreaterThanToken)),
             )
 
         [61, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(EqualsToken),
                 u8s,
                 List.append(token_list, Ok(EqualsToken)),
             )
 
         [43, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(PlusToken),
                 u8s,
                 List.append(token_list, Ok(PlusToken)),
             )
 
         [45, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(MinusToken),
                 u8s,
                 List.append(token_list, Ok(MinusToken)),
             )
 
         [42, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AsteriskToken),
                 u8s,
                 List.append(token_list, Ok(AsteriskToken)),
             )
 
         [47, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(SlashToken),
                 u8s,
                 List.append(token_list, Ok(SlashToken)),
             ) # Needs context for Regex
 
         [37, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(PercentToken),
                 u8s,
                 List.append(token_list, Ok(PercentToken)),
             )
 
         [38, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AmpersandToken),
                 u8s,
                 List.append(token_list, Ok(AmpersandToken)),
             )
 
         [124, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(BarToken),
                 u8s,
                 List.append(token_list, Ok(BarToken)),
             )
 
         [94, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(CaretToken),
                 u8s,
                 List.append(token_list, Ok(CaretToken)),
             )
 
         [33, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(ExclamationToken),
                 u8s,
                 List.append(token_list, Ok(ExclamationToken)),
             )
 
         [126, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(TildeToken),
                 u8s,
                 List.append(token_list, Ok(TildeToken)),
             )
 
         [63, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(QuestionToken),
                 u8s,
                 List.append(token_list, Ok(QuestionToken)),
             )
 
         [58, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(ColonToken),
                 u8s,
                 List.append(token_list, Ok(ColonToken)),
             )
 
         [64, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
-                Ok(AtToken),
                 u8s,
                 List.append(token_list, Ok(AtToken)),
             )
@@ -1244,7 +1174,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         [u8, .. as rest] if is_digit(u8) ->
             { token_result, remaining_u8s } = process_numeric_literal(u8, rest)
             utf8_list_to_ts_token_list_inner(
-                token_result,
                 remaining_u8s,
                 List.append(token_list, token_result),
             )
@@ -1255,7 +1184,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
             # Assuming process_identifier handles the # prefix case
             { token_result, remaining_u8s } = process_identifier(first_char, rest)
             utf8_list_to_ts_token_list_inner(
-                token_result,
                 remaining_u8s,
                 List.append(token_list, token_result),
             )
@@ -1263,7 +1191,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         [first_char, .. as rest] if is_identifier_start(first_char) ->
             { token_result, remaining_u8s } = process_identifier(first_char, rest)
             utf8_list_to_ts_token_list_inner(
-                token_result,
                 remaining_u8s,
                 List.append(token_list, token_result),
             )
@@ -1273,7 +1200,6 @@ utf8_list_to_ts_token_list_inner = |_prev_token, u8_list, token_list| # prev_tok
         # --- Unknown Character ---
         [_, .. as u8s] -> # Catch-all for unrecognized bytes
             utf8_list_to_ts_token_list_inner(
-                Err(Unknown),
                 u8s,
                 List.append(token_list, Err(Unknown)),
             )
