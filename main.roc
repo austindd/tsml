@@ -6,6 +6,7 @@ import Token
 import Scratch
 import TokenTest
 import Ast
+import Parser
 
 main! = |_|
 

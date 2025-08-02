@@ -1,6 +1,8 @@
 module [
     EsVersion,
     Node,
+    # SourceLocation,
+    # Position,
     ProgramKind,
     VariableDeclarationKind,
     PropertyKind,
@@ -57,15 +59,19 @@ es_version_cmp = |a, b|
     rank_b = get_es_version_rank(b)
     Num.compare(rank_a, rank_b)
 
-WithPosition x : { line : U32, column : U32 }x
+# WithPosition x : { line : U32, column : U32 }x
+#
+# Position : WithPosition {}
+#
+# WithSourceLocation x : { source : Str, start : Position, end : Position, byte_index : U32 }x
+#
+# SourceLocation : WithSourceLocation {}
 
-Position : WithPosition {}
-
-WithSourceLocation x : { source : Str, start : Position, end : Position, byte_index : U32 }x
-
-SourceLocation : WithSourceLocation {}
-
-WithBaseNodeData x : { esVersion : EsVersion, loc : SourceLocation, tokens : List Token }x
+WithBaseNodeData x : {
+    esVersion : EsVersion,
+    # loc : SourceLocation,
+    tokens : List Token,
+}x
 
 BaseNodeData : WithBaseNodeData {}
 
