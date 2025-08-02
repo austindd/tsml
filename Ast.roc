@@ -68,9 +68,9 @@ es_version_cmp = |a, b|
 # SourceLocation : WithSourceLocation {}
 
 WithBaseNodeData x : {
-    esVersion : EsVersion,
+    # esVersion : EsVersion,
     # loc : SourceLocation,
-    tokens : List Token,
+    # tokens : List Token,
 }x
 
 BaseNodeData : WithBaseNodeData {}
