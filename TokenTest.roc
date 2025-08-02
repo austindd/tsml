@@ -53,7 +53,7 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("1")),
+        Ok(NumberLiteralToken("1")),
         Ok(EndOfFileToken),
     ]
 
@@ -68,7 +68,7 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("23")),
+        Ok(NumberLiteralToken("23")),
         Ok(SemicolonToken),
         Ok(EndOfFileToken),
     ]
@@ -79,7 +79,7 @@ expect
     token_list
     == [
         Ok(MinusToken),
-        Ok(NumericLiteral("1.890e-1")),
+        Ok(NumberLiteralToken("1.890e-1")),
         Ok(EndOfFileToken),
     ]
 
@@ -88,7 +88,7 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(NumericLiteral("18.90e21")),
+        Ok(NumberLiteralToken("18.90e21")),
         Ok(EndOfFileToken),
     ]
 
@@ -98,7 +98,7 @@ expect
 #     token_list = tokenize_str(ts_string)
 #     token_list
 #     == [
-#         Ok(NumericLiteral("0x1A")),
+#         Ok(NumberLiteralToken("0x1A")),
 #         Ok(EndOfFileToken),
 #     ]
 
@@ -107,7 +107,7 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(NumericLiteral("1_000_123")),
+        Ok(NumberLiteralToken("1_000_123")),
         Ok(EndOfFileToken),
     ]
 
@@ -116,7 +116,7 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(NumericLiteral("1_000_123.456_789")),
+        Ok(NumberLiteralToken("1_000_123.456_789")),
         Ok(EndOfFileToken),
     ]
 
@@ -125,7 +125,7 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(NumericLiteral("1_000_123.456_789e-1")),
+        Ok(NumberLiteralToken("1_000_123.456_789e-1")),
         Ok(EndOfFileToken),
     ]
 
@@ -134,7 +134,7 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(StringLiteral("\"Hello, world!\"")),
+        Ok(StringLiteralToken("\"Hello, world!\"")),
         Ok(EndOfFileToken),
     ]
 
@@ -143,7 +143,7 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(StringLiteral("'Hello, world!'")),
+        Ok(StringLiteralToken("'Hello, world!'")),
         Ok(EndOfFileToken),
     ]
 
@@ -152,7 +152,7 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(StringLiteral("\"Hello, world!\\n\"")),
+        Ok(StringLiteralToken("\"Hello, world!\\n\"")),
         Ok(EndOfFileToken),
     ]
 
@@ -170,14 +170,14 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("0")),
+        Ok(NumberLiteralToken("0")),
         Ok(SemicolonToken),
         Ok(WhitespaceTrivia(1)),
         Ok(IdentifierToken("i")),
         Ok(WhitespaceTrivia(1)),
         Ok(LessThanToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("10")),
+        Ok(NumberLiteralToken("10")),
         Ok(SemicolonToken),
         Ok(WhitespaceTrivia(1)),
         Ok(IdentifierToken("i")),
@@ -200,7 +200,7 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("100")),
+        Ok(NumberLiteralToken("100")),
         Ok(WhitespaceTrivia(1)),
         Ok(PlusToken),
         Ok(WhitespaceTrivia(1)),
@@ -217,7 +217,7 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(ReturnKeyword),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("42")),
+        Ok(NumberLiteralToken("42")),
         Ok(SemicolonToken),
         Ok(WhitespaceTrivia(1)),
         Ok(CloseBraceToken),
@@ -255,7 +255,7 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("42")),
+        Ok(NumberLiteralToken("42")),
         Ok(SemicolonToken),
         Ok(EndOfFileToken),
     ]
@@ -274,7 +274,7 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(StringLiteral("\"Hello, World!\"")),
+        Ok(StringLiteralToken("\"Hello, World!\"")),
         Ok(SemicolonToken),
         Ok(EndOfFileToken),
     ]
@@ -293,7 +293,7 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("3.14159")),
+        Ok(NumberLiteralToken("3.14159")),
         Ok(SemicolonToken),
         Ok(EndOfFileToken),
     ]
@@ -315,13 +315,13 @@ expect
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
         Ok(OpenBracketToken),
-        Ok(StringLiteral("\"Alice\"")),
+        Ok(StringLiteralToken("\"Alice\"")),
         Ok(CommaToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(StringLiteral("\"Bob\"")),
+        Ok(StringLiteralToken("\"Bob\"")),
         Ok(CommaToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(StringLiteral("\"Charlie\"")),
+        Ok(StringLiteralToken("\"Charlie\"")),
         Ok(CloseBracketToken),
         Ok(SemicolonToken),
         Ok(EndOfFileToken),
@@ -365,14 +365,14 @@ expect
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("1")),
+        Ok(NumberLiteralToken("1")),
         Ok(CommaToken),
         Ok(WhitespaceTrivia(1)),
         Ok(IdentifierToken("Inactive")),
         Ok(WhitespaceTrivia(1)),
         Ok(EqualsToken),
         Ok(WhitespaceTrivia(1)),
-        Ok(NumericLiteral("0")),
+        Ok(NumberLiteralToken("0")),
         Ok(WhitespaceTrivia(1)),
         Ok(CloseBraceToken),
         Ok(EndOfFileToken),

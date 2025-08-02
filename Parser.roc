@@ -25,14 +25,7 @@ import Ast exposing [
 
 parse_program : List Token -> Node
 parse_program = |tokens|
-    top_level_node = Program(
-        {
-            # esVersion: Es5,
-            # tokens: [],
-            sourceType: Module,
-            body: [],
-        },
-    )
+    top_level_node = Program({ sourceType: Module, body: [] })
     top_level_node
 
 parse_block : List Node, List Token -> List Node
@@ -47,8 +40,15 @@ parse_ = |tokens|
         [EndOfFileToken, ..] -> None
         _ -> None
 
-parse_identifier : List Token -> (Node, U32)
+parse_identifier : List Token -> (Node, List Token)
 parse_identifier = |tokens|
     when tokens is
-        [IdentifierToken(ident), ..] -> (Identifier({ name: ident }), 1u32)
-        _ -> (Identifier({ name: "" }), 0u32)
+        [IdentifierToken(ident), .. as rest] -> (Identifier({ name: ident }), rest)
+        _ -> crash("parse_identifier() failed -- This should never happen")
+
+parse_string_literal : List Token -> (Node, List Token)
+parse_string_literal = |tokens|
+    when tokens is
+        [StringLiteralToken(str), .. as rest] -> (StringLiteral({ value: str }), rest)
+        _ -> crash("parse_string_literal() failed -- This should never happen")
+

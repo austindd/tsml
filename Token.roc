@@ -21,13 +21,13 @@ Token : [
     ConflictMarkerTrivia,
     NonTextFileMarkerTrivia,
     # Literals
-    NumericLiteral Str,
-    BigIntLiteral Str,
-    StringLiteral Str,
+    NumberLiteralToken Str,
+    BigIntLiteralToken Str,
+    StringLiteralToken Str,
     JsxText Str,
     JsxTextAllWhiteSpaces Str,
-    RegularExpressionLiteral Str,
-    # NoSubstitutionTemplateLiteral Str,
+    RegularExpressionLiteralToken Str,
+    # NoSubstitutionTemplateLiteralToken Str,
     # # Pseudo-literals
     # TemplateHead,
     # TemplateMiddle,
@@ -77,7 +77,7 @@ Token : [
     AtToken,
     QuestionQuestionToken,
     #
-    # /** Only the JSDoc scanner produces BacktickToken. The normal scanner produces NoSubstitutionTemplateLiteral and related kinds. */
+    # /** Only the JSDoc scanner produces BacktickToken. The normal scanner produces NoSubstitutionTemplateLiteralToken and related kinds. */
     BacktickToken,
     # /** Only the JSDoc scanner produces HashToken. The normal scanner produces PrivateIdentifierToken. */
     HashToken,
@@ -199,7 +199,7 @@ Token : [
 
 TokenResult : [
     Ok Token,
-    Err [UnknownToken (List U8), UnclosedString, UnclosedTemplate, UnclosedInterpolation, InvalidNumericSeparator],
+    Err [UnknownToken (List U8), UnclosedString, UnclosedTemplate, UnclosedInterpolation, InvalidNumberSeparator],
 ]
 
 ts_token_debug_display : Token -> Str
@@ -219,13 +219,13 @@ ts_token_debug_display = |token|
         ConflictMarkerTrivia -> "ConflictMarkerTrivia"
         NonTextFileMarkerTrivia -> "NonTextFileMarkerTrivia"
         # Literals
-        NumericLiteral(str) -> "NumericLiteral(${str})"
-        BigIntLiteral(str) -> "BigIntLiteral(${str})"
-        StringLiteral(str) -> "StringLiteral(${str})"
+        NumberLiteralToken(str) -> "NumberLiteralToken(${str})"
+        BigIntLiteralToken(str) -> "BigIntLiteralToken(${str})"
+        StringLiteralToken(str) -> "StringLiteralToken(${str})"
         JsxText(str) -> "JsxText(${str})"
         JsxTextAllWhiteSpaces(str) -> "JsxTextAllWhiteSpaces(${str})"
-        RegularExpressionLiteral(str) -> "RegularExpressionLiteral(${str})"
-        # NoSubstitutionTemplateLiteral(str) -> "NoSubstitutionTemplateLiteral(${str})"
+        RegularExpressionLiteralToken(str) -> "RegularExpressionLiteralToken(${str})"
+        # NoSubstitutionTemplateLiteralToken(str) -> "NoSubstitutionTemplateLiteralToken(${str})"
         # # Pseudo-literals
         # TemplateHead(str) -> "TemplateHead(${str})"
         # TemplateMiddle(str) -> "TemplateMiddle(${str})"
@@ -275,7 +275,7 @@ ts_token_debug_display = |token|
         AtToken -> "AtToken"
         QuestionQuestionToken -> "QuestionQuestionToken"
         #
-        # /** Only the JSDoc scanner produces BacktickToken. The normal scanner produces NoSubstitutionTemplateLiteral and related kinds. */
+        # /** Only the JSDoc scanner produces BacktickToken. The normal scanner produces NoSubstitutionTemplateLiteralToken and related kinds. */
         BacktickToken -> "BacktickToken"
         # /** Only the JSDoc scanner produces HashToken. The normal scanner produces PrivateIdentifierToken. */
         HashToken -> "HashToken"
@@ -1161,7 +1161,7 @@ utf8_list_to_ts_token_list_inner = |u8_list, token_list|
         # Backtick and Hash are primarily JSDoc or handled differently (template literal start, private identifier start)
         # [96, .. as u8s] -> ... handled by template literal case ...
         # [35, .. as u8s] -> ... handled by identifier case ...
-        # --- Numeric Literal ---
+        # --- Number Literal ---
         [u8, .. as rest] if is_digit(u8) ->
             { token_result, remaining_u8s } = process_numeric_literal(u8, rest)
             utf8_list_to_ts_token_list_inner(
@@ -1355,7 +1355,7 @@ collect_numeric_chars :
     -> {
         consumed : List U8,
         rest : List U8,
-        status : Result {} [InvalidNumericSeparator],
+        status : Result {} [InvalidNumberSeparator],
     }
 collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
     # Tail-recursive inner helper
@@ -1365,11 +1365,11 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
         List U8,
         Bool,
         Bool,
-        Result {} [InvalidNumericSeparator]
+        Result {} [InvalidNumberSeparator]
         -> {
             consumed : List U8,
             rest : List U8,
-            status : Result {} [InvalidNumericSeparator],
+            status : Result {} [InvalidNumberSeparator],
         }
     inner_collect = |current_acc, current_remaining, current_decimal, current_exp, current_status|
         when current_remaining is
@@ -1396,7 +1396,7 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                 # Determine validity
                 is_valid_separator = prev_is_digit and next_is_digit and !double_underscore
                 new_status = if current_status == Ok {} and !is_valid_separator then
-                    Err(InvalidNumericSeparator)
+                    Err(InvalidNumberSeparator)
                 else
                     current_status
 
@@ -1423,7 +1423,7 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                 # Determine validity
                 is_valid_decimal = !prev_is_underscore and !next_is_underscore
                 new_status = if current_status == Ok {} and !is_valid_decimal then
-                    Err(InvalidNumericSeparator)
+                    Err(InvalidNumberSeparator)
                 else
                     current_status
 
@@ -1455,7 +1455,7 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                 # Determine validity
                 is_valid_exponent = !prev_is_underscore and !next_pattern_is_invalid
                 new_status = if current_status == Ok {} and !is_valid_exponent then
-                    Err(InvalidNumericSeparator)
+                    Err(InvalidNumberSeparator)
                 else
                     current_status
 
@@ -1484,7 +1484,7 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                 # Determine validity
                 is_valid_sign = is_after_exp_indicator and !next_is_underscore
                 new_status = if current_status == Ok {} and !is_valid_sign then
-                    Err(InvalidNumericSeparator)
+                    Err(InvalidNumberSeparator)
                 else
                     current_status
 
@@ -1514,7 +1514,7 @@ collect_numeric_chars = |acc, remaining, has_decimal, has_exp|
                 final_status =
                     when List.last(current_acc) is
                         Ok(95) if current_status == Ok {} ->
-                            Err(InvalidNumericSeparator) # Mark error if trailing underscore found AND no prior error
+                            Err(InvalidNumberSeparator) # Mark error if trailing underscore found AND no prior error
 
                         _ -> current_status # Keep existing status (Ok or prior Err)
 
@@ -1559,9 +1559,9 @@ process_numeric_literal = |first_digit, rest|
                 num_result = Str.from_utf8(num_chars)
                 when num_result is
                     Ok(num_str) ->
-                        # Successfully created NumericLiteral token
+                        # Successfully created NumberLiteralToken token
                         {
-                            token_result: Ok(NumericLiteral(num_str)),
+                            token_result: Ok(NumberLiteralToken(num_str)),
                             remaining_u8s: new_remaining,
                         }
 
@@ -1572,10 +1572,10 @@ process_numeric_literal = |first_digit, rest|
                             remaining_u8s: new_remaining,
                         }
 
-        Err(InvalidNumericSeparator) ->
+        Err(InvalidNumberSeparator) ->
             # Invalid number sequence due to separator rules
             {
-                token_result: Err(InvalidNumericSeparator),
+                token_result: Err(InvalidNumberSeparator),
                 remaining_u8s: collection_result.rest,
             }
 
@@ -1612,7 +1612,7 @@ process_string_literal = |u8s, quote_type|
                 str_result = acc |> List.append(34) |> Str.from_utf8
                 when str_result is
                     Ok(str) ->
-                        { token_result: Ok(StringLiteral(str)), remaining_u8s: rest }
+                        { token_result: Ok(StringLiteralToken(str)), remaining_u8s: rest }
 
                     Err(_) ->
                         { token_result: Err(UnknownToken(acc)), remaining_u8s: rest }
@@ -1621,7 +1621,7 @@ process_string_literal = |u8s, quote_type|
                 str_result = acc |> List.append(39) |> Str.from_utf8
                 when str_result is
                     Ok(str) ->
-                        { token_result: Ok(StringLiteral(str)), remaining_u8s: rest }
+                        { token_result: Ok(StringLiteralToken(str)), remaining_u8s: rest }
 
                     Err(_) ->
                         { token_result: Err(UnknownToken(acc)), remaining_u8s: rest }
