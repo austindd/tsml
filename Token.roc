@@ -79,7 +79,7 @@ Token : [
     #
     # /** Only the JSDoc scanner produces BacktickToken. The normal scanner produces NoSubstitutionTemplateLiteral and related kinds. */
     BacktickToken,
-    # /** Only the JSDoc scanner produces HashToken. The normal scanner produces PrivateIdentifier. */
+    # /** Only the JSDoc scanner produces HashToken. The normal scanner produces PrivateIdentifierToken. */
     HashToken,
     #
     # Assignments
@@ -99,9 +99,9 @@ Token : [
     AmpersandAmpersandEqualsToken,
     QuestionQuestionEqualsToken,
     CaretEqualsToken,
-    # Identifiers and PrivateIdentifiers
-    Identifier Str,
-    PrivateIdentifier Str,
+    # IdentifierTokens and PrivateIdentifierTokens
+    IdentifierToken Str,
+    PrivateIdentifierToken Str,
     #
     # /**
     # * Only the special JSDoc comment text scanner produces JSDocCommentTextTokes. One of these tokens spans all text after a tag comment's start and before the next @
@@ -277,7 +277,7 @@ ts_token_debug_display = |token|
         #
         # /** Only the JSDoc scanner produces BacktickToken. The normal scanner produces NoSubstitutionTemplateLiteral and related kinds. */
         BacktickToken -> "BacktickToken"
-        # /** Only the JSDoc scanner produces HashToken. The normal scanner produces PrivateIdentifier. */
+        # /** Only the JSDoc scanner produces HashToken. The normal scanner produces PrivateIdentifierToken. */
         HashToken -> "HashToken"
         #
         # Assignments
@@ -297,9 +297,9 @@ ts_token_debug_display = |token|
         AmpersandAmpersandEqualsToken -> "AmpersandAmpersandEqualsToken"
         QuestionQuestionEqualsToken -> "QuestionQuestionEqualsToken"
         CaretEqualsToken -> "CaretEqualsToken"
-        # Identifiers and PrivateIdentifiers
-        Identifier(str) -> "Identifier(${str})"
-        PrivateIdentifier(str) -> "PrivateIdentifier(${str})"
+        # IdentifierTokens and PrivateIdentifierTokens
+        IdentifierToken(str) -> "IdentifierToken(${str})"
+        PrivateIdentifierToken(str) -> "PrivateIdentifierToken(${str})"
         #
         # /**
         # * Only the special JSDoc comment text scanner produces JSDocCommentTextTokes. One of these tokens spans all text after a tag comment's start and before the next @
@@ -425,9 +425,9 @@ handle_possible_keyword = |keyword_token, current_bytes, trailing_bytes|
                         rest,
                     )
                 else
-                    (Identifier(Str.from_utf8_lossy(current)), trailing)
+                    (IdentifierToken(Str.from_utf8_lossy(current)), trailing)
 
-            [] -> (Identifier(Str.from_utf8_lossy(current)), trailing)
+            [] -> (IdentifierToken(Str.from_utf8_lossy(current)), trailing)
     when trailing_bytes is
         [next, .. as rest] ->
             if is_identifier_part(next) then
@@ -1169,8 +1169,8 @@ utf8_list_to_ts_token_list_inner = |u8_list, token_list|
                 List.append(token_list, token_result),
             )
 
-        # --- Identifier or Keyword or PrivateIdentifier ---
-        # Check for # first for PrivateIdentifier
+        # --- IdentifierToken or Keyword or PrivateIdentifierToken ---
+        # Check for # first for PrivateIdentifierToken
         [35, first_char, .. as rest] ->
             # Assuming process_identifier handles the # prefix case
             { token_result, remaining_u8s } = process_identifier(first_char, rest)
@@ -1340,7 +1340,7 @@ process_identifier = |first_char, rest|
     token_result : TokenResult
     token_result =
         when ident_result is
-            Ok(ident) -> Ok(Identifier(ident))
+            Ok(ident) -> Ok(IdentifierToken(ident))
             Err(_) -> Err(UnknownToken(ident_chars))
     { token_result, remaining_u8s: new_remaining }
 

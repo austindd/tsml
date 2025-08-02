@@ -27,8 +27,8 @@ parse_program : List Token -> Node
 parse_program = |tokens|
     top_level_node = Program(
         {
-            esVersion: Es5,
-            tokens: [],
+            # esVersion: Es5,
+            # tokens: [],
             sourceType: Module,
             body: [],
         },
@@ -47,3 +47,8 @@ parse_ = |tokens|
         [EndOfFileToken, ..] -> None
         _ -> None
 
+parse_identifier : List Token -> (Node, U32)
+parse_identifier = |tokens|
+    when tokens is
+        [IdentifierToken(ident), ..] -> (Identifier({ name: ident }), 1u32)
+        _ -> (Identifier({ name: "" }), 0u32)
