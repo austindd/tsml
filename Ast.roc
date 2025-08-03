@@ -76,6 +76,9 @@ WithBaseNodeData x : {
 BaseNodeData : WithBaseNodeData {}
 
 Node : [
+    Error (WithBaseNodeData {
+                message : Str,
+            }),
     Program (WithBaseNodeData {
                 body : List Node,
                 sourceType : ProgramKind,
