@@ -91,7 +91,7 @@ Node : [
                 value : Bool,
             }),
     NumberLiteral (WithBaseNodeData {
-                value : U32,
+                value : Str,
             }),
     StringLiteral (WithBaseNodeData {
                 value : Str,
@@ -370,39 +370,39 @@ WithLiteralNode x : [
 ]x
 LiteralNode : WithLiteralNode []
 
-as_literal_node : Node -> Result LiteralNode _
-as_literal_node = |node|
-    when node is
-        BooleanLiteral(x) -> Ok (BooleanLiteral(x))
-        NumberLiteral(x) -> Ok (NumberLiteral(x))
-        StringLiteral(x) -> Ok (StringLiteral(x))
-        NullLiteral(x) -> Ok (NullLiteral(x))
-        UndefinedLiteral(x) -> Ok (UndefinedLiteral(x))
-        RegExpLiteral(x) -> Ok (RegExpLiteral(x))
-        BigIntLiteral(x) -> Ok (BigIntLiteral(x))
-        _ -> Err (node)
-
-as_literal_node_opt : Node -> Option LiteralNode
-as_literal_node_opt = |node|
-    when node is
-        BooleanLiteral(x) -> Some (BooleanLiteral(x))
-        NumberLiteral(x) -> Some (NumberLiteral(x))
-        StringLiteral(x) -> Some (StringLiteral(x))
-        NullLiteral(x) -> Some (NullLiteral(x))
-        UndefinedLiteral(x) -> Some (UndefinedLiteral(x))
-        RegExpLiteral(x) -> Some (RegExpLiteral(x))
-        BigIntLiteral(x) -> Some (BigIntLiteral(x))
-        _ -> None
-
-unsafe_as_literal_node : Node -> LiteralNode
-unsafe_as_literal_node = |node|
-    when node is
-        BooleanLiteral(x) -> BooleanLiteral(x)
-        NumberLiteral(x) -> NumberLiteral(x)
-        StringLiteral(x) -> StringLiteral(x)
-        NullLiteral(x) -> NullLiteral(x)
-        UndefinedLiteral(x) -> UndefinedLiteral(x)
-        RegExpLiteral(x) -> RegExpLiteral(x)
-        BigIntLiteral(x) -> BigIntLiteral(x)
-        _ -> crash ("unsafe_as_literal_node")
-
+# as_literal_node : Node -> Result LiteralNode _
+# as_literal_node = |node|
+#     when node is
+#         BooleanLiteral(x) -> Ok (BooleanLiteral(x))
+#         NumberLiteral(x) -> Ok (NumberLiteral(x))
+#         StringLiteral(x) -> Ok (StringLiteral(x))
+#         NullLiteral(x) -> Ok (NullLiteral(x))
+#         UndefinedLiteral(x) -> Ok (UndefinedLiteral(x))
+#         RegExpLiteral(x) -> Ok (RegExpLiteral(x))
+#         BigIntLiteral(x) -> Ok (BigIntLiteral(x))
+#         _ -> Err (node)
+#
+# as_literal_node_opt : Node -> Option LiteralNode
+# as_literal_node_opt = |node|
+#     when node is
+#         BooleanLiteral(x) -> Some (BooleanLiteral(x))
+#         NumberLiteral(x) -> Some (NumberLiteral(x))
+#         StringLiteral(x) -> Some (StringLiteral(x))
+#         NullLiteral(x) -> Some (NullLiteral(x))
+#         UndefinedLiteral(x) -> Some (UndefinedLiteral(x))
+#         RegExpLiteral(x) -> Some (RegExpLiteral(x))
+#         BigIntLiteral(x) -> Some (BigIntLiteral(x))
+#         _ -> None
+#
+# unsafe_as_literal_node : Node -> LiteralNode
+# unsafe_as_literal_node = |node|
+#     when node is
+#         BooleanLiteral(x) -> BooleanLiteral(x)
+#         NumberLiteral(x) -> NumberLiteral(x)
+#         StringLiteral(x) -> StringLiteral(x)
+#         NullLiteral(x) -> NullLiteral(x)
+#         UndefinedLiteral(x) -> UndefinedLiteral(x)
+#         RegExpLiteral(x) -> RegExpLiteral(x)
+#         BigIntLiteral(x) -> BigIntLiteral(x)
+#         _ -> crash ("unsafe_as_literal_node")
+#
