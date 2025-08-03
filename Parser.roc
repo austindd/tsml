@@ -120,7 +120,7 @@ parse_expression = |mode, min_precedence, token_list|
                     crash("parse_expression() failed -- This should never happen")
 
                 [] -> crash("parse_expression() failed -- This should never happen")
-# _ -> crash("parse_expression() failed -- This should never happen")
+                _ -> crash("parse_expression() failed -- This should never happen")
 
 OperatorPosition : [
     Prefix,
@@ -138,7 +138,7 @@ OperatorGroup : [
     Conditional, # "?", ":"
     Logical, # "||", "&&"
     Bitwise, # "|", "&", ">>", "<<", ">>>"
-    Relational, # "<", ">", "<=", ">="
+    Relational, # "<", ">", "<=", ">=", "instanceof", "in", "of"
     Additive, # "+", "-"
     Multiplicative, # "*", "/", "%"
     Exponentiation, # "**"
@@ -148,8 +148,8 @@ OperatorGroup : [
     MemberAccess, # "obj.", "arr[]"
 ]
 
-expr_precedence : OperatorGroup -> U16
-expr_precedence = |operator_group|
+operator_group_precedence : OperatorGroup -> U16
+operator_group_precedence = |operator_group|
     when operator_group is
         Assignment -> 100
         Conditional -> 200
@@ -164,41 +164,115 @@ expr_precedence = |operator_group|
         FunctionCall -> 1100
         MemberAccess -> 1100
 
-# "ASSIGN": 1,         # =
-# "PLUS_ASSIGN": 1,    # +=
-# "MINUS_ASSIGN": 1,   # -=
-# "MULTIPLY_ASSIGN": 1, # *=
-# "DIVIDE_ASSIGN": 1,  # /=
-#
-# # Ternary conditional (right associative)
-# "QUESTION": 2,       # condition ? true : false
-#
-# # Logical OR
-# "LOGICAL_OR": 3,     # ||
-#
-# # Logical AND
-# "LOGICAL_AND": 4,    # &&
-#
-# # Equality
-# "EQUALITY": 5,       # ==, !=, ===, !==
-#
-# # Relational
-# "RELATIONAL": 6,     # <, >, <=, >=
-#
-# # Additive
-# "ADDITIVE": 7,       # +, -
-#
-# # Multiplicative
-# "MULTIPLICATIVE": 8, # *, /, %
-#
-# # Exponentiation (right associative)
-# "EXPONENTIATION": 9, # **
-#
-# # Unary (handled in nud, not led)
-# "UNARY": 10,         # +, -, !, ~, typeof
-#
-# # Postfix
-# "POSTFIX": 11,       # ++, --
-#
-# # Call and member access
-# "CALL": 12,          # func(), obj.prop, obj[prop]
+# This function accepts a token and returns the operator group it belongs to
+expr_operator_group : PrattParserMode, Token -> OperatorGroup
+expr_operator_group = |mode, token|
+    when mode is
+        Nud ->
+            when token is
+                # Unary
+                PlusToken -> Unary
+                MinusToken -> Unary
+                ExclamationToken -> Unary
+                TildeToken -> Unary
+                ExclamationToken -> Unary
+                TypeOfKeyword -> Unary
+                _ -> crash("expr_operator_group() failed -- This should never happen")
+
+        Led(_) ->
+            when token is
+                # Assignment
+                EqualsToken -> Assignment
+                PlusEqualsToken -> Assignment
+                MinusEqualsToken -> Assignment
+                AsteriskEqualsToken -> Assignment
+                AsteriskAsteriskEqualsToken -> Assignment
+                SlashEqualsToken -> Assignment
+                PercentEqualsToken -> Assignment
+                LessThanLessThanEqualsToken -> Assignment
+                GreaterThanGreaterThanEqualsToken -> Assignment
+                GreaterThanGreaterThanGreaterThanEqualsToken -> Assignment
+                AmpersandEqualsToken -> Assignment
+                BarEqualsToken -> Assignment
+                BarBarEqualsToken -> Assignment
+                AmpersandAmpersandEqualsToken -> Assignment
+                QuestionQuestionEqualsToken -> Assignment
+                CaretEqualsToken -> Assignment
+                # Conditional
+                QuestionToken -> Conditional
+                ColonToken -> Conditional
+                # Logical
+                AmpersandAmpersandToken -> Logical
+                BarBarToken -> Logical
+                # Bitwise
+                AmpersandToken -> Bitwise
+                BarToken -> Bitwise
+                CaretToken -> Bitwise
+                LessThanLessThanToken -> Bitwise
+                GreaterThanGreaterThanToken -> Bitwise
+                GreaterThanGreaterThanGreaterThanToken -> Bitwise
+                # Relational
+                EqualsEqualsToken -> Relational
+                ExclamationEqualsToken -> Relational
+                EqualsEqualsEqualsToken -> Relational
+                ExclamationEqualsEqualsToken -> Relational
+                EqualsGreaterThanToken -> Relational
+                PlusToken -> Relational
+                MinusToken -> Relational
+                AsteriskToken -> Relational
+                AsteriskAsteriskToken -> Relational
+                SlashToken -> Relational
+                PercentToken -> Relational
+                # Additive
+                PlusToken -> Additive
+                MinusToken -> Additive
+                # Multiplicative
+                AsteriskToken -> Multiplicative
+                AsteriskAsteriskToken -> Multiplicative
+                SlashToken -> Multiplicative
+                PercentToken -> Multiplicative
+                # Exponentiation
+                AsteriskAsteriskToken -> Exponentiation
+                # Postfix
+                PlusPlusToken -> Postfix
+                MinusMinusToken -> Postfix
+                # FunctionCall
+                OpenParenToken -> FunctionCall
+                # MemberAccess
+                DotToken -> MemberAccess
+                OpenBracketToken -> MemberAccess
+                _ -> crash("expr_operator_group() failed -- This should never happen")
+
+expr_precedence : Token -> U16
+expr_precedence = |token|
+    operator_group = expr_operator_group(Nud, token)
+    operator_group_precedence(operator_group)
+
+is_expression_node : Node -> Bool
+is_expression_node = |node|
+    when node is
+        Identifier(_) -> Bool.true
+        StringLiteral(_) -> Bool.true
+        NumberLiteral(_) -> Bool.true
+        BooleanLiteral(_) -> Bool.true
+        RegExpLiteral(_) -> Bool.true
+        NullLiteral(_) -> Bool.true
+        UndefinedLiteral(_) -> Bool.true
+        BigIntLiteral(_) -> Bool.true
+        TemplateLiteral(_) -> Bool.true
+        # RegularExpressionLiteral(_) -> Bool.true
+        LogicalExpression(_) -> Bool.true
+        BinaryExpression(_) -> Bool.true
+        UnaryExpression(_) -> Bool.true
+        UpdateExpression(_) -> Bool.true
+        ConditionalExpression(_) -> Bool.true
+        CallExpression(_) -> Bool.true
+        NewExpression(_) -> Bool.true
+        SequenceExpression(_) -> Bool.true
+        FunctionExpression(_) -> Bool.true
+        ArrowFunctionExpression(_) -> Bool.true
+        ObjectExpression(_) -> Bool.true
+        ArrayExpression(_) -> Bool.true
+        MemberExpression(_) -> Bool.true
+        Error(_) -> Bool.true
+        _ -> Bool.false
