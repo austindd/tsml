@@ -260,7 +260,6 @@ is_expression_node = |node|
         UndefinedLiteral(_) -> Bool.true
         BigIntLiteral(_) -> Bool.true
         TemplateLiteral(_) -> Bool.true
-        # RegularExpressionLiteral(_) -> Bool.true
         LogicalExpression(_) -> Bool.true
         BinaryExpression(_) -> Bool.true
         UnaryExpression(_) -> Bool.true
