@@ -116,7 +116,23 @@ parse_expression = |mode, min_precedence, token_list|
 
         Led({ left_node }) ->
             when token_list is
-                [PlusToken, .. as rest] ->
+                # TODO: Add more cases for other operators
+                # Left associative
+                [PlusToken as tok, .. as rest]
+                | [MinusToken as tok, .. as rest]
+                | [AsteriskToken as tok, .. as rest]
+                | [SlashToken as tok, .. as rest]
+                | [PercentToken as tok, .. as rest] ->
+                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+                    right_node = parse_expression(Led({ left_node }), expr_precedence, rest)
+                    BinaryExpression({
+                        left: left_node,
+                        operator: tok,
+                        right: right_node,
+                    })
+                    
+                # Right associative
+                | [AsteriskAsteriskToken, .. as rest]
                     crash("parse_expression() failed -- This should never happen")
 
                 [] -> crash("parse_expression() failed -- This should never happen")
@@ -243,9 +259,9 @@ expr_operator_group = |mode, token|
                 OpenBracketToken -> MemberAccess
                 _ -> crash("expr_operator_group() failed -- This should never happen")
 
-expr_precedence : Token -> U16
-expr_precedence = |token|
-    operator_group = expr_operator_group(Nud, token)
+get_expr_precedence : PrattParserMode, Token -> U16
+get_expr_precedence = |mode, token|
+    operator_group = expr_operator_group(mode, token)
     operator_group_precedence(operator_group)
 
 is_expression_node : Node -> Bool
@@ -275,3 +291,30 @@ is_expression_node = |node|
         MemberExpression(_) -> Bool.true
         Error(_) -> Bool.true
         _ -> Bool.false
+
+token_to_binary_operator : Token -> BinaryOperator
+token_to_binary_operator = |token|
+    when token is
+        # Assignment
+        EqualsEqualsToken -> EqualEqual
+        ExclamationEqualsToken -> BangEqual
+        EqualsEqualsEqualsToken -> EqualEqualEqual
+        ExclamationEqualsEqualsToken -> EqualEqual
+        LessThanToken -> LessThan
+        LessThanEqualsToken -> LessThanEqual
+        GreaterThanToken -> GreaterThan
+        GreaterThanEqualsToken -> GreaterThanEqual
+        LessThanLessThanToken -> LeftShift
+        GreaterThanGreaterThanToken -> RightShift
+        GreaterThanGreaterThanGreaterThanToken -> UnsignedRightShift
+        PlusToken -> Plus
+        MinusToken -> Minus
+        AsteriskToken -> Star
+        SlashToken -> Slash
+        PercentToken -> Percent
+        PipeToken -> Pipe
+        CaretToken -> Caret
+        AmpersandToken -> Ampersand
+        InKeyword -> In
+        InstanceofKeyword -> InstanceOf
+
