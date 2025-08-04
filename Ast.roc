@@ -246,8 +246,8 @@ Node : [
             }),
     BinaryExpression (WithBaseNodeData {
                 left : Node,
-                right : Node,
                 operator : BinaryOperator,
+                right : Node,
             }),
     MemberExpression (WithBaseNodeData {
                 object : Node,

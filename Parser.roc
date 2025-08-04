@@ -118,21 +118,24 @@ parse_expression = |mode, min_precedence, token_list|
             when token_list is
                 # TODO: Add more cases for other operators
                 # Left associative
-                [PlusToken as tok, .. as rest]
-                | [MinusToken as tok, .. as rest]
-                | [AsteriskToken as tok, .. as rest]
-                | [SlashToken as tok, .. as rest]
-                | [PercentToken as tok, .. as rest] ->
+                [PlusToken as tok, .. as rest1]
+                | [MinusToken as tok, .. as rest1]
+                | [AsteriskToken as tok, .. as rest1]
+                | [SlashToken as tok, .. as rest1]
+                | [PercentToken as tok, .. as rest1] ->
                     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                    right_node = parse_expression(Led({ left_node }), expr_precedence, rest)
-                    BinaryExpression({
-                        left: left_node,
-                        operator: tok,
-                        right: right_node,
-                    })
-                    
+                    (right_node, rest2) = parse_expression(Led({ left_node }), expr_precedence, rest1)
+                    current_node = BinaryExpression(
+                        {
+                            left: left_node,
+                            operator: token_to_binary_operator(tok),
+                            right: right_node,
+                        },
+                    )
+                    (current_node, rest2)
+
                 # Right associative
-                | [AsteriskAsteriskToken, .. as rest]
+                [AsteriskAsteriskToken, .. as rest] ->
                     crash("parse_expression() failed -- This should never happen")
 
                 [] -> crash("parse_expression() failed -- This should never happen")
@@ -192,7 +195,7 @@ expr_operator_group = |mode, token|
                 ExclamationToken -> Unary
                 TildeToken -> Unary
                 ExclamationToken -> Unary
-                TypeOfKeyword -> Unary
+                TypeofKeyword -> Unary
                 _ -> crash("expr_operator_group() failed -- This should never happen")
 
         Led(_) ->
@@ -233,12 +236,6 @@ expr_operator_group = |mode, token|
                 EqualsEqualsEqualsToken -> Relational
                 ExclamationEqualsEqualsToken -> Relational
                 EqualsGreaterThanToken -> Relational
-                PlusToken -> Relational
-                MinusToken -> Relational
-                AsteriskToken -> Relational
-                AsteriskAsteriskToken -> Relational
-                SlashToken -> Relational
-                PercentToken -> Relational
                 # Additive
                 PlusToken -> Additive
                 MinusToken -> Additive
@@ -267,29 +264,30 @@ get_expr_precedence = |mode, token|
 is_expression_node : Node -> Bool
 is_expression_node = |node|
     when node is
-        Identifier(_) -> Bool.true
-        StringLiteral(_) -> Bool.true
-        NumberLiteral(_) -> Bool.true
-        BooleanLiteral(_) -> Bool.true
-        RegExpLiteral(_) -> Bool.true
-        NullLiteral(_) -> Bool.true
-        UndefinedLiteral(_) -> Bool.true
-        BigIntLiteral(_) -> Bool.true
-        TemplateLiteral(_) -> Bool.true
-        LogicalExpression(_) -> Bool.true
-        BinaryExpression(_) -> Bool.true
-        UnaryExpression(_) -> Bool.true
-        UpdateExpression(_) -> Bool.true
-        ConditionalExpression(_) -> Bool.true
-        CallExpression(_) -> Bool.true
-        NewExpression(_) -> Bool.true
-        SequenceExpression(_) -> Bool.true
-        FunctionExpression(_) -> Bool.true
-        ArrowFunctionExpression(_) -> Bool.true
-        ObjectExpression(_) -> Bool.true
-        ArrayExpression(_) -> Bool.true
-        MemberExpression(_) -> Bool.true
-        Error(_) -> Bool.true
+        Identifier(_)
+        | StringLiteral(_)
+        | NumberLiteral(_)
+        | BooleanLiteral(_)
+        | RegExpLiteral(_)
+        | NullLiteral(_)
+        | UndefinedLiteral(_)
+        | BigIntLiteral(_)
+        | TemplateLiteral(_)
+        | LogicalExpression(_)
+        | BinaryExpression(_)
+        | UnaryExpression(_)
+        | UpdateExpression(_)
+        | ConditionalExpression(_)
+        | CallExpression(_)
+        | NewExpression(_)
+        | SequenceExpression(_)
+        | FunctionExpression(_)
+        | ArrowFunctionExpression(_)
+        | ObjectExpression(_)
+        | ArrayExpression(_)
+        | MemberExpression(_)
+        | Error(_) -> Bool.true
+
         _ -> Bool.false
 
 token_to_binary_operator : Token -> BinaryOperator
@@ -312,9 +310,10 @@ token_to_binary_operator = |token|
         AsteriskToken -> Star
         SlashToken -> Slash
         PercentToken -> Percent
-        PipeToken -> Pipe
+        BarToken -> Pipe
         CaretToken -> Caret
         AmpersandToken -> Ampersand
         InKeyword -> In
-        InstanceofKeyword -> InstanceOf
+        InstanceofKeyword -> Instanceof
+        _ -> crash("token_to_binary_operator() failed -- This should never happen")
 

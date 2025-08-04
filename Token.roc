@@ -131,7 +131,7 @@ Token : [
     IfKeyword,
     ImportKeyword,
     InKeyword,
-    InstanceOfKeyword,
+    InstanceofKeyword,
     NewKeyword,
     NullKeyword,
     ReturnKeyword,
@@ -141,7 +141,7 @@ Token : [
     ThrowKeyword,
     TrueKeyword,
     TryKeyword,
-    TypeOfKeyword,
+    TypeofKeyword,
     VarKeyword,
     VoidKeyword,
     WhileKeyword,
@@ -329,7 +329,7 @@ ts_token_debug_display = |token|
         IfKeyword -> "IfKeyword"
         ImportKeyword -> "ImportKeyword"
         InKeyword -> "InKeyword"
-        InstanceOfKeyword -> "InstanceOfKeyword"
+        InstanceofKeyword -> "InstanceofKeyword"
         NewKeyword -> "NewKeyword"
         NullKeyword -> "NullKeyword"
         ReturnKeyword -> "ReturnKeyword"
@@ -339,7 +339,7 @@ ts_token_debug_display = |token|
         ThrowKeyword -> "ThrowKeyword"
         TrueKeyword -> "TrueKeyword"
         TryKeyword -> "TryKeyword"
-        TypeOfKeyword -> "TypeOfKeyword"
+        TypeofKeyword -> "TypeofKeyword"
         VarKeyword -> "VarKeyword"
         VoidKeyword -> "VoidKeyword"
         WhileKeyword -> "WhileKeyword"
@@ -587,8 +587,8 @@ utf8_list_to_ts_token_list_inner = |u8_list, token_list|
             (token, rest) = handle_possible_keyword(ImportKeyword, [105, 109, 112, 111, 114, 116], u8s)
             utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
-        [105, 110, 115, 116, 097, 110, 099, 101, 111, 102, .. as u8s] -> # instanceof
-            (token, rest) = handle_possible_keyword(InstanceOfKeyword, [105, 110, 115, 116, 097, 110, 099, 101, 111, 102], u8s)
+        [105, 110, 115, 116, 097, 110, 099, 101, 111, 102, .. as u8s] -> # Instanceof
+            (token, rest) = handle_possible_keyword(InstanceofKeyword, [105, 110, 115, 116, 097, 110, 099, 101, 111, 102], u8s)
             utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [105, 110, .. as u8s] -> # in
@@ -632,7 +632,7 @@ utf8_list_to_ts_token_list_inner = |u8_list, token_list|
             utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [116, 121, 112, 101, 111, 102, .. as u8s] -> # typeof
-            (token, rest) = handle_possible_keyword(TypeOfKeyword, [116, 121, 112, 101, 111, 102], u8s)
+            (token, rest) = handle_possible_keyword(TypeofKeyword, [116, 121, 112, 101, 111, 102], u8s)
             utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [118, 097, 114, .. as u8s] -> # var
@@ -1661,7 +1661,7 @@ keywords = [
     "if",
     "import",
     "in",
-    "instanceof",
+    "Instanceof",
     "new",
     "null",
     "return",
@@ -1780,7 +1780,7 @@ keywords = [
 # implements
 # import
 # in
-# instanceof
+# Instanceof
 # interface
 # let
 # module
