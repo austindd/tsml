@@ -239,8 +239,8 @@ operator_group_precedence = |operator_group|
         MemberAccess -> 1100
 
 # This function accepts a token and returns the operator group it belongs to
-expr_operator_group : PrattParserMode, Token -> OperatorGroup
-expr_operator_group = |mode, token|
+get_expr_operator_group : PrattParserMode, Token -> OperatorGroup
+get_expr_operator_group = |mode, token|
     when mode is
         Nud ->
             when token is
@@ -251,7 +251,7 @@ expr_operator_group = |mode, token|
                 TildeToken -> Unary
                 ExclamationToken -> Unary
                 TypeofKeyword -> Unary
-                _ -> crash("expr_operator_group() failed -- This should never happen")
+                _ -> crash("get_expr_operator_group() failed -- This should never happen")
 
         Led(_) ->
             when token is
@@ -308,11 +308,11 @@ expr_operator_group = |mode, token|
                 # MemberAccess
                 DotToken -> MemberAccess
                 OpenBracketToken -> MemberAccess
-                _ -> crash("expr_operator_group() failed -- This should never happen")
+                _ -> crash("get_expr_operator_group() failed -- This should never happen")
 
 get_expr_precedence : PrattParserMode, Token -> U16
 get_expr_precedence = |mode, token|
-    operator_group = expr_operator_group(mode, token)
+    operator_group = get_expr_operator_group(mode, token)
     operator_group_precedence(operator_group)
 
 is_expression_node : Node -> Bool
