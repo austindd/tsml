@@ -222,8 +222,8 @@ OperatorGroup : [
     MemberAccess, # "obj.", "arr[]"
 ]
 
-operator_group_precedence : OperatorGroup -> U16
-operator_group_precedence = |operator_group|
+get_operator_group_precedence : OperatorGroup -> U16
+get_operator_group_precedence = |operator_group|
     when operator_group is
         Assignment -> 100
         Conditional -> 200
@@ -313,7 +313,7 @@ get_expr_operator_group = |mode, token|
 get_expr_precedence : PrattParserMode, Token -> U16
 get_expr_precedence = |mode, token|
     operator_group = get_expr_operator_group(mode, token)
-    operator_group_precedence(operator_group)
+    get_operator_group_precedence(operator_group)
 
 is_expression_node : Node -> Bool
 is_expression_node = |node|
