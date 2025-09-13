@@ -115,11 +115,13 @@ parse_expression = |mode, min_precedence, token_list|
                 | [DeleteKeyword as tok, .. as rest1] ->
                     expr_precedence = get_expr_precedence(Nud, tok)
                     (argument, rest2) = parse_expression(Nud, expr_precedence, rest1)
-                    unary_node = UnaryExpression({
-                        operator: token_to_unary_operator(tok),
-                        prefix: Bool.true,
-                        argument: argument,
-                    })
+                    unary_node = UnaryExpression(
+                        {
+                            operator: token_to_unary_operator(tok),
+                            prefix: Bool.true,
+                            argument: argument,
+                        },
+                    )
                     (unary_node, rest2)
 
                 # Update prefix operators
@@ -127,18 +129,20 @@ parse_expression = |mode, min_precedence, token_list|
                 | [MinusMinusToken as tok, .. as rest1] ->
                     expr_precedence = get_expr_precedence(Nud, tok)
                     (argument, rest2) = parse_expression(Nud, expr_precedence, rest1)
-                    update_node = UpdateExpression({
-                        operator: token_to_update_operator(tok),
-                        prefix: Bool.true,
-                        argument: argument,
-                    })
+                    update_node = UpdateExpression(
+                        {
+                            operator: token_to_update_operator(tok),
+                            prefix: Bool.true,
+                            argument: argument,
+                        },
+                    )
                     (update_node, rest2)
 
                 # Array literals
                 [OpenBracketToken, .. as rest1] ->
                     parse_array_literal(rest1)
 
-                # Object literals  
+                # Object literals
                 [OpenBraceToken, .. as rest1] ->
                     parse_object_literal(rest1)
 
@@ -172,89 +176,88 @@ parse_expression = |mode, min_precedence, token_list|
         Led({ left_node }) ->
             when token_list is
                 _ -> crash("parse_expression() failed -- This should never happen")
-                # # Left associative
-                # # Assignment
-                # [EqualsToken as tok, .. as rest1]
-                # | [PlusEqualsToken as tok, .. as rest1]
-                # | [MinusEqualsToken as tok, .. as rest1]
-                # | [AsteriskEqualsToken as tok, .. as rest1]
-                # | [AsteriskAsteriskEqualsToken as tok, .. as rest1]
-                # | [SlashEqualsToken as tok, .. as rest1]
-                # | [PercentEqualsToken as tok, .. as rest1]
-                # | [LessThanLessThanEqualsToken as tok, .. as rest1]
-                # | [GreaterThanGreaterThanEqualsToken as tok, .. as rest1]
-                # | [GreaterThanGreaterThanGreaterThanEqualsToken as tok, .. as rest1]
-                # | [AmpersandEqualsToken as tok, .. as rest1]
-                # | [BarEqualsToken as tok, .. as rest1]
-                # | [BarBarEqualsToken as tok, .. as rest1]
-                # | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
-                # | [QuestionQuestionEqualsToken as tok, .. as rest1]
-                # | [CaretEqualsToken as tok, .. as rest1]
-                # # Conditional
-                # | [QuestionToken as tok, .. as rest1]
-                # | [ColonToken as tok, .. as rest1]
-                # # Logical
-                # | [AmpersandAmpersandToken as tok, .. as rest1]
-                # | [BarBarToken as tok, .. as rest1]
-                # # Bitwise
-                # | [AmpersandToken as tok, .. as rest1]
-                # | [BarToken as tok, .. as rest1]
-                # | [CaretToken as tok, .. as rest1]
-                # | [LessThanLessThanToken as tok, .. as rest1]
-                # | [GreaterThanGreaterThanToken as tok, .. as rest1]
-                # | [GreaterThanGreaterThanGreaterThanToken as tok, .. as rest1]
-                # # Relational
-                # | [EqualsEqualsToken as tok, .. as rest1]
-                # | [ExclamationEqualsToken as tok, .. as rest1]
-                # | [EqualsEqualsEqualsToken as tok, .. as rest1]
-                # | [ExclamationEqualsEqualsToken as tok, .. as rest1]
-                # | [EqualsGreaterThanToken as tok, .. as rest1]
-                # # Additive
-                # | [PlusToken as tok, .. as rest1]
-                # | [MinusToken as tok, .. as rest1]
-                # # Multiplicative
-                # | [AsteriskToken as tok, .. as rest1]
-                # | [SlashToken as tok, .. as rest1]
-                # | [PercentToken as tok, .. as rest1]
-                # # Postfix (update expressions)
-                # | [PlusPlusToken as tok, .. as rest1]
-                # | [MinusMinusToken as tok, .. as rest1] ->
-                #     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                #     update_node = UpdateExpression({
-                #         operator: token_to_update_operator(tok),
-                #         prefix: Bool.false,
-                #         argument: left_node,
-                #     })
-                #     (update_node, rest1)
-                # # FunctionCall
-                # | [OpenParenToken, .. as rest1] ->
-                #     parse_function_call(left_node, rest1)
-                #
-                # # MemberAccess - dot notation
-                # | [DotToken, .. as rest1] ->
-                #     parse_member_access_dot(left_node, rest1)
-                #
-                # # MemberAccess - bracket notation
-                # | [OpenBracketToken, .. as rest1] ->
-                #     parse_member_access_bracket(left_node, rest1)
-                #
-                # # Right associative
-                # # Exponentiation
-                # [AsteriskAsteriskToken as tok, .. as rest1] ->
-                #     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                #     (right_node, rest2) = parse_expression(Led({ left_node }), expr_precedence - 1, rest1)
-                #     current_node = BinaryExpression(
-                #         {
-                #             left: left_node,
-                #             operator: token_to_binary_operator(tok),
-                #             right: right_node,
-                #         },
-                #     )
-                #     (current_node, rest2)
-                #
-                # [] -> crash("parse_expression() failed -- Unexpected end of expression")
-                # _ -> crash("parse_expression() failed -- This should never happen")
-
+# # Left associative
+# # Assignment
+# [EqualsToken as tok, .. as rest1]
+# | [PlusEqualsToken as tok, .. as rest1]
+# | [MinusEqualsToken as tok, .. as rest1]
+# | [AsteriskEqualsToken as tok, .. as rest1]
+# | [AsteriskAsteriskEqualsToken as tok, .. as rest1]
+# | [SlashEqualsToken as tok, .. as rest1]
+# | [PercentEqualsToken as tok, .. as rest1]
+# | [LessThanLessThanEqualsToken as tok, .. as rest1]
+# | [GreaterThanGreaterThanEqualsToken as tok, .. as rest1]
+# | [GreaterThanGreaterThanGreaterThanEqualsToken as tok, .. as rest1]
+# | [AmpersandEqualsToken as tok, .. as rest1]
+# | [BarEqualsToken as tok, .. as rest1]
+# | [BarBarEqualsToken as tok, .. as rest1]
+# | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
+# | [QuestionQuestionEqualsToken as tok, .. as rest1]
+# | [CaretEqualsToken as tok, .. as rest1]
+# # Conditional
+# | [QuestionToken as tok, .. as rest1]
+# | [ColonToken as tok, .. as rest1]
+# # Logical
+# | [AmpersandAmpersandToken as tok, .. as rest1]
+# | [BarBarToken as tok, .. as rest1]
+# # Bitwise
+# | [AmpersandToken as tok, .. as rest1]
+# | [BarToken as tok, .. as rest1]
+# | [CaretToken as tok, .. as rest1]
+# | [LessThanLessThanToken as tok, .. as rest1]
+# | [GreaterThanGreaterThanToken as tok, .. as rest1]
+# | [GreaterThanGreaterThanGreaterThanToken as tok, .. as rest1]
+# # Relational
+# | [EqualsEqualsToken as tok, .. as rest1]
+# | [ExclamationEqualsToken as tok, .. as rest1]
+# | [EqualsEqualsEqualsToken as tok, .. as rest1]
+# | [ExclamationEqualsEqualsToken as tok, .. as rest1]
+# | [EqualsGreaterThanToken as tok, .. as rest1]
+# # Additive
+# | [PlusToken as tok, .. as rest1]
+# | [MinusToken as tok, .. as rest1]
+# # Multiplicative
+# | [AsteriskToken as tok, .. as rest1]
+# | [SlashToken as tok, .. as rest1]
+# | [PercentToken as tok, .. as rest1]
+# # Postfix (update expressions)
+# | [PlusPlusToken as tok, .. as rest1]
+# | [MinusMinusToken as tok, .. as rest1] ->
+#     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+#     update_node = UpdateExpression({
+#         operator: token_to_update_operator(tok),
+#         prefix: Bool.false,
+#         argument: left_node,
+#     })
+#     (update_node, rest1)
+# # FunctionCall
+# | [OpenParenToken, .. as rest1] ->
+#     parse_function_call(left_node, rest1)
+#
+# # MemberAccess - dot notation
+# | [DotToken, .. as rest1] ->
+#     parse_member_access_dot(left_node, rest1)
+#
+# # MemberAccess - bracket notation
+# | [OpenBracketToken, .. as rest1] ->
+#     parse_member_access_bracket(left_node, rest1)
+#
+# # Right associative
+# # Exponentiation
+# [AsteriskAsteriskToken as tok, .. as rest1] ->
+#     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+#     (right_node, rest2) = parse_expression(Led({ left_node }), expr_precedence - 1, rest1)
+#     current_node = BinaryExpression(
+#         {
+#             left: left_node,
+#             operator: token_to_binary_operator(tok),
+#             right: right_node,
+#         },
+#     )
+#     (current_node, rest2)
+#
+# [] -> crash("parse_expression() failed -- Unexpected end of expression")
+# _ -> crash("parse_expression() failed -- This should never happen")
 
 OperatorPosition : [
     Prefix,
@@ -519,11 +522,13 @@ parse_object_property = |token_list|
         [ColonToken, .. as rest2] ->
             # Parse the value
             (value, rest3) = parse_expression(Nud, 0, rest2)
-            property_node = Property({
-                key: key,
-                value: value,
-                kind: Init,
-            })
+            property_node = Property(
+                {
+                    key: key,
+                    value: value,
+                    kind: Init,
+                },
+            )
             (property_node, rest3)
 
         _ ->
@@ -547,6 +552,7 @@ parse_property_key = |token_list|
             when rest2 is
                 [CloseBracketToken, .. as rest3] ->
                     (expr, rest3)
+
                 _ ->
                     (Error({ message: "Expected close bracket for computed property key" }), rest2)
 
@@ -584,11 +590,13 @@ parse_member_access_dot = |object, token_list|
     when token_list is
         [IdentifierToken(prop_name), .. as rest] ->
             property = Identifier({ name: prop_name })
-            member_expr = MemberExpression({
-                object: object,
-                property: property,
-                computed: Bool.false,
-            })
+            member_expr = MemberExpression(
+                {
+                    object: object,
+                    property: property,
+                    computed: Bool.false,
+                },
+            )
             (member_expr, rest)
 
         _ ->
@@ -599,11 +607,13 @@ parse_member_access_bracket = |object, token_list|
     (property, rest1) = parse_expression(Nud, 0, token_list)
     when rest1 is
         [CloseBracketToken, .. as rest2] ->
-            member_expr = MemberExpression({
-                object: object,
-                property: property,
-                computed: Bool.true,
-            })
+            member_expr = MemberExpression(
+                {
+                    object: object,
+                    property: property,
+                    computed: Bool.true,
+                },
+            )
             (member_expr, rest2)
 
         _ ->
@@ -655,7 +665,7 @@ parse_variable_declarators : VariableDeclarationKind, List Node, List Token -> (
 parse_variable_declarators = |kind, declarators, token_list|
     (declarator, rest1) = parse_variable_declarator(token_list)
     new_declarators = List.append(declarators, declarator)
-    
+
     when rest1 is
         [CommaToken, .. as rest2] ->
             # More declarators
@@ -663,18 +673,22 @@ parse_variable_declarators = |kind, declarators, token_list|
 
         [SemicolonToken, .. as rest2] ->
             # End of declaration
-            var_decl = VariableDeclaration({
-                declarations: new_declarators,
-                kind: kind,
-            })
+            var_decl = VariableDeclaration(
+                {
+                    declarations: new_declarators,
+                    kind: kind,
+                },
+            )
             (var_decl, rest2)
 
         _ ->
             # Allow without semicolon (ASI)
-            var_decl = VariableDeclaration({
-                declarations: new_declarators,
-                kind: kind,
-            })
+            var_decl = VariableDeclaration(
+                {
+                    declarations: new_declarators,
+                    kind: kind,
+                },
+            )
             (var_decl, rest1)
 
 parse_variable_declarator : List Token -> (Node, List Token)
@@ -686,18 +700,22 @@ parse_variable_declarator = |token_list|
                 [EqualsToken, .. as rest2] ->
                     # Has initializer
                     (init_expr, rest3) = parse_expression(Nud, 0, rest2)
-                    declarator = VariableDeclarator({
-                        id: identifier,
-                        init: Some(init_expr),
-                    })
+                    declarator = VariableDeclarator(
+                        {
+                            id: identifier,
+                            init: Some(init_expr),
+                        },
+                    )
                     (declarator, rest3)
 
                 _ ->
                     # No initializer
-                    declarator = VariableDeclarator({
-                        id: identifier,
-                        init: None,
-                    })
+                    declarator = VariableDeclarator(
+                        {
+                            id: identifier,
+                            init: None,
+                        },
+                    )
                     (declarator, rest1)
 
         _ ->
@@ -744,19 +762,23 @@ parse_if_statement = |token_list|
                     when rest4 is
                         [ElseKeyword, .. as rest5] ->
                             (alternate, rest6) = parse_statement(rest5)
-                            if_stmt = IfStatement({
-                                test: test_expr,
-                                consequent: consequent,
-                                alternate: Some(alternate),
-                            })
+                            if_stmt = IfStatement(
+                                {
+                                    test: test_expr,
+                                    consequent: consequent,
+                                    alternate: Some(alternate),
+                                },
+                            )
                             (if_stmt, rest6)
 
                         _ ->
-                            if_stmt = IfStatement({
-                                test: test_expr,
-                                consequent: consequent,
-                                alternate: None,
-                            })
+                            if_stmt = IfStatement(
+                                {
+                                    test: test_expr,
+                                    consequent: consequent,
+                                    alternate: None,
+                                },
+                            )
                             (if_stmt, rest4)
 
                 _ ->
@@ -773,10 +795,12 @@ parse_while_statement = |token_list|
             when rest2 is
                 [CloseParenToken, .. as rest3] ->
                     (body, rest4) = parse_statement(rest3)
-                    while_stmt = WhileStatement({
-                        test: test_expr,
-                        body: body,
-                    })
+                    while_stmt = WhileStatement(
+                        {
+                            test: test_expr,
+                            body: body,
+                        },
+                    )
                     (while_stmt, rest4)
 
                 _ ->
@@ -797,18 +821,22 @@ parse_do_while_statement = |token_list|
                         [CloseParenToken, .. as rest5] ->
                             when rest5 is
                                 [SemicolonToken, .. as rest6] ->
-                                    do_while_stmt = DoWhileStatement({
-                                        body: body,
-                                        test: test_expr,
-                                    })
+                                    do_while_stmt = DoWhileStatement(
+                                        {
+                                            body: body,
+                                            test: test_expr,
+                                        },
+                                    )
                                     (do_while_stmt, rest6)
 
                                 _ ->
                                     # Allow without semicolon
-                                    do_while_stmt = DoWhileStatement({
-                                        body: body,
-                                        test: test_expr,
-                                    })
+                                    do_while_stmt = DoWhileStatement(
+                                        {
+                                            body: body,
+                                            test: test_expr,
+                                        },
+                                    )
                                     (do_while_stmt, rest5)
 
                         _ ->
@@ -825,61 +853,72 @@ parse_for_statement = |token_list|
     when token_list is
         [OpenParenToken, .. as rest1] ->
             # Parse init (can be variable declaration or expression)
-            (init, rest2) = 
+            (init, rest2) =
                 when rest1 is
-                    [SemicolonToken, .. as rest] -> 
+                    [SemicolonToken, .. as rest] ->
                         (None, rest)
+
                     [VarKeyword, .. as rest] ->
                         (var_decl, remaining) = parse_variable_declaration(Var, rest)
                         (Some(var_decl), remaining)
+
                     [LetKeyword, .. as rest] ->
                         (var_decl, remaining) = parse_variable_declaration(Let, rest)
                         (Some(var_decl), remaining)
+
                     [ConstKeyword, .. as rest] ->
                         (var_decl, remaining) = parse_variable_declaration(Const, rest)
                         (Some(var_decl), remaining)
+
                     _ ->
                         (expr, remaining) = parse_expression(Nud, 0, rest1)
                         when remaining is
                             [SemicolonToken, .. as rest] ->
                                 (Some(expr), rest)
+
                             _ ->
                                 (Some(expr), remaining)
 
             # Parse test condition
-            (test, rest3) = 
+            (test, rest3) =
                 when rest2 is
-                    [SemicolonToken, .. as rest] -> 
+                    [SemicolonToken, .. as rest] ->
                         (None, rest)
+
                     _ ->
                         (test_expr, remaining) = parse_expression(Nud, 0, rest2)
                         when remaining is
                             [SemicolonToken, .. as rest] ->
                                 (Some(test_expr), rest)
+
                             _ ->
                                 (Some(test_expr), remaining)
 
             # Parse update expression
-            (update, rest4) = 
+            (update, rest4) =
                 when rest3 is
-                    [CloseParenToken, .. as rest] -> 
+                    [CloseParenToken, .. as rest] ->
                         (None, rest)
+
                     _ ->
                         (update_expr, remaining) = parse_expression(Nud, 0, rest3)
                         when remaining is
                             [CloseParenToken, .. as rest] ->
                                 (Some(update_expr), rest)
+
                             _ ->
                                 (Some(update_expr), remaining)
 
             # Parse body
             (body, rest5) = parse_statement(rest4)
-            for_stmt = ForStatement({
-                init: init,
-                test: test,
-                update: update,
-                body: body,
-            })
+            for_stmt = ForStatement(
+                {
+                    init: init,
+                    test: test,
+                    update: update,
+                    body: body,
+                },
+            )
             (for_stmt, rest5)
 
         _ ->
@@ -892,17 +931,19 @@ parse_function_declaration = |token_list|
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
             (body, rest3) = parse_function_body(rest2)
-            func_decl = FunctionDeclaration({
-                id: identifier,
-                params: params,
-                body: body,
-                generator: Bool.false,
-                async: Bool.false,
-            })
+            func_decl = FunctionDeclaration(
+                {
+                    id: identifier,
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.false,
+                },
+            )
             (func_decl, rest3)
 
         _ ->
-            (Error({ message: "Expected function name" }), token_list)
+            crash("parse_function_declaration() failed -- This should never happen")
 
 parse_function_expression : List Token -> (Node, List Token)
 parse_function_expression = |token_list|
@@ -912,26 +953,30 @@ parse_function_expression = |token_list|
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
             (body, rest3) = parse_function_body(rest2)
-            func_expr = FunctionExpression({
-                id: Some(identifier),
-                params: params,
-                body: body,
-                generator: Bool.false,
-                async: Bool.false,
-            })
+            func_expr = FunctionExpression(
+                {
+                    id: Some(identifier),
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.false,
+                },
+            )
             (func_expr, rest3)
 
         [OpenParenToken, .. as rest1] ->
             # Anonymous function expression
             (params, rest2) = parse_function_parameters(token_list)
             (body, rest3) = parse_function_body(rest2)
-            func_expr = FunctionExpression({
-                id: None,
-                params: params,
-                body: body,
-                generator: Bool.false,
-                async: Bool.false,
-            })
+            func_expr = FunctionExpression(
+                {
+                    id: None,
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.false,
+                },
+            )
             (func_expr, rest3)
 
         _ ->
@@ -943,8 +988,14 @@ parse_function_parameters = |token_list|
         [OpenParenToken, .. as rest1] ->
             parse_parameter_list([], rest1)
 
-        _ ->
-            ([], Error({ message: "Expected open paren for function parameters" }))
+        [_, .. as rest1] ->
+            ([Error({ message: "Expected open paren for function parameters" })], rest1)
+
+        [_] ->
+            ([Error({ message: "Expected open paren for function parameters" })], [])
+
+        [] ->
+            ([Error({ message: "Expected open paren for function parameters" })], [])
 
 parse_parameter_list : List Node, List Token -> (List Node, List Token)
 parse_parameter_list = |params, token_list|
@@ -962,11 +1013,32 @@ parse_parameter_list = |params, token_list|
                 [CloseParenToken, .. as rest2] ->
                     (new_params, rest2)
 
-                _ ->
-                    (new_params, Error({ message: "Expected comma or close paren in parameter list" }))
+                [_, .. as rest2] ->
+                    (
+                        List.append(
+                            new_params,
+                            Error({ message: "Expected comma or close paren in parameter list" }),
+                        ),
+                        rest2,
+                    )
+
+                [_] | [] ->
+                    (
+                        List.append(
+                            new_params,
+                            Error({ message: "Expected comma or close paren in parameter list" }),
+                        ),
+                        [],
+                    )
 
         _ ->
-            (params, Error({ message: "Expected parameter name or close paren" }))
+            (
+                List.append(
+                    params,
+                    Error({ message: "Expected parameter name or close paren" }),
+                ),
+                [],
+            )
 
 parse_function_body : List Token -> (Node, List Token)
 parse_function_body = |token_list|
