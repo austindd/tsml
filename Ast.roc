@@ -12,6 +12,7 @@ module [
     UnaryOperator,
     UpdateOperator,
     LiteralNode,
+    node_to_str,
 ]
 
 import Token exposing [
@@ -406,3 +407,310 @@ LiteralNode : WithLiteralNode []
 #         BigIntLiteral(x) -> BigIntLiteral(x)
 #         _ -> crash ("unsafe_as_literal_node")
 #
+
+node_to_str : Node -> Str
+node_to_str = |node|
+    node_to_str_with_indent(node, 0)
+
+node_to_str_with_indent : Node, U32 -> Str
+node_to_str_with_indent = |node, indent_level|
+    indent = Str.repeat("  ", indent_level)
+    when node is
+        Error(data) ->
+            Str.concat(indent, "Error { message: \"") 
+            |> Str.concat(data.message)
+            |> Str.concat("\" }")
+
+        Program(data) ->
+            body_count = List.len(data.body) |> Num.to_str
+            source_type = program_kind_to_str(data.sourceType)
+            body_str = list_to_str_with_indent(data.body, indent_level + 1)
+            Str.concat(indent, "Program {\n")
+            |> Str.concat(indent) |> Str.concat("  sourceType: ") |> Str.concat(source_type) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  body: [\n")
+            |> Str.concat(body_str)
+            |> Str.concat(indent) |> Str.concat("  ]\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        Identifier(data) ->
+            Str.concat(indent, "Identifier { name: \"")
+            |> Str.concat(data.name)
+            |> Str.concat("\" }")
+
+        BooleanLiteral(data) ->
+            value_str = Inspect.to_str(data.value)
+            Str.concat(indent, "BooleanLiteral { value: ")
+            |> Str.concat(value_str)
+            |> Str.concat(" }")
+
+        NumberLiteral(data) ->
+            Str.concat(indent, "NumberLiteral { value: \"")
+            |> Str.concat(data.value)
+            |> Str.concat("\" }")
+
+        StringLiteral(data) ->
+            Str.concat(indent, "StringLiteral { value: \"")
+            |> Str.concat(data.value)
+            |> Str.concat("\" }")
+
+        NullLiteral(_) ->
+            Str.concat(indent, "NullLiteral")
+
+        UndefinedLiteral(_) ->
+            Str.concat(indent, "UndefinedLiteral")
+
+        RegExpLiteral(data) ->
+            Str.concat(indent, "RegExpLiteral { pattern: \"")
+            |> Str.concat(data.pattern)
+            |> Str.concat("\", flags: \"")
+            |> Str.concat(data.flags)
+            |> Str.concat("\" }")
+
+        BigIntLiteral(data) ->
+            Str.concat(indent, "BigIntLiteral { value: \"")
+            |> Str.concat(data.value)
+            |> Str.concat("\" }")
+
+        TemplateLiteral(data) ->
+            quasis_count = List.len(data.quasis) |> Num.to_str
+            expr_count = List.len(data.expressions) |> Num.to_str
+            Str.concat(indent, "TemplateLiteral { quasis: [")
+            |> Str.concat(quasis_count)
+            |> Str.concat(" items], expressions: [")
+            |> Str.concat(expr_count)
+            |> Str.concat(" items] }")
+
+        ThisExpression(_) ->
+            Str.concat(indent, "ThisExpression")
+
+        ArrayExpression(data) ->
+            elements_count = List.len(data.elements) |> Num.to_str
+            elements_str = list_to_str_with_indent(data.elements, indent_level + 1)
+            Str.concat(indent, "ArrayExpression {\n")
+            |> Str.concat(indent) |> Str.concat("  elements: [\n")
+            |> Str.concat(elements_str)
+            |> Str.concat(indent) |> Str.concat("  ]\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        ObjectExpression(data) ->
+            props_count = List.len(data.properties) |> Num.to_str
+            props_str = list_to_str_with_indent(data.properties, indent_level + 1)
+            Str.concat(indent, "ObjectExpression {\n")
+            |> Str.concat(indent) |> Str.concat("  properties: [\n")
+            |> Str.concat(props_str)
+            |> Str.concat(indent) |> Str.concat("  ]\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        Property(data) ->
+            kind_str = property_kind_to_str(data.kind)
+            Str.concat(indent, "Property {\n")
+            |> Str.concat(indent) |> Str.concat("  kind: ") |> Str.concat(kind_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  key: ") |> Str.concat(node_to_str_with_indent(data.key, indent_level + 1)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  value: ") |> Str.concat(node_to_str_with_indent(data.value, indent_level + 1)) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        BinaryExpression(data) ->
+            op_str = binary_operator_to_str(data.operator)
+            Str.concat(indent, "BinaryExpression {\n")
+            |> Str.concat(indent) |> Str.concat("  operator: ") |> Str.concat(op_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  left: ") |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  right: ") |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1)) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        UnaryExpression(data) ->
+            op_str = unary_operator_to_str(data.operator)
+            prefix_str = Inspect.to_str(data.prefix)
+            Str.concat(indent, "UnaryExpression {\n")
+            |> Str.concat(indent) |> Str.concat("  operator: ") |> Str.concat(op_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  prefix: ") |> Str.concat(prefix_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  argument: ") |> Str.concat(node_to_str_with_indent(data.argument, indent_level + 1)) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        UpdateExpression(data) ->
+            op_str = update_operator_to_str(data.operator)
+            prefix_str = Inspect.to_str(data.prefix)
+            Str.concat(indent, "UpdateExpression {\n")
+            |> Str.concat(indent) |> Str.concat("  operator: ") |> Str.concat(op_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  prefix: ") |> Str.concat(prefix_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  argument: ") |> Str.concat(node_to_str_with_indent(data.argument, indent_level + 1)) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        CallExpression(data) ->
+            args_count = List.len(data.arguments) |> Num.to_str
+            Str.concat(indent, "CallExpression {\n")
+            |> Str.concat(indent) |> Str.concat("  callee: ") |> Str.concat(node_to_str_with_indent(data.callee, indent_level + 1)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  arguments: [") |> Str.concat(args_count) |> Str.concat(" items]\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        MemberExpression(data) ->
+            computed_str = Inspect.to_str(data.computed)
+            Str.concat(indent, "MemberExpression {\n")
+            |> Str.concat(indent) |> Str.concat("  object: ") |> Str.concat(node_to_str_with_indent(data.object, indent_level + 1)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  property: ") |> Str.concat(node_to_str_with_indent(data.property, indent_level + 1)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  computed: ") |> Str.concat(computed_str) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        VariableDeclaration(data) ->
+            kind_str = variable_declaration_kind_to_str(data.kind)
+            decl_count = List.len(data.declarations) |> Num.to_str
+            decl_str = list_to_str_with_indent(data.declarations, indent_level + 1)
+            Str.concat(indent, "VariableDeclaration {\n")
+            |> Str.concat(indent) |> Str.concat("  kind: ") |> Str.concat(kind_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  declarations: [\n")
+            |> Str.concat(decl_str)
+            |> Str.concat(indent) |> Str.concat("  ]\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        VariableDeclarator(data) ->
+            init_str = option_to_str(data.init)
+            Str.concat(indent, "VariableDeclarator {\n")
+            |> Str.concat(indent) |> Str.concat("  id: ") |> Str.concat(node_to_str_with_indent(data.id, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  init: ") |> Str.concat(init_str) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        FunctionDeclaration(data) ->
+            async_str = Inspect.to_str(data.async)
+            generator_str = Inspect.to_str(data.generator)
+            params_count = List.len(data.params) |> Num.to_str
+            Str.concat(indent, "FunctionDeclaration {\n")
+            |> Str.concat(indent) |> Str.concat("  id: ") |> Str.concat(node_to_str_with_indent(data.id, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  params: [") |> Str.concat(params_count) |> Str.concat(" items],\n")
+            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  async: ") |> Str.concat(async_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  generator: ") |> Str.concat(generator_str) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        ArrowFunctionExpression(data) ->
+            async_str = Inspect.to_str(data.async)
+            generator_str = Inspect.to_str(data.generator)
+            params_count = List.len(data.params) |> Num.to_str
+            Str.concat(indent, "ArrowFunctionExpression {\n")
+            |> Str.concat(indent) |> Str.concat("  params: [") |> Str.concat(params_count) |> Str.concat(" items],\n")
+            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  async: ") |> Str.concat(async_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  generator: ") |> Str.concat(generator_str) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        BlockStatement(data) ->
+            body_count = List.len(data.body) |> Num.to_str
+            body_str = list_to_str_with_indent(data.body, indent_level + 1)
+            Str.concat(indent, "BlockStatement {\n")
+            |> Str.concat(indent) |> Str.concat("  body: [\n")
+            |> Str.concat(body_str)
+            |> Str.concat(indent) |> Str.concat("  ]\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        FunctionBody(data) ->
+            body_count = List.len(data.body) |> Num.to_str
+            body_str = list_to_str_with_indent(data.body, indent_level + 1)
+            Str.concat(indent, "FunctionBody {\n")
+            |> Str.concat(indent) |> Str.concat("  body: [\n")
+            |> Str.concat(body_str)
+            |> Str.concat(indent) |> Str.concat("  ]\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        IfStatement(data) ->
+            alternate_str = option_to_str(data.alternate)
+            Str.concat(indent, "IfStatement {\n")
+            |> Str.concat(indent) |> Str.concat("  test: ") |> Str.concat(node_to_str_with_indent(data.test, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  consequent: ") |> Str.concat(node_to_str_with_indent(data.consequent, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  alternate: ") |> Str.concat(alternate_str) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        WhileStatement(data) ->
+            Str.concat(indent, "WhileStatement {\n")
+            |> Str.concat(indent) |> Str.concat("  test: ") |> Str.concat(node_to_str_with_indent(data.test, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, 0)) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        ForStatement(data) ->
+            init_str = option_to_str(data.init)
+            test_str = option_to_str(data.test)
+            update_str = option_to_str(data.update)
+            Str.concat(indent, "ForStatement {\n")
+            |> Str.concat(indent) |> Str.concat("  init: ") |> Str.concat(init_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  test: ") |> Str.concat(test_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  update: ") |> Str.concat(update_str) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, 0)) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("}")
+
+        _ ->
+            Str.concat(indent, "UnsupportedNode")
+
+list_to_str_with_indent : List Node, U32 -> Str
+list_to_str_with_indent = |nodes, indent_level|
+    List.walk(
+        nodes,
+        "",
+        |acc, node|
+            node_str = node_to_str_with_indent(node, indent_level)
+            Str.concat(acc, node_str) |> Str.concat(",\n")
+    )
+
+option_to_str : Option Node -> Str
+option_to_str = |opt|
+    when opt is
+        Some(node) -> node_to_str_with_indent(node, 0)
+        None -> "None"
+
+program_kind_to_str : ProgramKind -> Str
+program_kind_to_str = |kind|
+    when kind is
+        Script -> "Script"
+        Module -> "Module"
+
+variable_declaration_kind_to_str : VariableDeclarationKind -> Str
+variable_declaration_kind_to_str = |kind|
+    when kind is
+        Var -> "Var"
+        Let -> "Let"
+        Const -> "Const"
+
+property_kind_to_str : PropertyKind -> Str
+property_kind_to_str = |kind|
+    when kind is
+        Init -> "Init"
+        Get -> "Get"
+        Set -> "Set"
+
+binary_operator_to_str : BinaryOperator -> Str
+binary_operator_to_str = |op|
+    when op is
+        EqualEqual -> "=="
+        BangEqual -> "!="
+        EqualEqualEqual -> "==="
+        BangEqualEqual -> "!=="
+        LessThan -> "<"
+        LessThanEqual -> "<="
+        GreaterThan -> ">"
+        GreaterThanEqual -> ">="
+        LeftShift -> "<<"
+        RightShift -> ">>"
+        UnsignedRightShift -> ">>>"
+        Plus -> "+"
+        Minus -> "-"
+        Star -> "*"
+        Slash -> "/"
+        Percent -> "%"
+        Pipe -> "|"
+        Caret -> "^"
+        Ampersand -> "&"
+        In -> "in"
+        Instanceof -> "instanceof"
+
+unary_operator_to_str : UnaryOperator -> Str
+unary_operator_to_str = |op|
+    when op is
+        Plus -> "+"
+        Minus -> "-"
+        Bang -> "!"
+        Tilde -> "~"
+        Typeof -> "typeof"
+        Void -> "void"
+        Delete -> "delete"
+
+update_operator_to_str : UpdateOperator -> Str
+update_operator_to_str = |op|
+    when op is
+        PlusPlus -> "++"
+        MinusMinus -> "--"

@@ -40,7 +40,10 @@ main! = |_|
 
     # Parse
     ast = Parser.parse_program(tokens)
+    ast_str = Inspect.to_str(ast)
     _ = Stdout.line!("✨ Parsing completed!")
+    _ = Stdout.line!("📄 AST:")
+    _ = Stdout.line!(ast_str)
 
     # Try to output the AST type information
     _ = Stdout.line!("📄 AST: Program node with variable declaration")
