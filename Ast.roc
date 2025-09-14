@@ -691,7 +691,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(params_count)
             |> Str.concat(" items],\n")
             |> Str.concat(indent)
-            |> Str.concat("  body: ")
+            |> Str.concat("  body:\n")
             |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)

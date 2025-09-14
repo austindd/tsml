@@ -172,8 +172,8 @@ parse_primary_expression = |token_list|
                     when rest2 is
                         [EqualsGreaterThanToken, ..] ->
                             # This is an arrow function with empty params: () =>
-                            # Create an identifier to represent empty params
-                            empty_params = Identifier({ name: "" })
+                            # Create a special marker for empty params
+                            empty_params = Error({ message: "EMPTY_ARROW_PARAMS" })
                             (empty_params, rest2)
                         
                         _ ->
@@ -1184,13 +1184,18 @@ convert_to_arrow_params = |node|
         Identifier(_) ->
             [node]
 
+        # Empty parameters: () => ...
+        Error(data) ->
+            when data.message is
+                "EMPTY_ARROW_PARAMS" -> []
+                _ -> [node]
+
         # Parenthesized parameters: (a, b) => ...
         # This would come from a parenthesized expression that contains identifiers
         _ ->
             # For now, treat anything else as a single parameter
             # In a full implementation, we'd need to handle:
             # - (a, b) => ... (multiple params)
-            # - () => ... (no params)
             # - (a = 1) => ... (default params)
             [node]
 
