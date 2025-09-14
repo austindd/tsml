@@ -3,6 +3,7 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 import pf.Stdout
 import Token
 import Parser
+import Ast
 
 is_trivia_token : Token.Token -> Bool
 is_trivia_token = |token|
@@ -40,25 +41,9 @@ main! = |_|
 
     # Parse
     ast = Parser.parse_program(tokens)
-    ast_str = Inspect.to_str(ast)
+    ast_str = Ast.node_to_str(ast)
     _ = Stdout.line!("✨ Parsing completed!")
     _ = Stdout.line!("📄 AST:")
     _ = Stdout.line!(ast_str)
-
-    # Try to output the AST type information
-    _ = Stdout.line!("📄 AST: Program node with variable declaration")
-    _ =
-        when ast is
-            Program(program_data) ->
-                body_count = List.len(program_data.body)
-                count_str = Num.to_str(body_count)
-                _ = Stdout.line!("  Program body contains statements:")
-                _ = Stdout.line!("  Count:")
-                _ = Stdout.line!(count_str)
-                {}
-
-            _ ->
-                _ = Stdout.line!("  Unexpected AST node type")
-                {}
 
     Stdout.line!("✅ Test completed!")

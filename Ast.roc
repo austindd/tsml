@@ -414,7 +414,7 @@ node_to_str = |node|
 
 node_to_str_with_indent : Node, U32 -> Str
 node_to_str_with_indent = |node, indent_level|
-    indent = Str.repeat("  ", indent_level)
+    indent = Str.repeat("  ", Num.to_u64(indent_level))
     when node is
         Error(data) ->
             Str.concat(indent, "Error { message: \"") 
@@ -610,28 +610,28 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent) |> Str.concat("}")
 
         IfStatement(data) ->
-            alternate_str = option_to_str(data.alternate)
+            alternate_str = option_to_str_with_indent(data.alternate, indent_level + 1)
             Str.concat(indent, "IfStatement {\n")
-            |> Str.concat(indent) |> Str.concat("  test: ") |> Str.concat(node_to_str_with_indent(data.test, 0)) |> Str.concat(",\n")
-            |> Str.concat(indent) |> Str.concat("  consequent: ") |> Str.concat(node_to_str_with_indent(data.consequent, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  test: ") |> Str.concat(node_to_str_with_indent(data.test, indent_level + 1)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  consequent: ") |> Str.concat(node_to_str_with_indent(data.consequent, indent_level + 1)) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  alternate: ") |> Str.concat(alternate_str) |> Str.concat("\n")
             |> Str.concat(indent) |> Str.concat("}")
 
         WhileStatement(data) ->
             Str.concat(indent, "WhileStatement {\n")
-            |> Str.concat(indent) |> Str.concat("  test: ") |> Str.concat(node_to_str_with_indent(data.test, 0)) |> Str.concat(",\n")
-            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, 0)) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("  test: ") |> Str.concat(node_to_str_with_indent(data.test, indent_level + 1)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1)) |> Str.concat("\n")
             |> Str.concat(indent) |> Str.concat("}")
 
         ForStatement(data) ->
-            init_str = option_to_str(data.init)
-            test_str = option_to_str(data.test)
-            update_str = option_to_str(data.update)
+            init_str = option_to_str_with_indent(data.init, indent_level + 1)
+            test_str = option_to_str_with_indent(data.test, indent_level + 1)
+            update_str = option_to_str_with_indent(data.update, indent_level + 1)
             Str.concat(indent, "ForStatement {\n")
             |> Str.concat(indent) |> Str.concat("  init: ") |> Str.concat(init_str) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  test: ") |> Str.concat(test_str) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  update: ") |> Str.concat(update_str) |> Str.concat(",\n")
-            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, 0)) |> Str.concat("\n")
+            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1)) |> Str.concat("\n")
             |> Str.concat(indent) |> Str.concat("}")
 
         _ ->
@@ -647,10 +647,10 @@ list_to_str_with_indent = |nodes, indent_level|
             Str.concat(acc, node_str) |> Str.concat(",\n")
     )
 
-option_to_str : Option Node -> Str
-option_to_str = |opt|
+option_to_str_with_indent : Option Node, U32 -> Str
+option_to_str_with_indent = |opt, indent_level|
     when opt is
-        Some(node) -> node_to_str_with_indent(node, 0)
+        Some(node) -> node_to_str_with_indent(node, indent_level)
         None -> "None"
 
 program_kind_to_str : ProgramKind -> Str
