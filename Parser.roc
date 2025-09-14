@@ -105,6 +105,10 @@ parse_expression = |mode, min_precedence, token_list|
                 [BigIntLiteralToken(str), .. as rest] ->
                     (BigIntLiteral({ value: str }), rest)
 
+                # Template literals
+                [BacktickToken, .. as rest1] ->
+                    parse_template_literal(rest1)
+
                 # Unary prefix operators
                 [PlusToken as tok, .. as rest1]
                 | [MinusToken as tok, .. as rest1]
@@ -212,7 +216,6 @@ parse_expression = |mode, min_precedence, token_list|
                 | [ExclamationEqualsToken as tok, .. as rest1]
                 | [EqualsEqualsEqualsToken as tok, .. as rest1]
                 | [ExclamationEqualsEqualsToken as tok, .. as rest1]
-                | [EqualsGreaterThanToken as tok, .. as rest1]
                 # Additive
                 | [PlusToken as tok, .. as rest1]
                 | [MinusToken as tok, .. as rest1]
@@ -232,6 +235,10 @@ parse_expression = |mode, min_precedence, token_list|
                         },
                     )
                     (update_node, rest1)
+
+                # Arrow function
+                [EqualsGreaterThanToken, .. as rest1] ->
+                    parse_arrow_function_body(left_node, rest1)
 
                 # FunctionCall
                 [OpenParenToken, .. as rest1] ->
@@ -275,6 +282,7 @@ Associativity : [
 
 OperatorGroup : [
     Assignment, # "=", "+=", "-=", "*=", "/="
+    ArrowFunction, # "=>"
     Conditional, # "?", ":"
     Logical, # "||", "&&"
     Bitwise, # "|", "&", ">>", "<<", ">>>"
@@ -292,6 +300,7 @@ get_operator_group_precedence : OperatorGroup -> U16
 get_operator_group_precedence = |operator_group|
     when operator_group is
         Assignment -> 100
+        ArrowFunction -> 150
         Conditional -> 200
         Logical -> 300
         Bitwise -> 400
@@ -342,6 +351,8 @@ get_expr_operator_group = |mode, token|
                 AmpersandAmpersandEqualsToken -> Assignment
                 QuestionQuestionEqualsToken -> Assignment
                 CaretEqualsToken -> Assignment
+                # Arrow function
+                EqualsGreaterThanToken -> ArrowFunction
                 # Conditional
                 QuestionToken -> Conditional
                 ColonToken -> Conditional
@@ -1065,4 +1076,88 @@ parse_function_body_statements = |statements, token_list|
             (stmt, remaining_tokens) = parse_statement(token_list)
             new_statements = List.append(statements, stmt)
             parse_function_body_statements(new_statements, remaining_tokens)
+
+parse_arrow_function_body : Node, List Token -> (Node, List Token)
+parse_arrow_function_body = |params_node, token_list|
+    # Convert the left side to parameters
+    arrow_params = convert_to_arrow_params(params_node)
+
+    when token_list is
+        [OpenBraceToken, .. as rest] ->
+            # Block body: () => { statements }
+            (body, remaining_tokens) = parse_block_statement(rest)
+            arrow_fn = ArrowFunctionExpression(
+                {
+                    params: arrow_params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.false,
+                },
+            )
+            (arrow_fn, remaining_tokens)
+
+        _ ->
+            # Expression body: () => expression
+            (expr, remaining_tokens) = parse_expression(Nud, 0, token_list)
+            arrow_fn = ArrowFunctionExpression(
+                {
+                    params: arrow_params,
+                    body: expr,
+                    generator: Bool.false,
+                    async: Bool.false,
+                },
+            )
+            (arrow_fn, remaining_tokens)
+
+convert_to_arrow_params : Node -> List Node
+convert_to_arrow_params = |node|
+    when node is
+        # Single identifier: x => ...
+        Identifier(_) ->
+            [node]
+
+        # Parenthesized parameters: (a, b) => ...
+        # This would come from a parenthesized expression that contains identifiers
+        _ ->
+            # For now, treat anything else as a single parameter
+            # In a full implementation, we'd need to handle:
+            # - (a, b) => ... (multiple params)
+            # - () => ... (no params)
+            # - (a = 1) => ... (default params)
+            [node]
+
+parse_template_literal : List Token -> (Node, List Token)
+parse_template_literal = |token_list|
+    parse_template_elements([], [], token_list)
+
+parse_template_elements : List Node, List Node, List Token -> (Node, List Token)
+parse_template_elements = |quasis, expressions, token_list|
+    when token_list is
+        [BacktickToken, .. as rest] ->
+            # End of template literal
+            template = TemplateLiteral(
+                {
+                    quasis: quasis,
+                    expressions: expressions,
+                },
+            )
+            (template, rest)
+
+        [StringLiteralToken(text), .. as rest] ->
+            # Template text (quasi)
+            quasi = Identifier({ name: text }) # Placeholder for TemplateElement
+            new_quasis = List.append(quasis, quasi)
+            parse_template_elements(new_quasis, expressions, rest)
+
+        _ ->
+            # For now, handle simple case - in a full implementation we'd need:
+            # - ${expression} handling
+            # - Proper TemplateHead/TemplateMiddle/TemplateTail tokens
+            template = TemplateLiteral(
+                {
+                    quasis: quasis,
+                    expressions: expressions,
+                },
+            )
+            (template, token_list)
 
