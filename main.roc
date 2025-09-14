@@ -8,6 +8,21 @@ import TokenTest
 import Ast
 import Parser
 
+# Helper function to check if a token is trivia (whitespace, comments, etc.)
+is_trivia_token : Token.Token -> Bool
+is_trivia_token = |token|
+    when token is
+        WhitespaceTrivia(_) -> Bool.true
+        NewLineTrivia(_) -> Bool.true
+        LineCommentStart -> Bool.true
+        BlockCommentStart -> Bool.true
+        BlockCommentEnd -> Bool.true
+        CommentText(_) -> Bool.true
+        ShebangTrivia -> Bool.true
+        ConflictMarkerTrivia -> Bool.true
+        NonTextFileMarkerTrivia -> Bool.true
+        _ -> Bool.false
+
 # Helper function to separate successful tokens from errors
 extract_tokens_and_errors : List Token.TokenResult -> (List Token.Token, List Str)
 extract_tokens_and_errors = |token_results|
@@ -35,7 +50,7 @@ main! = |_|
             token_results = Token.tokenize_str(input_code)
             
             # Extract successful tokens and handle errors
-            (tokens, errors) = extract_tokens_and_errors(token_results)
+            (all_tokens, errors) = extract_tokens_and_errors(token_results)
             
             _ = if List.len(errors) > 0 then
                 _ = Stdout.line!("\n⚠️ Tokenization errors:")
@@ -45,20 +60,23 @@ main! = |_|
                 {}
             _ = Stdout.line!("")
             
-            # Step 2: Display tokens
+            # Step 2: Display tokens (including trivia for debugging)
             _ = Stdout.line!("\n🔍 Tokens:")
-            token_display = tokens
+            token_display = all_tokens
                 |> List.map(Token.ts_token_debug_display)
                 |> Str.join_with(", ")
             _ = Stdout.line!(token_display)
             
-            # Step 3: Parse tokens into AST
-            _ = Stdout.line!("\n🌳 Parsing AST...")
-            ast = Parser.parse_program(tokens)
+            # Step 3: Filter out trivia tokens for parsing
+            parse_tokens = List.drop_if(all_tokens, is_trivia_token)
             
-            # Step 4: Display AST
+            # Step 4: Parse tokens into AST
+            _ = Stdout.line!("\n🌳 Parsing AST...")
+            ast = Parser.parse_program(parse_tokens)
+            
+            # Step 5: Display AST
             _ = Stdout.line!("\n✨ Abstract Syntax Tree:")
-            ast_display = Inspect.to_str(ast)
+            ast_display = Ast.node_to_str(ast)
             _ = Stdout.line!(ast_display)
             
             Stdout.line!("\n✅ Parsing completed successfully!")
