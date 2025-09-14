@@ -1,4 +1,5 @@
 module [
+    parse_program,
 ]
 
 import Option exposing [
