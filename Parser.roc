@@ -175,89 +175,92 @@ parse_expression = |mode, min_precedence, token_list|
 
         Led({ left_node }) ->
             when token_list is
+                # _ -> crash("parse_expression() failed -- This should never happen")
+                # Left associative
+                # Assignment
+                [EqualsToken as tok, .. as rest1]
+                | [PlusEqualsToken as tok, .. as rest1]
+                | [MinusEqualsToken as tok, .. as rest1]
+                | [AsteriskEqualsToken as tok, .. as rest1]
+                | [AsteriskAsteriskEqualsToken as tok, .. as rest1]
+                | [SlashEqualsToken as tok, .. as rest1]
+                | [PercentEqualsToken as tok, .. as rest1]
+                | [LessThanLessThanEqualsToken as tok, .. as rest1]
+                | [GreaterThanGreaterThanEqualsToken as tok, .. as rest1]
+                | [GreaterThanGreaterThanGreaterThanEqualsToken as tok, .. as rest1]
+                | [AmpersandEqualsToken as tok, .. as rest1]
+                | [BarEqualsToken as tok, .. as rest1]
+                | [BarBarEqualsToken as tok, .. as rest1]
+                | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
+                | [QuestionQuestionEqualsToken as tok, .. as rest1]
+                | [CaretEqualsToken as tok, .. as rest1]
+                # Conditional
+                | [QuestionToken as tok, .. as rest1]
+                | [ColonToken as tok, .. as rest1]
+                # Logical
+                | [AmpersandAmpersandToken as tok, .. as rest1]
+                | [BarBarToken as tok, .. as rest1]
+                # Bitwise
+                | [AmpersandToken as tok, .. as rest1]
+                | [BarToken as tok, .. as rest1]
+                | [CaretToken as tok, .. as rest1]
+                | [LessThanLessThanToken as tok, .. as rest1]
+                | [GreaterThanGreaterThanToken as tok, .. as rest1]
+                | [GreaterThanGreaterThanGreaterThanToken as tok, .. as rest1]
+                # Relational
+                | [EqualsEqualsToken as tok, .. as rest1]
+                | [ExclamationEqualsToken as tok, .. as rest1]
+                | [EqualsEqualsEqualsToken as tok, .. as rest1]
+                | [ExclamationEqualsEqualsToken as tok, .. as rest1]
+                | [EqualsGreaterThanToken as tok, .. as rest1]
+                # Additive
+                | [PlusToken as tok, .. as rest1]
+                | [MinusToken as tok, .. as rest1]
+                # Multiplicative
+                | [AsteriskToken as tok, .. as rest1]
+                | [SlashToken as tok, .. as rest1]
+                | [PercentToken as tok, .. as rest1]
+                # Postfix (update expressions)
+                | [PlusPlusToken as tok, .. as rest1]
+                | [MinusMinusToken as tok, .. as rest1] ->
+                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+                    update_node = UpdateExpression(
+                        {
+                            operator: token_to_update_operator(tok),
+                            prefix: Bool.false,
+                            argument: left_node,
+                        },
+                    )
+                    (update_node, rest1)
+
+                # FunctionCall
+                [OpenParenToken, .. as rest1] ->
+                    parse_function_call(left_node, rest1)
+
+                # MemberAccess - dot notation
+                [DotToken, .. as rest1] ->
+                    parse_member_access_dot(left_node, rest1)
+
+                # MemberAccess - bracket notation
+                [OpenBracketToken, .. as rest1] ->
+                    parse_member_access_bracket(left_node, rest1)
+
+                # Right associative
+                # Exponentiation
+                [AsteriskAsteriskToken as tok, .. as rest1] ->
+                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+                    (right_node, rest2) = parse_expression(Led({ left_node }), expr_precedence - 1, rest1)
+                    current_node = BinaryExpression(
+                        {
+                            left: left_node,
+                            operator: token_to_binary_operator(tok),
+                            right: right_node,
+                        },
+                    )
+                    (current_node, rest2)
+
+                [] -> crash("parse_expression() failed -- Unexpected end of expression")
                 _ -> crash("parse_expression() failed -- This should never happen")
-# # Left associative
-# # Assignment
-# [EqualsToken as tok, .. as rest1]
-# | [PlusEqualsToken as tok, .. as rest1]
-# | [MinusEqualsToken as tok, .. as rest1]
-# | [AsteriskEqualsToken as tok, .. as rest1]
-# | [AsteriskAsteriskEqualsToken as tok, .. as rest1]
-# | [SlashEqualsToken as tok, .. as rest1]
-# | [PercentEqualsToken as tok, .. as rest1]
-# | [LessThanLessThanEqualsToken as tok, .. as rest1]
-# | [GreaterThanGreaterThanEqualsToken as tok, .. as rest1]
-# | [GreaterThanGreaterThanGreaterThanEqualsToken as tok, .. as rest1]
-# | [AmpersandEqualsToken as tok, .. as rest1]
-# | [BarEqualsToken as tok, .. as rest1]
-# | [BarBarEqualsToken as tok, .. as rest1]
-# | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
-# | [QuestionQuestionEqualsToken as tok, .. as rest1]
-# | [CaretEqualsToken as tok, .. as rest1]
-# # Conditional
-# | [QuestionToken as tok, .. as rest1]
-# | [ColonToken as tok, .. as rest1]
-# # Logical
-# | [AmpersandAmpersandToken as tok, .. as rest1]
-# | [BarBarToken as tok, .. as rest1]
-# # Bitwise
-# | [AmpersandToken as tok, .. as rest1]
-# | [BarToken as tok, .. as rest1]
-# | [CaretToken as tok, .. as rest1]
-# | [LessThanLessThanToken as tok, .. as rest1]
-# | [GreaterThanGreaterThanToken as tok, .. as rest1]
-# | [GreaterThanGreaterThanGreaterThanToken as tok, .. as rest1]
-# # Relational
-# | [EqualsEqualsToken as tok, .. as rest1]
-# | [ExclamationEqualsToken as tok, .. as rest1]
-# | [EqualsEqualsEqualsToken as tok, .. as rest1]
-# | [ExclamationEqualsEqualsToken as tok, .. as rest1]
-# | [EqualsGreaterThanToken as tok, .. as rest1]
-# # Additive
-# | [PlusToken as tok, .. as rest1]
-# | [MinusToken as tok, .. as rest1]
-# # Multiplicative
-# | [AsteriskToken as tok, .. as rest1]
-# | [SlashToken as tok, .. as rest1]
-# | [PercentToken as tok, .. as rest1]
-# # Postfix (update expressions)
-# | [PlusPlusToken as tok, .. as rest1]
-# | [MinusMinusToken as tok, .. as rest1] ->
-#     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-#     update_node = UpdateExpression({
-#         operator: token_to_update_operator(tok),
-#         prefix: Bool.false,
-#         argument: left_node,
-#     })
-#     (update_node, rest1)
-# # FunctionCall
-# | [OpenParenToken, .. as rest1] ->
-#     parse_function_call(left_node, rest1)
-#
-# # MemberAccess - dot notation
-# | [DotToken, .. as rest1] ->
-#     parse_member_access_dot(left_node, rest1)
-#
-# # MemberAccess - bracket notation
-# | [OpenBracketToken, .. as rest1] ->
-#     parse_member_access_bracket(left_node, rest1)
-#
-# # Right associative
-# # Exponentiation
-# [AsteriskAsteriskToken as tok, .. as rest1] ->
-#     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-#     (right_node, rest2) = parse_expression(Led({ left_node }), expr_precedence - 1, rest1)
-#     current_node = BinaryExpression(
-#         {
-#             left: left_node,
-#             operator: token_to_binary_operator(tok),
-#             right: right_node,
-#         },
-#     )
-#     (current_node, rest2)
-#
-# [] -> crash("parse_expression() failed -- Unexpected end of expression")
-# _ -> crash("parse_expression() failed -- This should never happen")
 
 OperatorPosition : [
     Prefix,
