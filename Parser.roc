@@ -93,117 +93,107 @@ parse_expression : PrattParserMode, U16, List Token -> (Node, List Token)
 parse_expression = |mode, min_precedence, token_list|
     when mode is
         Nud ->
-            when token_list is
-                [IdentifierToken(ident), .. as rest] ->
-                    (Identifier({ name: ident }), rest)
-
-                [StringLiteralToken(str), .. as rest] ->
-                    (StringLiteral({ value: str }), rest)
-
-                [NumberLiteralToken(str), .. as rest] ->
-                    (NumberLiteral({ value: str }), rest)
-
-                [BigIntLiteralToken(str), .. as rest] ->
-                    (BigIntLiteral({ value: str }), rest)
-
-                # Template literals
-                [BacktickToken, .. as rest1] ->
-                    parse_template_literal(rest1)
-
-                # Unary prefix operators
-                [PlusToken as tok, .. as rest1]
-                | [MinusToken as tok, .. as rest1]
-                | [ExclamationToken as tok, .. as rest1]
-                | [TildeToken as tok, .. as rest1]
-                | [TypeofKeyword as tok, .. as rest1]
-                | [VoidKeyword as tok, .. as rest1]
-                | [DeleteKeyword as tok, .. as rest1] ->
-                    expr_precedence = get_expr_precedence(Nud, tok)
-                    (argument, rest2) = parse_expression(Nud, expr_precedence, rest1)
-                    unary_node = UnaryExpression(
-                        {
-                            operator: token_to_unary_operator(tok),
-                            prefix: Bool.true,
-                            argument: argument,
-                        },
-                    )
-                    (unary_node, rest2)
-
-                # Update prefix operators
-                [PlusPlusToken as tok, .. as rest1]
-                | [MinusMinusToken as tok, .. as rest1] ->
-                    expr_precedence = get_expr_precedence(Nud, tok)
-                    (argument, rest2) = parse_expression(Nud, expr_precedence, rest1)
-                    update_node = UpdateExpression(
-                        {
-                            operator: token_to_update_operator(tok),
-                            prefix: Bool.true,
-                            argument: argument,
-                        },
-                    )
-                    (update_node, rest2)
-
-                # Array literals
-                [OpenBracketToken, .. as rest1] ->
-                    parse_array_literal(rest1)
-
-                # Object literals
-                [OpenBraceToken, .. as rest1] ->
-                    parse_object_literal(rest1)
-
-                # Function expressions
-                [FunctionKeyword, .. as rest1] ->
-                    parse_function_expression(rest1)
-
-                [OpenParenToken, .. as rest1] ->
-                    (node, remaining_tokens) = parse_expression(Nud, 0, rest1)
-                    when remaining_tokens is
-                        [CloseParenToken, .. as rest2] ->
-                            (node, rest2)
-
-                        [tok, ..] ->
-                            (
-                                Error({ message: "parse_expression() failed -- Expected close paren, but got ${ts_token_debug_display(tok)}" }),
-                                remaining_tokens,
-                            )
-
-                        [] ->
-                            (
-                                Error({ message: "parse_expression() failed -- Expected close paren, but got nothing" }),
-                                remaining_tokens,
-                            )
-
-                [CloseParenToken, .. as rest] ->
-                    (Error({ message: "Unexpected close paren" }), rest)
-
-                _ -> crash("parse_expression() failed -- This should never happen")
-
+            # First parse the left operand
+            (left_expr, rest_after_left) = parse_primary_expression(token_list)
+            # Then continue parsing with Led mode
+            parse_expression(Led({ left_node: left_expr }), min_precedence, rest_after_left)
+        
         Led({ left_node }) ->
-            when token_list is
-                # _ -> crash("parse_expression() failed -- This should never happen")
-                # Left associative
-                # Assignment
-                [EqualsToken as tok, .. as rest1]
-                | [PlusEqualsToken as tok, .. as rest1]
-                | [MinusEqualsToken as tok, .. as rest1]
-                | [AsteriskEqualsToken as tok, .. as rest1]
-                | [AsteriskAsteriskEqualsToken as tok, .. as rest1]
-                | [SlashEqualsToken as tok, .. as rest1]
-                | [PercentEqualsToken as tok, .. as rest1]
-                | [LessThanLessThanEqualsToken as tok, .. as rest1]
-                | [GreaterThanGreaterThanEqualsToken as tok, .. as rest1]
-                | [GreaterThanGreaterThanGreaterThanEqualsToken as tok, .. as rest1]
-                | [AmpersandEqualsToken as tok, .. as rest1]
-                | [BarEqualsToken as tok, .. as rest1]
-                | [BarBarEqualsToken as tok, .. as rest1]
-                | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
-                | [QuestionQuestionEqualsToken as tok, .. as rest1]
-                | [CaretEqualsToken as tok, .. as rest1]
-                # Conditional
-                | [QuestionToken as tok, .. as rest1]
-                | [ColonToken as tok, .. as rest1]
+            parse_expression_led(left_node, min_precedence, token_list)
+
+parse_primary_expression : List Token -> (Node, List Token)
+parse_primary_expression = |token_list|
+    when token_list is
+        [IdentifierToken(ident), .. as rest] ->
+            (Identifier({ name: ident }), rest)
+
+        [StringLiteralToken(str), .. as rest] ->
+            (StringLiteral({ value: str }), rest)
+
+        [NumberLiteralToken(str), .. as rest] ->
+            (NumberLiteral({ value: str }), rest)
+
+        [BigIntLiteralToken(str), .. as rest] ->
+            (BigIntLiteral({ value: str }), rest)
+
+        # Template literals
+        [BacktickToken, .. as rest1] ->
+            parse_template_literal(rest1)
+
+        # Unary prefix operators
+        [PlusToken as tok, .. as rest1]
+        | [MinusToken as tok, .. as rest1]
+        | [ExclamationToken as tok, .. as rest1]
+        | [TildeToken as tok, .. as rest1]
+        | [TypeofKeyword as tok, .. as rest1]
+        | [VoidKeyword as tok, .. as rest1]
+        | [DeleteKeyword as tok, .. as rest1] ->
+            expr_precedence = get_expr_precedence(Nud, tok)
+            (argument, rest2) = parse_expression(Nud, expr_precedence, rest1)
+            unary_node = UnaryExpression(
+                {
+                    operator: token_to_unary_operator(tok),
+                    prefix: Bool.true,
+                    argument: argument,
+                },
+            )
+            (unary_node, rest2)
+
+        # Update prefix operators
+        [PlusPlusToken as tok, .. as rest1]
+        | [MinusMinusToken as tok, .. as rest1] ->
+            expr_precedence = get_expr_precedence(Nud, tok)
+            (argument, rest2) = parse_expression(Nud, expr_precedence, rest1)
+            update_node = UpdateExpression(
+                {
+                    operator: token_to_update_operator(tok),
+                    prefix: Bool.true,
+                    argument: argument,
+                },
+            )
+            (update_node, rest2)
+
+        # Array literals
+        [OpenBracketToken, .. as rest1] ->
+            parse_array_literal(rest1)
+
+        # Object literals
+        [OpenBraceToken, .. as rest1] ->
+            parse_object_literal(rest1)
+
+        # Function expressions
+        [FunctionKeyword, .. as rest1] ->
+            parse_function_expression(rest1)
+
+        [OpenParenToken, .. as rest1] ->
+            (node, remaining_tokens) = parse_expression(Nud, 0, rest1)
+            when remaining_tokens is
+                [CloseParenToken, .. as rest2] ->
+                    (node, rest2)
+
+                [tok, ..] ->
+                    (
+                        Error({ message: "parse_expression() failed -- Expected close paren, but got ${ts_token_debug_display(tok)}" }),
+                        remaining_tokens,
+                    )
+
+                [] ->
+                    (
+                        Error({ message: "parse_expression() failed -- Expected close paren, but got nothing" }),
+                        remaining_tokens,
+                    )
+
+        [CloseParenToken, .. as rest] ->
+            (Error({ message: "Unexpected close paren" }), rest)
+
+        _ -> crash("parse_primary_expression() failed -- This should never happen")
+
+parse_expression_led : Node, U16, List Token -> (Node, List Token)
+parse_expression_led = |left_node, min_precedence, token_list|
+    when token_list is
+                # Binary operators (left associative)
                 # Logical
-                | [AmpersandAmpersandToken as tok, .. as rest1]
+                [AmpersandAmpersandToken as tok, .. as rest1]
                 | [BarBarToken as tok, .. as rest1]
                 # Bitwise
                 | [AmpersandToken as tok, .. as rest1]
@@ -223,11 +213,72 @@ parse_expression = |mode, min_precedence, token_list|
                 # Multiplicative
                 | [AsteriskToken as tok, .. as rest1]
                 | [SlashToken as tok, .. as rest1]
-                | [PercentToken as tok, .. as rest1]
-                # Postfix (update expressions)
-                | [PlusPlusToken as tok, .. as rest1]
-                | [MinusMinusToken as tok, .. as rest1] ->
+                | [PercentToken as tok, .. as rest1] ->
                     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+                    # Check precedence - if current operator has lower precedence than min, stop
+                    when Num.compare(expr_precedence, min_precedence) is
+                        LT -> (left_node, token_list)
+                        _ ->
+                            (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
+                            binary_node = BinaryExpression(
+                                {
+                                    left: left_node,
+                                    operator: token_to_binary_operator(tok),
+                                    right: right_node,
+                                },
+                            )
+                            # Continue parsing at this level
+                            parse_expression_led(binary_node, min_precedence, rest2)
+
+                # Assignment operators (TODO: implement proper assignment expressions)
+                [EqualsToken as tok, .. as rest1]
+                | [PlusEqualsToken as tok, .. as rest1]
+                | [MinusEqualsToken as tok, .. as rest1]
+                | [AsteriskEqualsToken as tok, .. as rest1]
+                | [AsteriskAsteriskEqualsToken as tok, .. as rest1]
+                | [SlashEqualsToken as tok, .. as rest1]
+                | [PercentEqualsToken as tok, .. as rest1]
+                | [LessThanLessThanEqualsToken as tok, .. as rest1]
+                | [GreaterThanGreaterThanEqualsToken as tok, .. as rest1]
+                | [GreaterThanGreaterThanGreaterThanEqualsToken as tok, .. as rest1]
+                | [AmpersandEqualsToken as tok, .. as rest1]
+                | [BarEqualsToken as tok, .. as rest1]
+                | [BarBarEqualsToken as tok, .. as rest1]
+                | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
+                | [QuestionQuestionEqualsToken as tok, .. as rest1]
+                | [CaretEqualsToken as tok, .. as rest1] ->
+                    # For now, treat assignments as binary expressions
+                    # TODO: Create proper AssignmentExpression nodes
+                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+                    (right_node, rest2) = parse_expression(Nud, expr_precedence, rest1)
+                    binary_node = BinaryExpression(
+                        {
+                            left: left_node,
+                            operator: Plus, # Placeholder - assignments need proper handling
+                            right: right_node,
+                        },
+                    )
+                    (binary_node, rest2)
+
+                # Conditional operators (TODO: implement proper conditional expressions)
+                [QuestionToken as tok, .. as rest1]
+                | [ColonToken as tok, .. as rest1] ->
+                    # For now, treat as binary expressions
+                    # TODO: Create proper ConditionalExpression nodes
+                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+                    (right_node, rest2) = parse_expression(Nud, expr_precedence, rest1)
+                    binary_node = BinaryExpression(
+                        {
+                            left: left_node,
+                            operator: Plus, # Placeholder - conditionals need proper handling
+                            right: right_node,
+                        },
+                    )
+                    (binary_node, rest2)
+
+                # Postfix (update expressions)
+                [PlusPlusToken as tok, .. as rest1]
+                | [MinusMinusToken as tok, .. as rest1] ->
                     update_node = UpdateExpression(
                         {
                             operator: token_to_update_operator(tok),
@@ -267,8 +318,8 @@ parse_expression = |mode, min_precedence, token_list|
                     )
                     (current_node, rest2)
 
-                [] -> crash("parse_expression() failed -- Unexpected end of expression")
-                _ -> crash("parse_expression() failed -- This should never happen")
+                [] -> (left_node, [])
+                _ -> (left_node, token_list)
 
 OperatorPosition : [
     Prefix,
