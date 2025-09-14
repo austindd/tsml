@@ -562,9 +562,9 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent) |> Str.concat("}")
 
         VariableDeclarator(data) ->
-            init_str = option_to_str(data.init)
+            init_str = option_to_str_with_indent(data.init, indent_level + 1)
             Str.concat(indent, "VariableDeclarator {\n")
-            |> Str.concat(indent) |> Str.concat("  id: ") |> Str.concat(node_to_str_with_indent(data.id, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  id: ") |> Str.concat(node_to_str_with_indent(data.id, indent_level + 1)) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  init: ") |> Str.concat(init_str) |> Str.concat("\n")
             |> Str.concat(indent) |> Str.concat("}")
 
@@ -573,9 +573,9 @@ node_to_str_with_indent = |node, indent_level|
             generator_str = Inspect.to_str(data.generator)
             params_count = List.len(data.params) |> Num.to_str
             Str.concat(indent, "FunctionDeclaration {\n")
-            |> Str.concat(indent) |> Str.concat("  id: ") |> Str.concat(node_to_str_with_indent(data.id, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  id: ") |> Str.concat(node_to_str_with_indent(data.id, indent_level + 1)) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  params: [") |> Str.concat(params_count) |> Str.concat(" items],\n")
-            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1)) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  async: ") |> Str.concat(async_str) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  generator: ") |> Str.concat(generator_str) |> Str.concat("\n")
             |> Str.concat(indent) |> Str.concat("}")
@@ -586,7 +586,7 @@ node_to_str_with_indent = |node, indent_level|
             params_count = List.len(data.params) |> Num.to_str
             Str.concat(indent, "ArrowFunctionExpression {\n")
             |> Str.concat(indent) |> Str.concat("  params: [") |> Str.concat(params_count) |> Str.concat(" items],\n")
-            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, 0)) |> Str.concat(",\n")
+            |> Str.concat(indent) |> Str.concat("  body: ") |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1)) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  async: ") |> Str.concat(async_str) |> Str.concat(",\n")
             |> Str.concat(indent) |> Str.concat("  generator: ") |> Str.concat(generator_str) |> Str.concat("\n")
             |> Str.concat(indent) |> Str.concat("}")
