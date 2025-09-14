@@ -166,22 +166,38 @@ parse_primary_expression = |token_list|
             parse_function_expression(rest1)
 
         [OpenParenToken, .. as rest1] ->
-            (node, remaining_tokens) = parse_expression(Nud, 0, rest1)
-            when remaining_tokens is
+            when rest1 is
+                # Empty parentheses - could be arrow function params
                 [CloseParenToken, .. as rest2] ->
-                    (node, rest2)
+                    when rest2 is
+                        [EqualsGreaterThanToken, ..] ->
+                            # This is an arrow function with empty params: () =>
+                            # Create an identifier to represent empty params
+                            empty_params = Identifier({ name: "" })
+                            (empty_params, rest2)
+                        
+                        _ ->
+                            # Empty parentheses but not arrow function - this is an error
+                            (Error({ message: "Empty parentheses with no expression" }), rest2)
+                
+                _ ->
+                    # Non-empty parentheses - parse as parenthesized expression
+                    (node, remaining_tokens) = parse_expression(Nud, 0, rest1)
+                    when remaining_tokens is
+                        [CloseParenToken, .. as rest2] ->
+                            (node, rest2)
 
-                [tok, ..] ->
-                    (
-                        Error({ message: "parse_expression() failed -- Expected close paren, but got ${ts_token_debug_display(tok)}" }),
-                        remaining_tokens,
-                    )
+                        [tok, ..] ->
+                            (
+                                Error({ message: "parse_expression() failed -- Expected close paren, but got ${ts_token_debug_display(tok)}" }),
+                                remaining_tokens,
+                            )
 
-                [] ->
-                    (
-                        Error({ message: "parse_expression() failed -- Expected close paren, but got nothing" }),
-                        remaining_tokens,
-                    )
+                        [] ->
+                            (
+                                Error({ message: "parse_expression() failed -- Expected close paren, but got nothing" }),
+                                remaining_tokens,
+                            )
 
         [CloseParenToken, .. as rest] ->
             (Error({ message: "Unexpected close paren" }), rest)
