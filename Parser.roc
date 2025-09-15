@@ -116,6 +116,13 @@ parse_primary_expression = |token_list|
         [BigIntLiteralToken(str), .. as rest] ->
             (BigIntLiteral({ value: str }), rest)
 
+        # Boolean literals
+        [TrueKeyword, .. as rest] ->
+            (BooleanLiteral({ value: Bool.true }), rest)
+
+        [FalseKeyword, .. as rest] ->
+            (BooleanLiteral({ value: Bool.false }), rest)
+
         # Template literals
         [BacktickToken, .. as rest1] ->
             parse_template_literal(rest1)
@@ -207,12 +214,26 @@ parse_primary_expression = |token_list|
 parse_expression_led : Node, U16, List Token -> (Node, List Token)
 parse_expression_led = |left_node, min_precedence, token_list|
     when token_list is
-                # Binary operators (left associative)
-                # Logical
+                # Logical operators
                 [AmpersandAmpersandToken as tok, .. as rest1]
-                | [BarBarToken as tok, .. as rest1]
+                | [BarBarToken as tok, .. as rest1] ->
+                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+                    when Num.compare(expr_precedence, min_precedence) is
+                        LT -> (left_node, token_list)
+                        _ ->
+                            (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
+                            logical_node = LogicalExpression(
+                                {
+                                    left: left_node,
+                                    operator: token_to_logical_operator(tok),
+                                    right: right_node,
+                                },
+                            )
+                            parse_expression_led(logical_node, min_precedence, rest2)
+
+                # Binary operators (left associative)
                 # Bitwise
-                | [AmpersandToken as tok, .. as rest1]
+                [AmpersandToken as tok, .. as rest1]
                 | [BarToken as tok, .. as rest1]
                 | [CaretToken as tok, .. as rest1]
                 | [LessThanLessThanToken as tok, .. as rest1]
@@ -246,7 +267,7 @@ parse_expression_led = |left_node, min_precedence, token_list|
                             # Continue parsing at this level
                             parse_expression_led(binary_node, min_precedence, rest2)
 
-                # Assignment operators (TODO: implement proper assignment expressions)
+                # Assignment operators
                 [EqualsToken as tok, .. as rest1]
                 | [PlusEqualsToken as tok, .. as rest1]
                 | [MinusEqualsToken as tok, .. as rest1]
@@ -263,34 +284,37 @@ parse_expression_led = |left_node, min_precedence, token_list|
                 | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
                 | [QuestionQuestionEqualsToken as tok, .. as rest1]
                 | [CaretEqualsToken as tok, .. as rest1] ->
-                    # For now, treat assignments as binary expressions
-                    # TODO: Create proper AssignmentExpression nodes
                     expr_precedence = get_expr_precedence(Led({ left_node }), tok)
                     (right_node, rest2) = parse_expression(Nud, expr_precedence, rest1)
-                    binary_node = BinaryExpression(
+                    assignment_node = AssignmentExpression(
                         {
                             left: left_node,
-                            operator: Plus, # Placeholder - assignments need proper handling
+                            operator: token_to_assignment_operator(tok),
                             right: right_node,
                         },
                     )
-                    (binary_node, rest2)
+                    (assignment_node, rest2)
 
-                # Conditional operators (TODO: implement proper conditional expressions)
-                [QuestionToken as tok, .. as rest1]
-                | [ColonToken as tok, .. as rest1] ->
-                    # For now, treat as binary expressions
-                    # TODO: Create proper ConditionalExpression nodes
-                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                    (right_node, rest2) = parse_expression(Nud, expr_precedence, rest1)
-                    binary_node = BinaryExpression(
-                        {
-                            left: left_node,
-                            operator: Plus, # Placeholder - conditionals need proper handling
-                            right: right_node,
-                        },
-                    )
-                    (binary_node, rest2)
+                # Conditional operator (ternary)
+                [QuestionToken, .. as rest1] ->
+                    # Parse the consequent (true case)
+                    (consequent, rest2) = parse_expression(Nud, 0, rest1)
+                    when rest2 is
+                        [ColonToken, .. as rest3] ->
+                            # Parse the alternate (false case)
+                            expr_precedence = get_expr_precedence(Led({ left_node }), QuestionToken)
+                            (alternate, rest4) = parse_expression(Nud, expr_precedence, rest3)
+                            conditional_node = ConditionalExpression(
+                                {
+                                    test: left_node,
+                                    consequent: consequent,
+                                    alternate: alternate,
+                                },
+                            )
+                            (conditional_node, rest4)
+
+                        _ ->
+                            (Error({ message: "Expected ':' after '?' in conditional expression" }), rest2)
 
                 # Postfix (update expressions)
                 [PlusPlusToken as tok, .. as rest1]
@@ -538,6 +562,35 @@ token_to_update_operator = |token|
         PlusPlusToken -> PlusPlus
         MinusMinusToken -> MinusMinus
         _ -> crash("token_to_update_operator() failed -- This should never happen")
+
+token_to_assignment_operator : Token -> AssignmentOperator
+token_to_assignment_operator = |token|
+    when token is
+        EqualsToken -> Equal
+        PlusEqualsToken -> PlusEqual
+        MinusEqualsToken -> MinusEqual
+        AsteriskEqualsToken -> StarEqual
+        AsteriskAsteriskEqualsToken -> StarEqual  # Note: ** operator needs special handling
+        SlashEqualsToken -> SlashEqual
+        PercentEqualsToken -> PercentEqual
+        LessThanLessThanEqualsToken -> LeftShiftEqual
+        GreaterThanGreaterThanEqualsToken -> RightShiftEqual
+        GreaterThanGreaterThanGreaterThanEqualsToken -> UnsignedRightShiftEqual
+        AmpersandEqualsToken -> AmpersandEqual
+        BarEqualsToken -> PipeEqual
+        CaretEqualsToken -> CaretEqual
+        # Note: Logical assignment operators (&&=, ||=, ??=) may need new AST nodes
+        BarBarEqualsToken -> PipeEqual  # Placeholder
+        AmpersandAmpersandEqualsToken -> AmpersandEqual  # Placeholder
+        QuestionQuestionEqualsToken -> Equal  # Placeholder
+        _ -> crash("token_to_assignment_operator() failed -- This should never happen")
+
+token_to_logical_operator : Token -> LogicalOperator
+token_to_logical_operator = |token|
+    when token is
+        AmpersandAmpersandToken -> LogicalAnd
+        BarBarToken -> LogicalOr
+        _ -> crash("token_to_logical_operator() failed -- This should never happen")
 
 parse_array_literal : List Token -> (Node, List Token)
 parse_array_literal = |token_list|
