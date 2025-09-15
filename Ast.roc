@@ -837,6 +837,18 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("}")
 
+        SequenceExpression(data) ->
+            expressions_count = List.len(data.expressions) |> Num.to_str
+            expressions_str = list_to_str_with_indent(data.expressions, indent_level + 2)
+            Str.concat(indent, "SequenceExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  expressions: [")
+            |> Str.concat(expressions_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(expressions_str)
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
         _ ->
             Str.concat(indent, "UnsupportedNode")
 

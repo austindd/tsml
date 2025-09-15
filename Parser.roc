@@ -217,6 +217,27 @@ parse_primary_expression = |token_list|
 parse_expression_led : Node, U16, List Token -> (Node, List Token)
 parse_expression_led = |left_node, min_precedence, token_list|
     when token_list is
+                # Sequence operator (comma) - lowest precedence
+                [CommaToken as tok, .. as rest1] ->
+                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+                    when Num.compare(expr_precedence, min_precedence) is
+                        LT -> (left_node, token_list)
+                        _ ->
+                            (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
+                            sequence_node =
+                                when left_node is
+                                    SequenceExpression(seq_data) ->
+                                        # If left is already a sequence, add to its expressions
+                                        SequenceExpression({
+                                            expressions: List.append(seq_data.expressions, right_node)
+                                        })
+                                    _ ->
+                                        # Create new sequence with left and right
+                                        SequenceExpression({
+                                            expressions: [left_node, right_node]
+                                        })
+                            parse_expression_led(sequence_node, min_precedence, rest2)
+
                 # Logical operators
                 [AmpersandAmpersandToken as tok, .. as rest1]
                 | [BarBarToken as tok, .. as rest1] ->
@@ -376,6 +397,7 @@ Associativity : [
 ]
 
 OperatorGroup : [
+    Sequence, # ","
     Assignment, # "=", "+=", "-=", "*=", "/="
     ArrowFunction, # "=>"
     Conditional, # "?", ":"
@@ -394,6 +416,7 @@ OperatorGroup : [
 get_operator_group_precedence : OperatorGroup -> U16
 get_operator_group_precedence = |operator_group|
     when operator_group is
+        Sequence -> 50
         Assignment -> 100
         ArrowFunction -> 150
         Conditional -> 200
@@ -429,6 +452,8 @@ get_expr_operator_group = |mode, token|
 
         Led(_) ->
             when token is
+                # Sequence
+                CommaToken -> Sequence
                 # Assignment
                 EqualsToken -> Assignment
                 PlusEqualsToken -> Assignment
