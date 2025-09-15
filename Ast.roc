@@ -427,7 +427,7 @@ node_to_str_with_indent = |node, indent_level|
         Program(data) ->
             body_count = List.len(data.body) |> Num.to_str
             source_type = program_kind_to_str(data.sourceType)
-            body_str = list_to_str_with_indent(data.body, indent_level + 1)
+            body_str = list_to_str_with_indent(data.body, indent_level + 2)
             Str.concat(indent, "Program {\n")
             |> Str.concat(indent)
             |> Str.concat("  sourceType: ")
@@ -494,7 +494,7 @@ node_to_str_with_indent = |node, indent_level|
 
         ArrayExpression(data) ->
             elements_count = List.len(data.elements) |> Num.to_str
-            elements_str = list_to_str_with_indent(data.elements, indent_level + 1)
+            elements_str = list_to_str_with_indent(data.elements, indent_level + 2)
             Str.concat(indent, "ArrayExpression {\n")
             |> Str.concat(indent)
             |> Str.concat("  elements: [\n")
@@ -506,7 +506,7 @@ node_to_str_with_indent = |node, indent_level|
 
         ObjectExpression(data) ->
             props_count = List.len(data.properties) |> Num.to_str
-            props_str = list_to_str_with_indent(data.properties, indent_level + 1)
+            props_str = list_to_str_with_indent(data.properties, indent_level + 2)
             Str.concat(indent, "ObjectExpression {\n")
             |> Str.concat(indent)
             |> Str.concat("  properties: [\n")
@@ -625,7 +625,7 @@ node_to_str_with_indent = |node, indent_level|
         VariableDeclaration(data) ->
             kind_str = variable_declaration_kind_to_str(data.kind)
             decl_count = List.len(data.declarations) |> Num.to_str
-            decl_str = list_to_str_with_indent(data.declarations, indent_level + 1)
+            decl_str = list_to_str_with_indent(data.declarations, indent_level + 2)
             Str.concat(indent, "VariableDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  kind: ")
@@ -640,11 +640,11 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         VariableDeclarator(data) ->
-            init_str = option_to_str_with_indent(data.init, 0)
+            init_str = option_to_str_inline(data.init, indent_level + 1)
             Str.concat(indent, "VariableDeclarator {\n")
             |> Str.concat(indent)
             |> Str.concat("  id: ")
-            |> Str.concat(node_to_str_with_indent(data.id, 0))
+            |> Str.concat(node_to_str_inline(data.id, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  init: ")
@@ -692,7 +692,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(" items],\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
-            |> Str.concat(node_to_str_with_indent(data.body, 0))
+            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  async: ")
@@ -707,7 +707,7 @@ node_to_str_with_indent = |node, indent_level|
 
         BlockStatement(data) ->
             body_count = List.len(data.body) |> Num.to_str
-            body_str = list_to_str_with_indent(data.body, indent_level + 1)
+            body_str = list_to_str_with_indent(data.body, indent_level + 2)
             Str.concat(indent, "BlockStatement {\n")
             |> Str.concat(indent)
             |> Str.concat("  body: [\n")
@@ -719,7 +719,7 @@ node_to_str_with_indent = |node, indent_level|
 
         FunctionBody(data) ->
             body_count = List.len(data.body) |> Num.to_str
-            body_str = list_to_str_with_indent(data.body, indent_level + 1)
+            body_str = list_to_str_with_indent(data.body, indent_level + 2)
             Str.concat(indent, "FunctionBody {\n")
             |> Str.concat(indent)
             |> Str.concat("  body: [\n")
@@ -784,6 +784,59 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("}")
 
+        AssignmentExpression(data) ->
+            op_str = assignment_operator_to_str(data.operator)
+            Str.concat(indent, "AssignmentExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  operator: ")
+            |> Str.concat(op_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  left: ")
+            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  right: ")
+            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        LogicalExpression(data) ->
+            op_str = logical_operator_to_str(data.operator)
+            Str.concat(indent, "LogicalExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  operator: ")
+            |> Str.concat(op_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  left: ")
+            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  right: ")
+            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ConditionalExpression(data) ->
+            Str.concat(indent, "ConditionalExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  test: ")
+            |> Str.concat(node_to_str_with_indent(data.test, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  consequent: ")
+            |> Str.concat(node_to_str_with_indent(data.consequent, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  alternate: ")
+            |> Str.concat(node_to_str_with_indent(data.alternate, indent_level + 1))
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
         _ ->
             Str.concat(indent, "UnsupportedNode")
 
@@ -797,10 +850,23 @@ list_to_str_with_indent = |nodes, indent_level|
             Str.concat(acc, node_str) |> Str.concat(",\n"),
     )
 
+node_to_str_inline : Node, U32 -> Str
+node_to_str_inline = |node, base_indent_level|
+    # Render node inline (without leading indent) but preserve internal structure
+    result = node_to_str_with_indent(node, base_indent_level)
+    # Remove leading whitespace
+    Str.trim_start(result)
+
 option_to_str_with_indent : Option Node, U32 -> Str
 option_to_str_with_indent = |opt, indent_level|
     when opt is
         Some(node) -> node_to_str_with_indent(node, indent_level)
+        None -> "None"
+
+option_to_str_inline : Option Node, U32 -> Str
+option_to_str_inline = |opt, base_indent_level|
+    when opt is
+        Some(node) -> node_to_str_inline(node, base_indent_level)
         None -> "None"
 
 program_kind_to_str : ProgramKind -> Str
@@ -864,3 +930,25 @@ update_operator_to_str = |op|
     when op is
         PlusPlus -> "++"
         MinusMinus -> "--"
+
+assignment_operator_to_str : AssignmentOperator -> Str
+assignment_operator_to_str = |op|
+    when op is
+        Equal -> "="
+        PlusEqual -> "+="
+        MinusEqual -> "-="
+        StarEqual -> "*="
+        SlashEqual -> "/="
+        PercentEqual -> "%="
+        LeftShiftEqual -> "<<="
+        RightShiftEqual -> ">>="
+        UnsignedRightShiftEqual -> ">>>="
+        PipeEqual -> "|="
+        CaretEqual -> "^="
+        AmpersandEqual -> "&="
+
+logical_operator_to_str : LogicalOperator -> Str
+logical_operator_to_str = |op|
+    when op is
+        LogicalAnd -> "&&"
+        LogicalOr -> "||"
