@@ -27,11 +27,13 @@ Token : [
     JsxText Str,
     JsxTextAllWhiteSpaces Str,
     RegularExpressionLiteralToken Str,
-    # NoSubstitutionTemplateLiteralToken Str,
-    # # Pseudo-literals
-    # TemplateHead,
-    # TemplateMiddle,
-    # TemplateTail,
+    NoSubstitutionTemplateLiteralToken Str,
+    # Template literal parts
+    TemplateHead Str,
+    TemplateMiddle Str,
+    TemplateTail Str,
+    # Template literal interpolation
+    DollarBraceToken, # ${
     # Punctuation
     OpenBraceToken,
     CloseBraceToken,
@@ -225,11 +227,11 @@ ts_token_debug_display = |token|
         JsxText(str) -> "JsxText(${str})"
         JsxTextAllWhiteSpaces(str) -> "JsxTextAllWhiteSpaces(${str})"
         RegularExpressionLiteralToken(str) -> "RegularExpressionLiteralToken(${str})"
-        # NoSubstitutionTemplateLiteralToken(str) -> "NoSubstitutionTemplateLiteralToken(${str})"
-        # # Pseudo-literals
-        # TemplateHead(str) -> "TemplateHead(${str})"
-        # TemplateMiddle(str) -> "TemplateMiddle(${str})"
-        # TemplateTail(str) -> "TemplateTail(${str})"
+        NoSubstitutionTemplateLiteralToken(str) -> "NoSubstitutionTemplateLiteralToken(${str})"
+        TemplateHead(str) -> "TemplateHead(${str})"
+        TemplateMiddle(str) -> "TemplateMiddle(${str})"
+        TemplateTail(str) -> "TemplateTail(${str})"
+        DollarBraceToken -> "DollarBraceToken"
         # Punctuation
         OpenBraceToken -> "OpenBraceToken"
         CloseBraceToken -> "CloseBraceToken"
@@ -796,12 +798,12 @@ utf8_list_to_ts_token_list_inner = |u8_list, token_list|
                 List.append(token_list, token_result),
             ) # Placeholder prev_token
 
-        [96, .. as rest] -> # ` Template Literal (TODO: Fix this. We need to support template literals)
-            { token_result, remaining_u8s } = process_string_literal(rest, "`") # Pass quote char
+        [96, .. as rest] -> # ` Template Literal
+            { token_results, remaining_u8s } = process_template_literal(rest)
             utf8_list_to_ts_token_list_inner(
                 remaining_u8s,
-                List.append(token_list, token_result),
-            ) # Placeholder prev_token
+                List.concat(token_list, token_results),
+            )
 
         [46, 46, 46, .. as u8s] ->
             utf8_list_to_ts_token_list_inner(
@@ -1634,6 +1636,172 @@ process_string_literal = |u8s, quote_type|
             [] ->
                 { token_result: Err(UnclosedString), remaining_u8s: current_u8s }
     inner_process(u8s, quote_type, Str.to_utf8(quote_type))
+
+# Process template literal with expression interpolation support
+process_template_literal : List U8 -> { token_results : List TokenResult, remaining_u8s : List U8 }
+process_template_literal = |u8s|
+    # Check if this is a simple template literal (no interpolation)
+    if !(has_interpolation(u8s)) then
+        # Simple case: `hello world` (no ${})
+        process_simple_template_literal(u8s)
+    else
+        # Complex case: `hello ${name}!` (has ${} expressions)
+        process_interpolated_template_literal(u8s)
+
+# Check if template literal contains ${} interpolation
+has_interpolation : List U8 -> Bool
+has_interpolation = |u8s|
+    check_for_dollar_brace(u8s)
+
+check_for_dollar_brace : List U8 -> Bool
+check_for_dollar_brace = |u8s|
+    when u8s is
+        [96, ..] -> Bool.false # End of template - no interpolation found
+        [36, 123, ..] -> Bool.true # Found ${ - has interpolation
+        [92, _, .. as rest] -> check_for_dollar_brace(rest) # Skip escaped chars
+        [_, .. as rest] -> check_for_dollar_brace(rest) # Continue scanning
+        [] -> Bool.false # End of input - no interpolation
+
+# Process simple template literal without interpolation
+process_simple_template_literal : List U8 -> { token_results : List TokenResult, remaining_u8s : List U8 }
+process_simple_template_literal = |u8s|
+    collect_template_content(u8s, [])
+
+collect_template_content : List U8, List U8 -> { token_results : List TokenResult, remaining_u8s : List U8 }
+collect_template_content = |u8s, acc|
+    when u8s is
+        [96, .. as rest] -> # End backtick found
+            content_result = Str.from_utf8(acc)
+            when content_result is
+                Ok(content) ->
+                    { token_results: [Ok(NoSubstitutionTemplateLiteralToken(content))], remaining_u8s: rest }
+                Err(_) ->
+                    { token_results: [Err(UnknownToken(acc))], remaining_u8s: rest }
+
+        [92, next, .. as rest] -> # Escaped character
+            collect_template_content(rest, acc |> List.append(92) |> List.append(next))
+
+        [u8, .. as rest] -> # Regular character
+            collect_template_content(rest, List.append(acc, u8))
+
+        [] -> # Unclosed template
+            { token_results: [Err(UnclosedString)], remaining_u8s: [] }
+
+# Process template literal with interpolation expressions
+process_interpolated_template_literal : List U8 -> { token_results : List TokenResult, remaining_u8s : List U8 }
+process_interpolated_template_literal = |u8s|
+    process_template_parts(u8s, [], Bool.true)
+
+# Process template parts, tracking whether we're at the head/middle/tail
+process_template_parts : List U8, List TokenResult, Bool -> { token_results : List TokenResult, remaining_u8s : List U8 }
+process_template_parts = |u8s, tokens, is_first_part|
+    { content, remaining } = collect_template_text(u8s, [])
+
+    when remaining is
+        [36, 123, .. as expr_start] -> # Found ${
+            # Add template text token (Head/Middle)
+            text_token = if is_first_part then
+                Ok(TemplateHead(content))
+            else
+                Ok(TemplateMiddle(content))
+
+            updated_tokens = tokens |> List.append(text_token) |> List.append(Ok(DollarBraceToken))
+
+            # Process the expression inside ${}
+            { expr_tokens, remaining: remaining_after_expr } = process_template_expression(expr_start)
+
+            tokens_with_expr = List.concat(updated_tokens, expr_tokens)
+
+            # Continue processing remaining template parts
+            process_template_parts(remaining_after_expr, tokens_with_expr, Bool.false)
+
+        [96, .. as rest] -> # End of template
+            # Add final template text token (Tail)
+            text_token = if is_first_part then
+                Ok(NoSubstitutionTemplateLiteralToken(content))
+            else
+                Ok(TemplateTail(content))
+
+            final_tokens = List.append(tokens, text_token)
+            { token_results: final_tokens, remaining_u8s: rest }
+
+        [] -> # Unclosed template
+            error_tokens = List.append(tokens, Err(UnclosedString))
+            { token_results: error_tokens, remaining_u8s: [] }
+
+        _ -> # Unexpected character - shouldn't happen
+            error_tokens = List.append(tokens, Err(UnknownToken([])))
+            { token_results: error_tokens, remaining_u8s: remaining }
+
+# Collect template text content until we hit ${ or `
+collect_template_text : List U8, List U8 -> { content : Str, remaining : List U8 }
+collect_template_text = |u8s, acc|
+    when u8s is
+        [96, ..] -> # End backtick - return content
+            content_result = Str.from_utf8(acc)
+            when content_result is
+                Ok(content) -> { content, remaining: u8s }
+                Err(_) -> { content: "", remaining: u8s }
+
+        [36, 123, ..] -> # Start of expression ${
+            content_result = Str.from_utf8(acc)
+            when content_result is
+                Ok(content) -> { content, remaining: u8s }
+                Err(_) -> { content: "", remaining: u8s }
+
+        [92, next, .. as rest] -> # Escaped character
+            collect_template_text(rest, acc |> List.append(92) |> List.append(next))
+
+        [u8, .. as rest] -> # Regular character
+            collect_template_text(rest, List.append(acc, u8))
+
+        [] -> # End of input
+            content_result = Str.from_utf8(acc)
+            when content_result is
+                Ok(content) -> { content, remaining: [] }
+                Err(_) -> { content: "", remaining: [] }
+
+# Process expression inside ${...}
+process_template_expression : List U8 -> { expr_tokens : List TokenResult, remaining : List U8 }
+process_template_expression = |u8s|
+    # Find the matching closing brace, accounting for nested braces
+    { expr_content, remaining } = extract_expression_content(u8s, [], 0)
+
+    # Tokenize the expression content recursively
+    all_expr_tokens = utf8_list_to_ts_token_list_inner(expr_content, [])
+
+    # Filter out EndOfFileToken since we're in the middle of a template literal
+    expr_tokens = List.drop_if(all_expr_tokens, |token_result|
+        when token_result is
+            Ok(EndOfFileToken) -> Bool.true
+            _ -> Bool.false
+    )
+
+    # Add closing brace token
+    tokens_with_close = List.append(expr_tokens, Ok(CloseBraceToken))
+
+    { expr_tokens: tokens_with_close, remaining: remaining }
+
+# Extract content between ${ and matching }, handling nested braces
+extract_expression_content : List U8, List U8, U64 -> { expr_content : List U8, remaining : List U8 }
+extract_expression_content = |u8s, acc, brace_count|
+    when u8s is
+        [123, .. as rest] -> # Open brace {
+            extract_expression_content(rest, List.append(acc, 123), brace_count + 1)
+
+        [125, .. as rest] -> # Close brace }
+            if brace_count == 0 then
+                # This is the matching close brace for our ${
+                { expr_content: acc, remaining: rest }
+            else
+                # This is a nested close brace
+                extract_expression_content(rest, List.append(acc, 125), brace_count - 1)
+
+        [u8, .. as rest] -> # Any other character
+            extract_expression_content(rest, List.append(acc, u8), brace_count)
+
+        [] -> # Unclosed expression
+            { expr_content: acc, remaining: [] }
 
 is_keyword : Str -> Bool
 is_keyword = |s|

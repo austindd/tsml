@@ -124,8 +124,11 @@ parse_primary_expression = |token_list|
             (BooleanLiteral({ value: Bool.false }), rest)
 
         # Template literals
-        [BacktickToken, .. as rest1] ->
-            parse_template_literal(rest1)
+        [NoSubstitutionTemplateLiteralToken(content), .. as rest] ->
+            parse_template_literal(token_list)
+
+        [TemplateHead(content), .. as rest] ->
+            parse_template_literal(token_list)
 
         # Unary prefix operators
         [PlusToken as tok, .. as rest1]
@@ -1254,36 +1257,75 @@ convert_to_arrow_params = |node|
 
 parse_template_literal : List Token -> (Node, List Token)
 parse_template_literal = |token_list|
-    parse_template_elements([], [], token_list)
-
-parse_template_elements : List Node, List Node, List Token -> (Node, List Token)
-parse_template_elements = |quasis, expressions, token_list|
     when token_list is
-        [BacktickToken, .. as rest] ->
-            # End of template literal
+        # Simple template literal without interpolation
+        [NoSubstitutionTemplateLiteralToken(content), .. as rest] ->
+            quasi = Identifier({ name: content }) # Placeholder for TemplateElement
             template = TemplateLiteral(
                 {
-                    quasis: quasis,
+                    quasis: [quasi],
+                    expressions: [],
+                },
+            )
+            (template, rest)
+
+        # Template literal with interpolation - starts with TemplateHead
+        [TemplateHead(content), .. as rest] ->
+            quasi = Identifier({ name: content }) # Placeholder for TemplateElement
+            parse_template_parts([quasi], [], rest)
+
+        _ ->
+            # Error case - unexpected token
+            (Error({ message: "Expected template literal" }), token_list)
+
+# Parse template literal parts (for interpolated templates)
+parse_template_parts : List Node, List Node, List Token -> (Node, List Token)
+parse_template_parts = |quasis, expressions, token_list|
+    when token_list is
+        # ${expression} pattern
+        [DollarBraceToken, .. as rest1] ->
+            # Parse the expression inside ${}
+            (expr, rest2) = parse_expression(Nud, 0, rest1)
+            new_expressions = List.append(expressions, expr)
+
+            # Expect closing brace
+            when rest2 is
+                [CloseBraceToken, .. as rest3] ->
+                    parse_template_continuation(quasis, new_expressions, rest3)
+
+                _ ->
+                    error_node = Error({ message: "Expected '}' after template expression" })
+                    (error_node, rest2)
+
+        _ ->
+            # Error case - expected ${
+            error_node = Error({ message: "Expected template expression" })
+            (error_node, token_list)
+
+# Parse continuation after a template expression
+parse_template_continuation : List Node, List Node, List Token -> (Node, List Token)
+parse_template_continuation = |quasis, expressions, token_list|
+    when token_list is
+        # Middle part: ${expr}middle${
+        [TemplateMiddle(content), .. as rest] ->
+            quasi = Identifier({ name: content }) # Placeholder for TemplateElement
+            new_quasis = List.append(quasis, quasi)
+            parse_template_parts(new_quasis, expressions, rest)
+
+        # End part: ${expr}end`
+        [TemplateTail(content), .. as rest] ->
+            quasi = Identifier({ name: content }) # Placeholder for TemplateElement
+            final_quasis = List.append(quasis, quasi)
+            template = TemplateLiteral(
+                {
+                    quasis: final_quasis,
                     expressions: expressions,
                 },
             )
             (template, rest)
 
-        [StringLiteralToken(text), .. as rest] ->
-            # Template text (quasi)
-            quasi = Identifier({ name: text }) # Placeholder for TemplateElement
-            new_quasis = List.append(quasis, quasi)
-            parse_template_elements(new_quasis, expressions, rest)
-
         _ ->
-            # For now, handle simple case - in a full implementation we'd need:
-            # - ${expression} handling
-            # - Proper TemplateHead/TemplateMiddle/TemplateTail tokens
-            template = TemplateLiteral(
-                {
-                    quasis: quasis,
-                    expressions: expressions,
-                },
-            )
-            (template, token_list)
+            # Error case - expected TemplateMiddle or TemplateTail
+            error_node = Error({ message: "Expected template continuation" })
+            (error_node, token_list)
 
