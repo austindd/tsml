@@ -317,6 +317,22 @@ Node : [
                 exported : Node,
                 local : Node,
             }),
+    ArrayPattern (WithBaseNodeData {
+                elements : List Node,
+            }),
+    ObjectPattern (WithBaseNodeData {
+                properties : List Node,
+            }),
+    RestElement (WithBaseNodeData {
+                argument : Node,
+            }),
+    AssignmentPattern (WithBaseNodeData {
+                left : Node,
+                right : Node,
+            }),
+    SpreadElement (WithBaseNodeData {
+                argument : Node,
+            }),
 ]
 
 ProgramKind : [
@@ -1151,6 +1167,65 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("  local: ")
             |> Str.concat(local_str)
             |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ArrayPattern(data) ->
+            elements_count = List.len(data.elements) |> Num.to_str
+            elements_str = list_to_str_with_indent(data.elements, indent_level + 2)
+            Str.concat(indent, "ArrayPattern {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  elements: [")
+            |> Str.concat(elements_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(elements_str)
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ObjectPattern(data) ->
+            properties_count = List.len(data.properties) |> Num.to_str
+            properties_str = list_to_str_with_indent(data.properties, indent_level + 2)
+            Str.concat(indent, "ObjectPattern {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  properties: [")
+            |> Str.concat(properties_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(properties_str)
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        RestElement(data) ->
+            argument_str = node_to_str_inline(data.argument, indent_level + 1)
+            Str.concat(indent, "RestElement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  argument: ")
+            |> Str.concat(argument_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        AssignmentPattern(data) ->
+            left_str = node_to_str_inline(data.left, indent_level + 1)
+            right_str = node_to_str_inline(data.right, indent_level + 1)
+            Str.concat(indent, "AssignmentPattern {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  left: ")
+            |> Str.concat(left_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  right: ")
+            |> Str.concat(right_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        SpreadElement(data) ->
+            argument_str = node_to_str_inline(data.argument, indent_level + 1)
+            Str.concat(indent, "SpreadElement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  argument: ")
+            |> Str.concat(argument_str)
+            |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
 

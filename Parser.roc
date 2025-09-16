@@ -693,23 +693,32 @@ parse_object_properties = |properties, token_list|
 
 parse_object_property : List Token -> (Node, List Token)
 parse_object_property = |token_list|
-    # Parse the key
-    (key, rest1) = parse_property_key(token_list)
-    when rest1 is
-        [ColonToken, .. as rest2] ->
-            # Parse the value
-            (value, rest3) = parse_expression(Nud, 0, rest2)
-            property_node = Property(
-                {
-                    key: key,
-                    value: value,
-                    kind: Init,
-                },
-            )
-            (property_node, rest3)
+    when token_list is
+        [DotDotDotToken, .. as rest1] ->
+            # Spread element: ...expression
+            (argument, rest2) = parse_expression(Nud, 60, rest1)  # Use same precedence as destructuring defaults
+            spread_element = SpreadElement({ argument: argument })
+            (spread_element, rest2)
 
         _ ->
-            (Error({ message: "Expected colon after property key" }), rest1)
+            # Parse the key
+            (key, rest1) = parse_property_key(token_list)
+            when rest1 is
+                [ColonToken, .. as rest2] ->
+                    # Parse the value
+                    # Use precedence 60 to stop at comma (sequence expressions have precedence 50)
+                    (value, rest3) = parse_expression(Nud, 60, rest2)
+                    property_node = Property(
+                        {
+                            key: key,
+                            value: value,
+                            kind: Init,
+                        },
+                    )
+                    (property_node, rest3)
+
+                _ ->
+                    (Error({ message: "Expected colon after property key" }), rest1)
 
 parse_property_key : List Token -> (Node, List Token)
 parse_property_key = |token_list|
@@ -933,8 +942,46 @@ parse_variable_declarator = |token_list|
                     )
                     (declarator, rest1)
 
+        # Array destructuring: [a, b] = expr
+        [OpenBracketToken, .. as rest1] ->
+            (pattern, rest2) = parse_array_pattern(rest1)
+            when rest2 is
+                [EqualsToken, .. as rest3] ->
+                    # Has initializer (required for destructuring)
+                    (init_expr, rest4) = parse_expression(Nud, 0, rest3)
+                    declarator = VariableDeclarator(
+                        {
+                            id: pattern,
+                            init: Some(init_expr),
+                        },
+                    )
+                    (declarator, rest4)
+
+                _ ->
+                    # Destructuring requires initializer
+                    (Error({ message: "Destructuring declaration must have an initializer" }), rest2)
+
+        # Object destructuring: {a, b} = expr
+        [OpenBraceToken, .. as rest1] ->
+            (pattern, rest2) = parse_object_pattern(rest1)
+            when rest2 is
+                [EqualsToken, .. as rest3] ->
+                    # Has initializer (required for destructuring)
+                    (init_expr, rest4) = parse_expression(Nud, 0, rest3)
+                    declarator = VariableDeclarator(
+                        {
+                            id: pattern,
+                            init: Some(init_expr),
+                        },
+                    )
+                    (declarator, rest4)
+
+                _ ->
+                    # Destructuring requires initializer
+                    (Error({ message: "Destructuring declaration must have an initializer" }), rest2)
+
         _ ->
-            (Error({ message: "Expected identifier in variable declaration" }), token_list)
+            (Error({ message: "Expected identifier or destructuring pattern in variable declaration" }), token_list)
 
 parse_block_statement : List Token -> (Node, List Token)
 parse_block_statement = |token_list|
@@ -2117,6 +2164,196 @@ parse_case_consequent = |statements, token_list|
             (stmt, rest) = parse_statement(token_list)
             new_statements = List.append(statements, stmt)
             parse_case_consequent(new_statements, rest)
+
+# Array pattern parsing for destructuring: [a, b, ...rest]
+parse_array_pattern : List Token -> (Node, List Token)
+parse_array_pattern = |token_list|
+    parse_array_pattern_elements([], token_list)
+
+parse_array_pattern_elements : List Node, List Token -> (Node, List Token)
+parse_array_pattern_elements = |elements, token_list|
+    when token_list is
+        [CloseBracketToken, .. as rest] ->
+            # End of array pattern
+            array_pattern = ArrayPattern({ elements: elements })
+            (array_pattern, rest)
+
+        [CommaToken, .. as rest] ->
+            # Empty element (hole)
+            new_elements = List.append(elements, NullLiteral({}))
+            parse_array_pattern_elements(new_elements, rest)
+
+        [DotDotDotToken, .. as rest1] ->
+            # Rest element: ...name
+            when rest1 is
+                [IdentifierToken(name), .. as rest2] ->
+                    rest_element = RestElement({ argument: Identifier({ name: name }) })
+                    new_elements = List.append(elements, rest_element)
+                    # Rest element must be last
+                    when rest2 is
+                        [CloseBracketToken, .. as rest3] ->
+                            array_pattern = ArrayPattern({ elements: new_elements })
+                            (array_pattern, rest3)
+                        [CommaToken, CloseBracketToken, .. as rest3] ->
+                            array_pattern = ArrayPattern({ elements: new_elements })
+                            (array_pattern, rest3)
+                        _ ->
+                            error_pattern = ArrayPattern({ elements: new_elements })
+                            (error_pattern, rest2)
+                _ ->
+                    # Error: rest element needs identifier
+                    error_element = RestElement({ argument: Error({ message: "Expected identifier after ..." }) })
+                    new_elements = List.append(elements, error_element)
+                    array_pattern = ArrayPattern({ elements: new_elements })
+                    (array_pattern, rest1)
+
+        [IdentifierToken(name), .. as rest1] ->
+            # Simple identifier
+            identifier = Identifier({ name: name })
+            element = when rest1 is
+                [EqualsToken, .. as rest2] ->
+                    # Default value: a = defaultValue
+                    # Use precedence 60 to stop at comma (sequence expressions have precedence 50)
+                    (default_expr, remaining) = parse_expression(Nud, 60, rest2)
+                    (AssignmentPattern({ left: identifier, right: default_expr }), remaining)
+                _ ->
+                    (identifier, rest1)
+
+            (element_node, rest_after_element) = element
+            new_elements = List.append(elements, element_node)
+
+            when rest_after_element is
+                [CommaToken, .. as rest2] ->
+                    parse_array_pattern_elements(new_elements, rest2)
+                _ ->
+                    parse_array_pattern_elements(new_elements, rest_after_element)
+
+        [OpenBracketToken, .. as rest1] ->
+            # Nested array pattern
+            (nested_pattern, rest2) = parse_array_pattern(rest1)
+            new_elements = List.append(elements, nested_pattern)
+            when rest2 is
+                [CommaToken, .. as rest3] ->
+                    parse_array_pattern_elements(new_elements, rest3)
+                _ ->
+                    parse_array_pattern_elements(new_elements, rest2)
+
+        [OpenBraceToken, .. as rest1] ->
+            # Nested object pattern
+            (nested_pattern, rest2) = parse_object_pattern(rest1)
+            new_elements = List.append(elements, nested_pattern)
+            when rest2 is
+                [CommaToken, .. as rest3] ->
+                    parse_array_pattern_elements(new_elements, rest3)
+                _ ->
+                    parse_array_pattern_elements(new_elements, rest2)
+
+        _ ->
+            # Error case
+            error_element = Error({ message: "Unexpected token in array pattern" })
+            new_elements = List.append(elements, error_element)
+            array_pattern = ArrayPattern({ elements: new_elements })
+            (array_pattern, token_list)
+
+# Object pattern parsing for destructuring: {a, b: alias, ...rest}
+parse_object_pattern : List Token -> (Node, List Token)
+parse_object_pattern = |token_list|
+    parse_object_pattern_properties([], token_list)
+
+parse_object_pattern_properties : List Node, List Token -> (Node, List Token)
+parse_object_pattern_properties = |properties, token_list|
+    when token_list is
+        [CloseBraceToken, .. as rest] ->
+            # End of object pattern
+            object_pattern = ObjectPattern({ properties: properties })
+            (object_pattern, rest)
+
+        [DotDotDotToken, .. as rest1] ->
+            # Rest element: ...rest
+            when rest1 is
+                [IdentifierToken(name), .. as rest2] ->
+                    rest_element = RestElement({ argument: Identifier({ name: name }) })
+                    new_properties = List.append(properties, rest_element)
+                    # Rest element must be last
+                    when rest2 is
+                        [CloseBraceToken, .. as rest3] ->
+                            object_pattern = ObjectPattern({ properties: new_properties })
+                            (object_pattern, rest3)
+                        [CommaToken, CloseBraceToken, .. as rest3] ->
+                            object_pattern = ObjectPattern({ properties: new_properties })
+                            (object_pattern, rest3)
+                        _ ->
+                            error_pattern = ObjectPattern({ properties: new_properties })
+                            (error_pattern, rest2)
+                _ ->
+                    # Error: rest element needs identifier
+                    error_element = RestElement({ argument: Error({ message: "Expected identifier after ..." }) })
+                    new_properties = List.append(properties, error_element)
+                    object_pattern = ObjectPattern({ properties: new_properties })
+                    (object_pattern, rest1)
+
+        [IdentifierToken(name), .. as rest1] ->
+            # Property: could be shorthand {a} or {a: b} or {a = default}
+            key = Identifier({ name: name })
+            (property, rest_after_property) = when rest1 is
+                [ColonToken, .. as rest2] ->
+                    # {a: pattern}
+                    (value_pattern, rest3) = parse_destructuring_pattern(rest2)
+                    prop = Property({
+                        key: key,
+                        value: value_pattern,
+                        kind: Init,
+                    })
+                    (prop, rest3)
+
+                [EqualsToken, .. as rest2] ->
+                    # {a = default} - shorthand with default
+                    # Use precedence 60 to stop at comma (sequence expressions have precedence 50)
+                    (default_expr, rest3) = parse_expression(Nud, 60, rest2)
+                    assignment_pattern = AssignmentPattern({ left: key, right: default_expr })
+                    prop = Property({
+                        key: key,
+                        value: assignment_pattern,
+                        kind: Init,
+                    })
+                    (prop, rest3)
+
+                _ ->
+                    # {a} - shorthand
+                    prop = Property({
+                        key: key,
+                        value: key,
+                        kind: Init,
+                    })
+                    (prop, rest1)
+
+            new_properties = List.append(properties, property)
+
+            when rest_after_property is
+                [CommaToken, .. as rest2] ->
+                    parse_object_pattern_properties(new_properties, rest2)
+                _ ->
+                    parse_object_pattern_properties(new_properties, rest_after_property)
+
+        _ ->
+            # Error case
+            error_property = Error({ message: "Unexpected token in object pattern" })
+            new_properties = List.append(properties, error_property)
+            object_pattern = ObjectPattern({ properties: new_properties })
+            (object_pattern, token_list)
+
+# Parse a destructuring pattern (array or object)
+parse_destructuring_pattern : List Token -> (Node, List Token)
+parse_destructuring_pattern = |token_list|
+    when token_list is
+        [OpenBracketToken, .. as rest] ->
+            parse_array_pattern(rest)
+        [OpenBraceToken, .. as rest] ->
+            parse_object_pattern(rest)
+        [IdentifierToken(name), .. as rest] ->
+            (Identifier({ name: name }), rest)
+        _ ->
+            (Error({ message: "Expected destructuring pattern" }), token_list)
 
 # Break statement parsing
 parse_break_statement : List Token -> (Node, List Token)
