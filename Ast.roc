@@ -410,6 +410,15 @@ Node : [
     TSLiteralType (WithBaseNodeData {
                 literal : Node,
             }),
+    TSEnumDeclaration (WithBaseNodeData {
+                id : Node,
+                members : List Node,
+                const : Bool,
+            }),
+    TSEnumMember (WithBaseNodeData {
+                id : Node,
+                initializer : Option Node,
+            }),
 ]
 
 ProgramKind : [
@@ -1544,6 +1553,36 @@ node_to_str_with_indent = |node, indent_level|
             literal_str = node_to_str_inline(data.literal, indent_level + 1)
             Str.concat(indent, "TSLiteralType { literal: ")
             |> Str.concat(literal_str)
+            |> Str.concat(" }")
+
+        TSEnumDeclaration(data) ->
+            id_str = node_to_str_inline(data.id, indent_level + 1)
+            members_count = List.len(data.members) |> Num.to_str
+            const_str = if data.const then "const " else ""
+            Str.concat(indent, "TSEnumDeclaration {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  ")
+            |> Str.concat(const_str)
+            |> Str.concat("id: ")
+            |> Str.concat(id_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  members: [")
+            |> Str.concat(members_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        TSEnumMember(data) ->
+            id_str = node_to_str_inline(data.id, indent_level + 1)
+            init_str = when data.initializer is
+                Some(init) ->
+                    init_val = node_to_str_inline(init, indent_level + 1)
+                    Str.concat(" = ", init_val)
+                None -> ""
+            Str.concat(indent, "TSEnumMember { id: ")
+            |> Str.concat(id_str)
+            |> Str.concat(init_str)
             |> Str.concat(" }")
 
         ClassDeclaration(data) ->

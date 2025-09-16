@@ -893,6 +893,10 @@ parse_statement = |token_list|
         [LetKeyword, .. as rest] ->
             parse_variable_declaration(Let, rest)
 
+        # Check for const enum before const variable
+        [ConstKeyword, EnumKeyword, ..] ->
+            parse_enum_declaration(token_list)
+
         [ConstKeyword, .. as rest] ->
             parse_variable_declaration(Const, rest)
 
@@ -944,6 +948,11 @@ parse_statement = |token_list|
         # TypeScript type alias declaration
         [TypeKeyword, .. as rest] ->
             parse_type_alias_declaration(rest)
+
+        # TypeScript enum declaration
+        [EnumKeyword, .. as rest] ->
+            parse_enum_declaration(token_list)
+
 
         # Import declaration
         [ImportKeyword, .. as rest] ->
@@ -3252,6 +3261,94 @@ parse_tuple_element = |token_list|
         _ ->
             # Fall back to regular type parsing (for non-literals)
             parse_union_type(token_list)
+
+parse_enum_declaration : List Token -> (Node, List Token)
+parse_enum_declaration = |token_list|
+    # Check for optional const modifier
+    (is_const, rest1) = when token_list is
+        [ConstKeyword, .. as rest] -> (Bool.true, rest)
+        _ -> (Bool.false, token_list)
+
+    # Expect enum keyword
+    rest2 = when rest1 is
+        [EnumKeyword, .. as rest] -> rest
+        _ -> crash("Expected enum keyword")
+
+    # Parse the enum identifier
+    (id, rest3) = when rest2 is
+        [IdentifierToken(name), .. as rest] ->
+            (Identifier({ name }), rest)
+        _ ->
+            (Error({ message: "Expected enum identifier" }), rest2)
+
+    # Expect opening brace
+    rest4 = when rest3 is
+        [OpenBraceToken, .. as rest] -> rest
+        _ -> rest3
+
+    # Parse enum members
+    (members, rest5) = parse_enum_members([], rest4)
+
+    # Expect closing brace
+    rest6 = when rest5 is
+        [CloseBraceToken, .. as rest] -> rest
+        _ -> rest5
+
+    enum_decl = TSEnumDeclaration({
+        id,
+        members,
+        const: is_const,
+    })
+    (enum_decl, rest6)
+
+parse_enum_members : List Node, List Token -> (List Node, List Token)
+parse_enum_members = |members, token_list|
+    when token_list is
+        [CloseBraceToken, ..] | [] ->
+            (members, token_list)
+
+        _ ->
+            # Parse a single enum member
+            (member, rest1) = parse_enum_member(token_list)
+            new_members = List.append(members, member)
+
+            # Check for comma and continue or end
+            rest2 = when rest1 is
+                [CommaToken, .. as rest] -> rest
+                _ -> rest1
+
+            # Continue parsing or stop at close brace
+            when rest2 is
+                [CloseBraceToken, ..] ->
+                    (new_members, rest2)
+                _ ->
+                    parse_enum_members(new_members, rest2)
+
+parse_enum_member : List Token -> (Node, List Token)
+parse_enum_member = |token_list|
+    # Parse the member identifier (can be identifier or string literal)
+    (id, rest1) = when token_list is
+        [IdentifierToken(name), .. as rest] ->
+            (Identifier({ name }), rest)
+        [StringLiteralToken(value), .. as rest] ->
+            (StringLiteral({ value }), rest)
+        _ ->
+            (Error({ message: "Expected enum member identifier" }), token_list)
+
+    # Check for optional initializer
+    (initializer, rest2) = when rest1 is
+        [EqualsToken, .. as rest] ->
+            # Parse the initializer expression with higher precedence to stop at commas
+            (expr, remaining) = parse_expression(Nud, 60, rest)
+            (Some(expr), remaining)
+        _ ->
+            (None, rest1)
+
+    member = TSEnumMember({
+        id,
+        initializer,
+    })
+    (member, rest2)
 
 parse_function_type : List Token -> (Node, List Token)
 parse_function_type = |token_list|
