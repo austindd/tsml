@@ -1034,6 +1034,7 @@ parse_variable_declarator = |token_list|
                         {
                             id: identifier,
                             init: Some(init_expr),
+                            typeAnnotation: type_annotation,
                         },
                     )
                     (declarator, rest3)
@@ -1044,6 +1045,7 @@ parse_variable_declarator = |token_list|
                         {
                             id: identifier,
                             init: None,
+                            typeAnnotation: type_annotation,
                         },
                     )
                     (declarator, remaining_after_type)
@@ -1059,6 +1061,7 @@ parse_variable_declarator = |token_list|
                         {
                             id: pattern,
                             init: Some(init_expr),
+                            typeAnnotation: None,
                         },
                     )
                     (declarator, rest4)
@@ -1078,6 +1081,7 @@ parse_variable_declarator = |token_list|
                         {
                             id: pattern,
                             init: Some(init_expr),
+                            typeAnnotation: None,
                         },
                     )
                     (declarator, rest4)
@@ -3009,6 +3013,62 @@ parse_type_alias_declaration = |token_list|
 # Parse TypeScript type annotations
 parse_type_annotation : List Token -> (Node, List Token)
 parse_type_annotation = |token_list|
+    # Parse union types (Type1 | Type2 | Type3)
+    parse_union_type(token_list)
+
+parse_union_type : List Token -> (Node, List Token)
+parse_union_type = |token_list|
+    # Parse the first type (with potential array suffix)
+    (first_type, rest1) = parse_array_type(token_list)
+
+    # Look for union operator |
+    collect_union_types([first_type], rest1)
+
+collect_union_types : List Node, List Token -> (Node, List Token)
+collect_union_types = |types, token_list|
+    when token_list is
+        [BarToken, .. as rest] ->
+            # Parse the next type in the union
+            (next_type, remaining) = parse_array_type(rest)
+            new_types = List.append(types, next_type)
+            collect_union_types(new_types, remaining)
+
+        _ ->
+            # No more union types
+            when List.len(types) is
+                1 ->
+                    # Single type, return it directly
+                    when List.first(types) is
+                        Ok(single_type) -> (single_type, token_list)
+                        Err(_) -> (Error({ message: "Failed to get single type" }), token_list)
+                _ ->
+                    # Multiple types, create union
+                    union_type = TSUnionType({ types: types })
+                    (union_type, token_list)
+
+parse_array_type : List Token -> (Node, List Token)
+parse_array_type = |token_list|
+    # Parse the base type first
+    (base_type, rest1) = parse_primary_type(token_list)
+
+    # Look for array suffix []
+    parse_array_suffix(base_type, rest1)
+
+parse_array_suffix : Node, List Token -> (Node, List Token)
+parse_array_suffix = |base_type, token_list|
+    when token_list is
+        [OpenBracketToken, CloseBracketToken, .. as rest] ->
+            # Found array syntax Type[]
+            array_type = TSArrayType({ elementType: base_type })
+            # Check for nested arrays like Type[][]
+            parse_array_suffix(array_type, rest)
+
+        _ ->
+            # No array suffix
+            (base_type, token_list)
+
+parse_primary_type : List Token -> (Node, List Token)
+parse_primary_type = |token_list|
     when token_list is
         # Built-in type keywords (from tokenizer)
         [StringKeyword, .. as rest] ->
@@ -3033,13 +3093,20 @@ parse_type_annotation = |token_list|
         [IdentifierToken("unknown"), .. as rest] ->
             (TSUnknownKeyword({}), rest)
 
+        # null and undefined types
+        [NullKeyword, .. as rest] ->
+            (TSNullKeyword({}), rest)
+
+        [UndefinedKeyword, .. as rest] ->
+            (TSUndefinedKeyword({}), rest)
+
         # Typeof type: typeof expression
         [TypeofKeyword, .. as rest] ->
             parse_typeof_type(rest)
 
-        # Function type: (param1: type1, param2: type2) => returnType
+        # Function type OR parenthesized type: (param1: type1) => returnType OR (string | number)
         [OpenParenToken, .. as rest] ->
-            parse_function_type(rest)
+            parse_parenthesized_or_function_type(rest)
 
         # Object type literal: { prop1: type1; prop2: type2 }
         [OpenBraceToken, .. as rest] ->
@@ -3069,6 +3136,50 @@ parse_typeof_type = |token_list|
 
         _ ->
             (Error({ message: "Expected identifier after 'typeof'" }), token_list)
+
+parse_parenthesized_or_function_type : List Token -> (Node, List Token)
+parse_parenthesized_or_function_type = |token_list|
+    # Try to parse as a parenthesized type first by looking ahead
+    # If we see a type followed by ')' (not ': type'), it's parenthesized
+    # If we see 'identifier:' or ')', it's likely a function type
+    detect_parenthesized_vs_function(token_list)
+
+detect_parenthesized_vs_function : List Token -> (Node, List Token)
+detect_parenthesized_vs_function = |token_list|
+    when token_list is
+        # Empty parens () => definitely function type
+        [CloseParenToken, ..] ->
+            parse_function_type(token_list)
+
+        # Identifier followed by colon => function parameter
+        [IdentifierToken(_), ColonToken, ..] ->
+            parse_function_type(token_list)
+
+        # Identifier followed by comma => function parameter
+        [IdentifierToken(_), CommaToken, ..] ->
+            parse_function_type(token_list)
+
+        # Identifier followed by close paren and arrow => function with single param
+        [IdentifierToken(_), CloseParenToken, EqualsGreaterThanToken, ..] ->
+            parse_function_type(token_list)
+
+        _ ->
+            # Try to parse as parenthesized type
+            parse_parenthesized_type(token_list)
+
+parse_parenthesized_type : List Token -> (Node, List Token)
+parse_parenthesized_type = |token_list|
+    # Parse the inner type (which might be a union)
+    (inner_type, rest1) = parse_union_type(token_list)
+
+    when rest1 is
+        [CloseParenToken, .. as rest2] ->
+            # Successfully parsed parenthesized type
+            (inner_type, rest2)
+
+        _ ->
+            # Failed to find closing paren, fall back to function type parsing
+            parse_function_type(token_list)
 
 parse_function_type : List Token -> (Node, List Token)
 parse_function_type = |token_list|

@@ -248,6 +248,7 @@ Node : [
     VariableDeclarator (WithBaseNodeData {
                 id : Node,
                 init : Option Node,
+                typeAnnotation : Option Node,
             }),
     ClassDeclaration (WithBaseNodeData {
                 id : Node,
@@ -385,6 +386,8 @@ Node : [
     TSVoidKeyword (WithBaseNodeData {}),
     TSAnyKeyword (WithBaseNodeData {}),
     TSUnknownKeyword (WithBaseNodeData {}),
+    TSNullKeyword (WithBaseNodeData {}),
+    TSUndefinedKeyword (WithBaseNodeData {}),
     TSFunctionType (WithBaseNodeData {
                 parameters : List Node,
                 returnType : Node,
@@ -394,6 +397,12 @@ Node : [
             }),
     TSTypeLiteral (WithBaseNodeData {
                 members : List Node,
+            }),
+    TSArrayType (WithBaseNodeData {
+                elementType : Node,
+            }),
+    TSUnionType (WithBaseNodeData {
+                types : List Node,
             }),
 ]
 
@@ -819,11 +828,27 @@ node_to_str_with_indent = |node, indent_level|
 
         VariableDeclarator(data) ->
             init_str = option_to_str_inline(data.init, indent_level + 1)
-            Str.concat(indent, "VariableDeclarator {\n")
-            |> Str.concat(indent)
-            |> Str.concat("  id: ")
-            |> Str.concat(node_to_str_inline(data.id, indent_level + 1))
-            |> Str.concat(",\n")
+            type_str = option_to_str_inline(data.typeAnnotation, indent_level + 1)
+
+            base_str =
+                Str.concat(indent, "VariableDeclarator {\n")
+                |> Str.concat(indent)
+                |> Str.concat("  id: ")
+                |> Str.concat(node_to_str_inline(data.id, indent_level + 1))
+                |> Str.concat(",\n")
+
+            with_type =
+                when data.typeAnnotation is
+                    Some(_) ->
+                        base_str
+                        |> Str.concat(indent)
+                        |> Str.concat("  typeAnnotation: ")
+                        |> Str.concat(type_str)
+                        |> Str.concat(",\n")
+                    None ->
+                        base_str
+
+            with_type
             |> Str.concat(indent)
             |> Str.concat("  init: ")
             |> Str.concat(init_str)
@@ -1462,6 +1487,12 @@ node_to_str_with_indent = |node, indent_level|
         TSUnknownKeyword(_) ->
             Str.concat(indent, "TSUnknownKeyword")
 
+        TSNullKeyword(_) ->
+            Str.concat(indent, "TSNullKeyword")
+
+        TSUndefinedKeyword(_) ->
+            Str.concat(indent, "TSUndefinedKeyword")
+
         TSFunctionType(data) ->
             params_str = List.map(data.parameters, |param| node_to_str_inline(param, indent_level + 1))
                         |> Str.join_with(", ")
@@ -1483,6 +1514,18 @@ node_to_str_with_indent = |node, indent_level|
             members_count = List.len(data.members) |> Num.to_str
             Str.concat(indent, "TSTypeLiteral { members: [")
             |> Str.concat(members_count)
+            |> Str.concat(" items] }")
+
+        TSArrayType(data) ->
+            element_str = node_to_str_inline(data.elementType, indent_level + 1)
+            Str.concat(indent, "TSArrayType { elementType: ")
+            |> Str.concat(element_str)
+            |> Str.concat(" }")
+
+        TSUnionType(data) ->
+            types_count = List.len(data.types) |> Num.to_str
+            Str.concat(indent, "TSUnionType { types: [")
+            |> Str.concat(types_count)
             |> Str.concat(" items] }")
 
         ClassDeclaration(data) ->
