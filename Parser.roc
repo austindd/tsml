@@ -3112,6 +3112,10 @@ parse_primary_type = |token_list|
         [OpenBraceToken, .. as rest] ->
             parse_object_type_literal(rest)
 
+        # Tuple type: [type1, type2, type3]
+        [OpenBracketToken, .. as rest] ->
+            parse_tuple_type(rest)
+
         # Type reference (custom types)
         [IdentifierToken(type_name), .. as rest] ->
             type_ref = TSTypeReference({
@@ -3180,6 +3184,74 @@ parse_parenthesized_type = |token_list|
         _ ->
             # Failed to find closing paren, fall back to function type parsing
             parse_function_type(token_list)
+
+parse_tuple_type : List Token -> (Node, List Token)
+parse_tuple_type = |token_list|
+    # Parse tuple elements: [type1, type2, type3]
+    (element_types, rest1) = parse_tuple_elements([], token_list)
+
+    when rest1 is
+        [CloseBracketToken, .. as rest2] ->
+            tuple_type = TSTupleType({
+                elementTypes: element_types,
+            })
+            (tuple_type, rest2)
+
+        _ ->
+            (Error({ message: "Expected ']' in tuple type" }), rest1)
+
+parse_tuple_elements : List Node, List Token -> (List Node, List Token)
+parse_tuple_elements = |elements, token_list|
+    when token_list is
+        # Empty tuple or end of elements
+        [CloseBracketToken, ..] ->
+            (elements, token_list)
+
+        [] ->
+            # End of tokens
+            (elements, [])
+
+        _ ->
+            # Parse a type element (could be a literal, identifier, etc.)
+            (element_type, rest1) = parse_tuple_element(token_list)
+            new_elements = List.append(elements, element_type)
+
+            when rest1 is
+                [CommaToken, .. as rest2] ->
+                    # More elements
+                    parse_tuple_elements(new_elements, rest2)
+
+                _ ->
+                    # No more elements
+                    (new_elements, rest1)
+
+parse_tuple_element : List Token -> (Node, List Token)
+parse_tuple_element = |token_list|
+    when token_list is
+        # Literal types
+        [NumberLiteralToken(value), .. as rest] ->
+            # Create a literal type node for numbers
+            literal_type = TSLiteralType({ literal: NumberLiteral({ value: value }) })
+            (literal_type, rest)
+
+        [StringLiteralToken(value), .. as rest] ->
+            # Create a literal type node for strings
+            literal_type = TSLiteralType({ literal: StringLiteral({ value: value }) })
+            (literal_type, rest)
+
+        [TrueKeyword, .. as rest] ->
+            # Boolean literal true
+            literal_type = TSLiteralType({ literal: BooleanLiteral({ value: Bool.true }) })
+            (literal_type, rest)
+
+        [FalseKeyword, .. as rest] ->
+            # Boolean literal false
+            literal_type = TSLiteralType({ literal: BooleanLiteral({ value: Bool.false }) })
+            (literal_type, rest)
+
+        _ ->
+            # Fall back to regular type parsing (for non-literals)
+            parse_union_type(token_list)
 
 parse_function_type : List Token -> (Node, List Token)
 parse_function_type = |token_list|

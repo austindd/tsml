@@ -404,6 +404,12 @@ Node : [
     TSUnionType (WithBaseNodeData {
                 types : List Node,
             }),
+    TSTupleType (WithBaseNodeData {
+                elementTypes : List Node,
+            }),
+    TSLiteralType (WithBaseNodeData {
+                literal : Node,
+            }),
 ]
 
 ProgramKind : [
@@ -1527,6 +1533,18 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "TSUnionType { types: [")
             |> Str.concat(types_count)
             |> Str.concat(" items] }")
+
+        TSTupleType(data) ->
+            elements_count = List.len(data.elementTypes) |> Num.to_str
+            Str.concat(indent, "TSTupleType { elementTypes: [")
+            |> Str.concat(elements_count)
+            |> Str.concat(" items] }")
+
+        TSLiteralType(data) ->
+            literal_str = node_to_str_inline(data.literal, indent_level + 1)
+            Str.concat(indent, "TSLiteralType { literal: ")
+            |> Str.concat(literal_str)
+            |> Str.concat(" }")
 
         ClassDeclaration(data) ->
             super_class_str =
