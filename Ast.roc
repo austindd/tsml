@@ -885,6 +885,40 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("}")
 
+        ForOfStatement(data) ->
+            Str.concat(indent, "ForOfStatement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  left: ")
+            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  right: ")
+            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  body: ")
+            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ForInStatement(data) ->
+            Str.concat(indent, "ForInStatement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  left: ")
+            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  right: ")
+            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  body: ")
+            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
         SwitchStatement(data) ->
             cases_count = List.len(data.cases) |> Num.to_str
             cases_str = list_to_str_with_indent(data.cases, indent_level + 2)

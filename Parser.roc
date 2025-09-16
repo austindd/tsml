@@ -1067,77 +1067,181 @@ parse_for_statement : List Token -> (Node, List Token)
 parse_for_statement = |token_list|
     when token_list is
         [OpenParenToken, .. as rest1] ->
-            # Parse init (can be variable declaration or expression)
-            (init, rest2) =
-                when rest1 is
-                    [SemicolonToken, .. as rest] ->
-                        (None, rest)
+            # First, try to parse the left side and see if it's followed by 'in' or 'of'
+            (left_side, rest_after_left) = parse_for_loop_left(rest1)
 
-                    [VarKeyword, .. as rest] ->
-                        (var_decl, remaining) = parse_variable_declaration(Var, rest)
-                        (Some(var_decl), remaining)
+            when rest_after_left is
+                # for...of loop
+                [OfKeyword, .. as rest2] ->
+                    (right_expr, rest3) = parse_expression(Nud, 0, rest2)
+                    when rest3 is
+                        [CloseParenToken, .. as rest4] ->
+                            (body, rest5) = parse_statement(rest4)
+                            for_of_stmt = ForOfStatement({
+                                left: left_side,
+                                right: right_expr,
+                                body: body,
+                            })
+                            (for_of_stmt, rest5)
+                        _ ->
+                            error_stmt = ForOfStatement({
+                                left: left_side,
+                                right: Error({ message: "Expected ')' after for...of expression" }),
+                                body: Error({ message: "Missing body" }),
+                            })
+                            (error_stmt, rest3)
 
-                    [LetKeyword, .. as rest] ->
-                        (var_decl, remaining) = parse_variable_declaration(Let, rest)
-                        (Some(var_decl), remaining)
+                # for...in loop
+                [InKeyword, .. as rest2] ->
+                    (right_expr, rest3) = parse_expression(Nud, 0, rest2)
+                    when rest3 is
+                        [CloseParenToken, .. as rest4] ->
+                            (body, rest5) = parse_statement(rest4)
+                            for_in_stmt = ForInStatement({
+                                left: left_side,
+                                right: right_expr,
+                                body: body,
+                            })
+                            (for_in_stmt, rest5)
+                        _ ->
+                            error_stmt = ForInStatement({
+                                left: left_side,
+                                right: Error({ message: "Expected ')' after for...in expression" }),
+                                body: Error({ message: "Missing body" }),
+                            })
+                            (error_stmt, rest3)
 
-                    [ConstKeyword, .. as rest] ->
-                        (var_decl, remaining) = parse_variable_declaration(Const, rest)
-                        (Some(var_decl), remaining)
+                # Traditional for loop - parse semicolon-separated parts
+                [SemicolonToken, .. as rest2] ->
+                    parse_traditional_for_loop(Some(left_side), rest2)
 
-                    _ ->
-                        (expr, remaining) = parse_expression(Nud, 0, rest1)
-                        when remaining is
-                            [SemicolonToken, .. as rest] ->
-                                (Some(expr), rest)
-
-                            _ ->
-                                (Some(expr), remaining)
-
-            # Parse test condition
-            (test, rest3) =
-                when rest2 is
-                    [SemicolonToken, .. as rest] ->
-                        (None, rest)
-
-                    _ ->
-                        (test_expr, remaining) = parse_expression(Nud, 0, rest2)
-                        when remaining is
-                            [SemicolonToken, .. as rest] ->
-                                (Some(test_expr), rest)
-
-                            _ ->
-                                (Some(test_expr), remaining)
-
-            # Parse update expression
-            (update, rest4) =
-                when rest3 is
-                    [CloseParenToken, .. as rest] ->
-                        (None, rest)
-
-                    _ ->
-                        (update_expr, remaining) = parse_expression(Nud, 0, rest3)
-                        when remaining is
-                            [CloseParenToken, .. as rest] ->
-                                (Some(update_expr), rest)
-
-                            _ ->
-                                (Some(update_expr), remaining)
-
-            # Parse body
-            (body, rest5) = parse_statement(rest4)
-            for_stmt = ForStatement(
-                {
-                    init: init,
-                    test: test,
-                    update: update,
-                    body: body,
-                },
-            )
-            (for_stmt, rest5)
+                _ ->
+                    # For traditional for loops, we need to find and consume the semicolon after init
+                    when rest_after_left is
+                        [SemicolonToken, .. as rest_after_semi] ->
+                            parse_traditional_for_loop(Some(left_side), rest_after_semi)
+                        _ ->
+                            # Not a traditional for loop - this is an error
+                            error_stmt = ForStatement({
+                                init: Some(left_side),
+                                test: None,
+                                update: None,
+                                body: Error({ message: "Expected ';', 'in', or 'of' in for loop" }),
+                            })
+                            (error_stmt, rest_after_left)
 
         _ ->
             (Error({ message: "Expected open paren after for" }), token_list)
+
+parse_for_loop_left : List Token -> (Node, List Token)
+parse_for_loop_left = |token_list|
+    when token_list is
+        [VarKeyword, .. as rest] ->
+            parse_for_variable_declaration(Var, rest)
+
+        [LetKeyword, .. as rest] ->
+            parse_for_variable_declaration(Let, rest)
+
+        [ConstKeyword, .. as rest] ->
+            parse_for_variable_declaration(Const, rest)
+
+        _ ->
+            parse_expression(Nud, 0, token_list)
+
+# Special version for for loops that doesn't consume semicolons
+parse_for_variable_declaration : VariableDeclarationKind, List Token -> (Node, List Token)
+parse_for_variable_declaration = |kind, token_list|
+    (declarator, rest1) = parse_variable_declarator(token_list)
+    var_decl = VariableDeclaration({
+        declarations: [declarator],
+        kind: kind,
+    })
+    (var_decl, rest1)
+
+parse_traditional_for_loop : Option Node, List Token -> (Node, List Token)
+parse_traditional_for_loop = |init, token_list|
+    # Parse test condition (expression between first and second semicolon)
+    (test, rest2) =
+        when token_list is
+            [SemicolonToken, .. as rest] ->
+                # Empty test condition
+                (None, rest)
+
+            _ ->
+                # Parse expression until we hit a semicolon
+                (test_expr, remaining) = parse_expression_until_semicolon(token_list)
+                when remaining is
+                    [SemicolonToken, .. as rest] ->
+                        (Some(test_expr), rest)
+                    _ ->
+                        # Error: missing semicolon
+                        (Some(test_expr), remaining)
+
+    # Parse update expression (expression between second semicolon and close paren)
+    (update, rest3) =
+        when rest2 is
+            [CloseParenToken, .. as rest] ->
+                # Empty update expression
+                (None, rest)
+
+            _ ->
+                # Parse expression until we hit a close paren
+                (update_expr, remaining) = parse_expression_until_close_paren(rest2)
+                when remaining is
+                    [CloseParenToken, .. as rest] ->
+                        (Some(update_expr), rest)
+                    _ ->
+                        # Error: missing close paren
+                        (Some(update_expr), remaining)
+
+    # Parse body
+    (body, rest4) = parse_statement(rest3)
+    for_stmt = ForStatement({
+        init: init,
+        test: test,
+        update: update,
+        body: body,
+    })
+    (for_stmt, rest4)
+
+# Parse expression until semicolon (for for-loop test condition)
+parse_expression_until_semicolon : List Token -> (Node, List Token)
+parse_expression_until_semicolon = |token_list|
+    parse_expression_until_token(token_list, SemicolonToken)
+
+# Parse expression until close paren (for for-loop update expression)
+parse_expression_until_close_paren : List Token -> (Node, List Token)
+parse_expression_until_close_paren = |token_list|
+    parse_expression_until_token(token_list, CloseParenToken)
+
+# Generic helper to parse expression until a specific token
+parse_expression_until_token : List Token, Token -> (Node, List Token)
+parse_expression_until_token = |token_list, end_token|
+    # Collect tokens until we find the end token
+    collect_until_token(token_list, end_token, [])
+
+collect_until_token : List Token, Token, List Token -> (Node, List Token)
+collect_until_token = |token_list, end_token, acc|
+    when token_list is
+        [] ->
+            # End of tokens - parse what we have
+            if List.len(acc) > 0 then
+                parse_expression(Nud, 0, acc)
+            else
+                (Error({ message: "Empty expression" }), [])
+
+        [token, .. as rest] ->
+            if token == end_token then
+                # Found the end token - parse accumulated tokens
+                if List.len(acc) > 0 then
+                    (expr, _) = parse_expression(Nud, 0, acc)
+                    (expr, [token] |> List.concat(rest))
+                else
+                    (Error({ message: "Empty expression" }), [token] |> List.concat(rest))
+            else
+                # Continue collecting
+                new_acc = List.append(acc, token)
+                collect_until_token(rest, end_token, new_acc)
 
 parse_function_declaration : List Token -> (Node, List Token)
 parse_function_declaration = |token_list|
