@@ -333,6 +333,9 @@ Node : [
     SpreadElement (WithBaseNodeData {
                 argument : Node,
             }),
+    AwaitExpression (WithBaseNodeData {
+                argument : Node,
+            }),
 ]
 
 ProgramKind : [
@@ -1222,6 +1225,16 @@ node_to_str_with_indent = |node, indent_level|
         SpreadElement(data) ->
             argument_str = node_to_str_inline(data.argument, indent_level + 1)
             Str.concat(indent, "SpreadElement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  argument: ")
+            |> Str.concat(argument_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        AwaitExpression(data) ->
+            argument_str = node_to_str_inline(data.argument, indent_level + 1)
+            Str.concat(indent, "AwaitExpression {\n")
             |> Str.concat(indent)
             |> Str.concat("  argument: ")
             |> Str.concat(argument_str)

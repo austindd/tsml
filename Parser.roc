@@ -173,6 +173,35 @@ parse_primary_expression = |token_list|
             parse_object_literal(rest1)
 
         # Function expressions
+        [AsyncKeyword, FunctionKeyword, .. as rest1] ->
+            parse_async_function_expression(rest1)
+
+        # Async arrow functions - async x => ... or async (x) => ...
+        [AsyncKeyword, .. as rest1] ->
+            # Look ahead manually to see if this is an arrow function pattern
+            when rest1 is
+                # Pattern: async identifier => ...
+                [IdentifierToken(param_name), EqualsGreaterThanToken, .. as arrow_rest] ->
+                    param_node = Identifier({ name: param_name })
+                    parse_async_arrow_function_body(param_node, arrow_rest)
+
+                # Pattern: async (params) => ...
+                [OpenParenToken, .. as paren_rest] ->
+                    # Parse the content inside parentheses, then look for arrow
+                    (params_node, after_paren_content) = parse_expression(Nud, 0, paren_rest)
+                    when after_paren_content is
+                        [CloseParenToken, EqualsGreaterThanToken, .. as arrow_rest] ->
+                            parse_async_arrow_function_body(params_node, arrow_rest)
+                        _ ->
+                            # Not an arrow function, treat async as regular identifier
+                            async_id = Identifier({ name: "async" })
+                            (async_id, rest1)
+
+                _ ->
+                    # Not an arrow function pattern, treat async as regular identifier
+                    async_id = Identifier({ name: "async" })
+                    (async_id, rest1)
+
         [FunctionKeyword, .. as rest1] ->
             parse_function_expression(rest1)
 
@@ -214,6 +243,12 @@ parse_primary_expression = |token_list|
                                 Error({ message: "parse_expression() failed -- Expected close paren, but got nothing" }),
                                 remaining_tokens,
                             )
+
+        # Await expressions
+        [AwaitKeyword, .. as rest1] ->
+            (argument, rest2) = parse_expression(Nud, 1600, rest1)  # High precedence for await
+            await_expr = AwaitExpression({ argument: argument })
+            (await_expr, rest2)
 
         [CloseParenToken, .. as rest] ->
             (Error({ message: "Unexpected close paren" }), rest)
@@ -856,6 +891,10 @@ parse_statement = |token_list|
         [SwitchKeyword, .. as rest] ->
             parse_switch_statement(rest)
 
+        # Async function declaration
+        [AsyncKeyword, FunctionKeyword, .. as rest] ->
+            parse_async_function_declaration(rest)
+
         # Function declaration
         [FunctionKeyword, .. as rest] ->
             parse_function_declaration(rest)
@@ -1326,6 +1365,27 @@ parse_function_declaration = |token_list|
         _ ->
             crash("parse_function_declaration() failed -- This should never happen")
 
+parse_async_function_declaration : List Token -> (Node, List Token)
+parse_async_function_declaration = |token_list|
+    when token_list is
+        [IdentifierToken(name), .. as rest1] ->
+            identifier = Identifier({ name: name })
+            (params, rest2) = parse_function_parameters(rest1)
+            (body, rest3) = parse_function_body(rest2)
+            func_decl = FunctionDeclaration(
+                {
+                    id: identifier,
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.true,
+                },
+            )
+            (func_decl, rest3)
+
+        _ ->
+            crash("parse_async_function_declaration() failed -- This should never happen")
+
 parse_function_expression : List Token -> (Node, List Token)
 parse_function_expression = |token_list|
     when token_list is
@@ -1362,6 +1422,43 @@ parse_function_expression = |token_list|
 
         _ ->
             (Error({ message: "Expected function parameters or name" }), token_list)
+
+parse_async_function_expression : List Token -> (Node, List Token)
+parse_async_function_expression = |token_list|
+    when token_list is
+        [IdentifierToken(name), .. as rest1] ->
+            # Named async function expression
+            identifier = Identifier({ name: name })
+            (params, rest2) = parse_function_parameters(rest1)
+            (body, rest3) = parse_function_body(rest2)
+            func_expr = FunctionExpression(
+                {
+                    id: Some(identifier),
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.true,
+                },
+            )
+            (func_expr, rest3)
+
+        [OpenParenToken, .. as rest1] ->
+            # Anonymous async function expression
+            (params, rest2) = parse_function_parameters(token_list)
+            (body, rest3) = parse_function_body(rest2)
+            func_expr = FunctionExpression(
+                {
+                    id: None,
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.true,
+                },
+            )
+            (func_expr, rest3)
+
+        _ ->
+            (Error({ message: "Expected async function parameters or name" }), token_list)
 
 parse_new_expression : List Token -> (Node, List Token)
 parse_new_expression = |token_list|
@@ -1794,6 +1891,38 @@ parse_arrow_function_body = |params_node, token_list|
                     body: expr,
                     generator: Bool.false,
                     async: Bool.false,
+                },
+            )
+            (arrow_fn, remaining_tokens)
+
+parse_async_arrow_function_body : Node, List Token -> (Node, List Token)
+parse_async_arrow_function_body = |params_node, token_list|
+    # Convert the left side to parameters
+    arrow_params = convert_to_arrow_params(params_node)
+
+    when token_list is
+        [OpenBraceToken, .. as rest] ->
+            # Block body: async () => { statements }
+            (body, remaining_tokens) = parse_block_statement(rest)
+            arrow_fn = ArrowFunctionExpression(
+                {
+                    params: arrow_params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.true,
+                },
+            )
+            (arrow_fn, remaining_tokens)
+
+        _ ->
+            # Expression body: async () => expression
+            (expr, remaining_tokens) = parse_expression(Nud, 0, token_list)
+            arrow_fn = ArrowFunctionExpression(
+                {
+                    params: arrow_params,
+                    body: expr,
+                    generator: Bool.false,
+                    async: Bool.true,
                 },
             )
             (arrow_fn, remaining_tokens)
