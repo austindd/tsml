@@ -651,6 +651,21 @@ parse_array_elements = |elements, token_list|
         [] ->
             (Error({ message: "Unexpected end of array literal" }), [])
 
+        [DotDotDotToken, .. as rest1] ->
+            # Spread element: ...expression
+            (argument, rest2) = parse_expression(Nud, 100, rest1)
+            spread_element = SpreadElement({ argument: argument })
+            when rest2 is
+                [CommaToken, .. as rest3] ->
+                    parse_array_elements(List.append(elements, spread_element), rest3)
+
+                [CloseBracketToken, .. as rest3] ->
+                    final_elements = List.append(elements, spread_element)
+                    (ArrayExpression({ elements: final_elements }), rest3)
+
+                _ ->
+                    (Error({ message: "Expected comma or close bracket after spread element" }), rest2)
+
         _ ->
             # Parse expression with precedence higher than sequence (50) to avoid treating commas as sequence operators
             (element, remaining_tokens) = parse_expression(Nud, 100, token_list)
@@ -1450,6 +1465,46 @@ parse_parameter_list = |params, token_list|
                             Error({ message: "Expected comma or close paren in parameter list" }),
                         ),
                         [],
+                    )
+
+        # Array destructuring parameter: [a, b]
+        [OpenBracketToken, .. as rest1] ->
+            (pattern, rest2) = parse_array_pattern(rest1)
+            new_params = List.append(params, pattern)
+            when rest2 is
+                [CommaToken, .. as rest3] ->
+                    parse_parameter_list(new_params, rest3)
+
+                [CloseParenToken, .. as rest3] ->
+                    (new_params, rest3)
+
+                _ ->
+                    (
+                        List.append(
+                            new_params,
+                            Error({ message: "Expected comma or close paren after destructuring parameter" }),
+                        ),
+                        rest2,
+                    )
+
+        # Object destructuring parameter: {a, b}
+        [OpenBraceToken, .. as rest1] ->
+            (pattern, rest2) = parse_object_pattern(rest1)
+            new_params = List.append(params, pattern)
+            when rest2 is
+                [CommaToken, .. as rest3] ->
+                    parse_parameter_list(new_params, rest3)
+
+                [CloseParenToken, .. as rest3] ->
+                    (new_params, rest3)
+
+                _ ->
+                    (
+                        List.append(
+                            new_params,
+                            Error({ message: "Expected comma or close paren after destructuring parameter" }),
+                        ),
+                        rest2,
                     )
 
         _ ->
