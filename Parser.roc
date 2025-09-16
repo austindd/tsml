@@ -836,6 +836,14 @@ parse_statement = |token_list|
         [ClassKeyword, .. as rest] ->
             parse_class_declaration(rest)
 
+        # Import declaration
+        [ImportKeyword, .. as rest] ->
+            parse_import_declaration(rest)
+
+        # Export declaration
+        [ExportKeyword, .. as rest] ->
+            parse_export_declaration(rest)
+
         # Return statement
         [ReturnKeyword, .. as rest] ->
             parse_return_statement(rest)
@@ -1632,4 +1640,258 @@ parse_template_continuation = |quasis, expressions, token_list|
             # Error case - expected TemplateMiddle or TemplateTail
             error_node = Error({ message: "Expected template continuation" })
             (error_node, token_list)
+
+# Import declaration parsing
+parse_import_declaration : List Token -> (Node, List Token)
+parse_import_declaration = |token_list|
+    when token_list is
+        # import defaultExport from "module"
+        [IdentifierToken(name), FromKeyword, StringLiteralToken(source), .. as rest] ->
+            default_specifier = ImportDefaultSpecifier({ local: Identifier({ name: name }) })
+            source_literal = StringLiteral({ value: source })
+            import_decl = ImportDeclaration({
+                specifiers: [default_specifier],
+                source: source_literal,
+            })
+            rest_after_semi = when rest is
+                [SemicolonToken, .. as after_semi] -> after_semi
+                _ -> rest
+            (import_decl, rest_after_semi)
+
+        # import * as namespace from "module"
+        [AsteriskToken, AsKeyword, IdentifierToken(name), FromKeyword, StringLiteralToken(source), .. as rest] ->
+            namespace_specifier = ImportNamespaceSpecifier({ local: Identifier({ name: name }) })
+            source_literal = StringLiteral({ value: source })
+            import_decl = ImportDeclaration({
+                specifiers: [namespace_specifier],
+                source: source_literal,
+            })
+            rest_after_semi = when rest is
+                [SemicolonToken, .. as after_semi] -> after_semi
+                _ -> rest
+            (import_decl, rest_after_semi)
+
+        # import { named } from "module"
+        [OpenBraceToken, .. as rest1] ->
+            (specifiers, rest2) = parse_import_specifiers([], rest1)
+            when rest2 is
+                [FromKeyword, StringLiteralToken(source), .. as rest3] ->
+                    source_literal = StringLiteral({ value: source })
+                    import_decl = ImportDeclaration({
+                        specifiers: specifiers,
+                        source: source_literal,
+                    })
+                    rest_after_semi = when rest3 is
+                        [SemicolonToken, .. as after_semi] -> after_semi
+                        _ -> rest3
+                    (import_decl, rest_after_semi)
+                _ ->
+                    error_import = ImportDeclaration({
+                        specifiers: [],
+                        source: Error({ message: "Expected 'from' clause in import" }),
+                    })
+                    (error_import, rest2)
+
+        # import "module" (side-effect import)
+        [StringLiteralToken(source), .. as rest] ->
+            source_literal = StringLiteral({ value: source })
+            import_decl = ImportDeclaration({
+                specifiers: [],
+                source: source_literal,
+            })
+            rest_after_semi = when rest is
+                [SemicolonToken, .. as after_semi] -> after_semi
+                _ -> rest
+            (import_decl, rest_after_semi)
+
+        _ ->
+            error_import = ImportDeclaration({
+                specifiers: [],
+                source: Error({ message: "Invalid import syntax" }),
+            })
+            (error_import, token_list)
+
+parse_import_specifiers : List Node, List Token -> (List Node, List Token)
+parse_import_specifiers = |specifiers, token_list|
+    when token_list is
+        [CloseBraceToken, .. as rest] ->
+            (specifiers, rest)
+
+        [IdentifierToken(imported), AsKeyword, IdentifierToken(local), .. as rest1] ->
+            # import { foo as bar }
+            specifier = ImportSpecifier({
+                imported: Identifier({ name: imported }),
+                local: Identifier({ name: local }),
+            })
+            new_specifiers = List.append(specifiers, specifier)
+            when rest1 is
+                [CommaToken, .. as rest2] ->
+                    parse_import_specifiers(new_specifiers, rest2)
+                _ ->
+                    parse_import_specifiers(new_specifiers, rest1)
+
+        [IdentifierToken(name), .. as rest1] ->
+            # import { foo }
+            specifier = ImportSpecifier({
+                imported: Identifier({ name: name }),
+                local: Identifier({ name: name }),
+            })
+            new_specifiers = List.append(specifiers, specifier)
+            when rest1 is
+                [CommaToken, .. as rest2] ->
+                    parse_import_specifiers(new_specifiers, rest2)
+                _ ->
+                    parse_import_specifiers(new_specifiers, rest1)
+
+        _ ->
+            error_specifier = ImportSpecifier({
+                imported: Error({ message: "Invalid import specifier" }),
+                local: Error({ message: "Invalid import specifier" }),
+            })
+            new_specifiers = List.append(specifiers, error_specifier)
+            (new_specifiers, token_list)
+
+# Export declaration parsing
+parse_export_declaration : List Token -> (Node, List Token)
+parse_export_declaration = |token_list|
+    when token_list is
+        # export default declaration
+        [DefaultKeyword, .. as rest] ->
+            (declaration, rest1) = parse_expression(Nud, 0, rest)
+            export_decl = ExportDefaultDeclaration({ declaration: declaration })
+            rest_after_semi = when rest1 is
+                [SemicolonToken, .. as after_semi] -> after_semi
+                _ -> rest1
+            (export_decl, rest_after_semi)
+
+        # export * from "module"
+        [AsteriskToken, FromKeyword, StringLiteralToken(source), .. as rest] ->
+            source_literal = StringLiteral({ value: source })
+            export_decl = ExportAllDeclaration({ source: source_literal })
+            rest_after_semi = when rest is
+                [SemicolonToken, .. as after_semi] -> after_semi
+                _ -> rest
+            (export_decl, rest_after_semi)
+
+        # export { named } or export { named } from "module"
+        [OpenBraceToken, .. as rest1] ->
+            (specifiers, rest2) = parse_export_specifiers([], rest1)
+            when rest2 is
+                [FromKeyword, StringLiteralToken(source), .. as rest3] ->
+                    # Re-export from another module
+                    source_literal = StringLiteral({ value: source })
+                    export_decl = ExportNamedDeclaration({
+                        declaration: None,
+                        specifiers: specifiers,
+                        source: Some(source_literal),
+                    })
+                    rest_after_semi = when rest3 is
+                        [SemicolonToken, .. as after_semi] -> after_semi
+                        _ -> rest3
+                    (export_decl, rest_after_semi)
+                _ ->
+                    # Export local bindings
+                    export_decl = ExportNamedDeclaration({
+                        declaration: None,
+                        specifiers: specifiers,
+                        source: None,
+                    })
+                    rest_after_semi = when rest2 is
+                        [SemicolonToken, .. as after_semi] -> after_semi
+                        _ -> rest2
+                    (export_decl, rest_after_semi)
+
+        # export var/let/const/function/class declaration
+        [VarKeyword, .. as rest] ->
+            (declaration, rest1) = parse_variable_declaration(Var, rest)
+            export_decl = ExportNamedDeclaration({
+                declaration: Some(declaration),
+                specifiers: [],
+                source: None,
+            })
+            (export_decl, rest1)
+
+        [LetKeyword, .. as rest] ->
+            (declaration, rest1) = parse_variable_declaration(Let, rest)
+            export_decl = ExportNamedDeclaration({
+                declaration: Some(declaration),
+                specifiers: [],
+                source: None,
+            })
+            (export_decl, rest1)
+
+        [ConstKeyword, .. as rest] ->
+            (declaration, rest1) = parse_variable_declaration(Const, rest)
+            export_decl = ExportNamedDeclaration({
+                declaration: Some(declaration),
+                specifiers: [],
+                source: None,
+            })
+            (export_decl, rest1)
+
+        [FunctionKeyword, .. as rest] ->
+            (declaration, rest1) = parse_function_declaration(rest)
+            export_decl = ExportNamedDeclaration({
+                declaration: Some(declaration),
+                specifiers: [],
+                source: None,
+            })
+            (export_decl, rest1)
+
+        [ClassKeyword, .. as rest] ->
+            (declaration, rest1) = parse_class_declaration(rest)
+            export_decl = ExportNamedDeclaration({
+                declaration: Some(declaration),
+                specifiers: [],
+                source: None,
+            })
+            (export_decl, rest1)
+
+        _ ->
+            error_export = ExportNamedDeclaration({
+                declaration: None,
+                specifiers: [],
+                source: Some(Error({ message: "Invalid export syntax" })),
+            })
+            (error_export, token_list)
+
+parse_export_specifiers : List Node, List Token -> (List Node, List Token)
+parse_export_specifiers = |specifiers, token_list|
+    when token_list is
+        [CloseBraceToken, .. as rest] ->
+            (specifiers, rest)
+
+        [IdentifierToken(local), AsKeyword, IdentifierToken(exported), .. as rest1] ->
+            # export { foo as bar }
+            specifier = ExportSpecifier({
+                local: Identifier({ name: local }),
+                exported: Identifier({ name: exported }),
+            })
+            new_specifiers = List.append(specifiers, specifier)
+            when rest1 is
+                [CommaToken, .. as rest2] ->
+                    parse_export_specifiers(new_specifiers, rest2)
+                _ ->
+                    parse_export_specifiers(new_specifiers, rest1)
+
+        [IdentifierToken(name), .. as rest1] ->
+            # export { foo }
+            specifier = ExportSpecifier({
+                local: Identifier({ name: name }),
+                exported: Identifier({ name: name }),
+            })
+            new_specifiers = List.append(specifiers, specifier)
+            when rest1 is
+                [CommaToken, .. as rest2] ->
+                    parse_export_specifiers(new_specifiers, rest2)
+                _ ->
+                    parse_export_specifiers(new_specifiers, rest1)
+
+        _ ->
+            error_specifier = ExportSpecifier({
+                local: Error({ message: "Invalid export specifier" }),
+                exported: Error({ message: "Invalid export specifier" }),
+            })
+            new_specifiers = List.append(specifiers, error_specifier)
+            (new_specifiers, token_list)
 

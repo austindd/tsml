@@ -288,6 +288,35 @@ Node : [
     SequenceExpression (WithBaseNodeData {
                 expressions : List Node,
             }),
+    ImportDeclaration (WithBaseNodeData {
+                specifiers : List Node,
+                source : Node,
+            }),
+    ImportSpecifier (WithBaseNodeData {
+                imported : Node,
+                local : Node,
+            }),
+    ImportDefaultSpecifier (WithBaseNodeData {
+                local : Node,
+            }),
+    ImportNamespaceSpecifier (WithBaseNodeData {
+                local : Node,
+            }),
+    ExportNamedDeclaration (WithBaseNodeData {
+                declaration : Option Node,
+                specifiers : List Node,
+                source : Option Node,
+            }),
+    ExportDefaultDeclaration (WithBaseNodeData {
+                declaration : Node,
+            }),
+    ExportAllDeclaration (WithBaseNodeData {
+                source : Node,
+            }),
+    ExportSpecifier (WithBaseNodeData {
+                exported : Node,
+                local : Node,
+            }),
 ]
 
 ProgramKind : [
@@ -918,6 +947,126 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(expressions_count)
             |> Str.concat(" items]\n")
             |> Str.concat(expressions_str)
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ImportDeclaration(data) ->
+            specifiers_count = List.len(data.specifiers) |> Num.to_str
+            specifiers_str = list_to_str_with_indent(data.specifiers, indent_level + 2)
+            source_str = node_to_str_with_indent(data.source, indent_level + 1)
+            Str.concat(indent, "ImportDeclaration {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  specifiers: [")
+            |> Str.concat(specifiers_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(specifiers_str)
+            |> Str.concat(indent)
+            |> Str.concat("  source: ")
+            |> Str.concat(source_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ImportSpecifier(data) ->
+            imported_str = node_to_str_with_indent(data.imported, indent_level + 1)
+            local_str = node_to_str_with_indent(data.local, indent_level + 1)
+            Str.concat(indent, "ImportSpecifier {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  imported: ")
+            |> Str.concat(imported_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  local: ")
+            |> Str.concat(local_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ImportDefaultSpecifier(data) ->
+            local_str = node_to_str_with_indent(data.local, indent_level + 1)
+            Str.concat(indent, "ImportDefaultSpecifier {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  local: ")
+            |> Str.concat(local_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ImportNamespaceSpecifier(data) ->
+            local_str = node_to_str_with_indent(data.local, indent_level + 1)
+            Str.concat(indent, "ImportNamespaceSpecifier {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  local: ")
+            |> Str.concat(local_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ExportNamedDeclaration(data) ->
+            declaration_str = when data.declaration is
+                Some(decl) ->
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  declaration: ")
+                    |> Str.concat(node_to_str_with_indent(decl, indent_level + 1))
+                    |> Str.concat(",\n")
+                None -> ""
+
+            specifiers_count = List.len(data.specifiers) |> Num.to_str
+            specifiers_str = list_to_str_with_indent(data.specifiers, indent_level + 2)
+
+            source_str = when data.source is
+                Some(src) ->
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  source: ")
+                    |> Str.concat(node_to_str_with_indent(src, indent_level + 1))
+                    |> Str.concat(",\n")
+                None -> ""
+
+            Str.concat(indent, "ExportNamedDeclaration {")
+            |> Str.concat(declaration_str)
+            |> Str.concat(indent)
+            |> Str.concat("  specifiers: [")
+            |> Str.concat(specifiers_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(specifiers_str)
+            |> Str.concat(source_str)
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ExportDefaultDeclaration(data) ->
+            declaration_str = node_to_str_with_indent(data.declaration, indent_level + 1)
+            Str.concat(indent, "ExportDefaultDeclaration {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  declaration: ")
+            |> Str.concat(declaration_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ExportAllDeclaration(data) ->
+            source_str = node_to_str_with_indent(data.source, indent_level + 1)
+            Str.concat(indent, "ExportAllDeclaration {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  source: ")
+            |> Str.concat(source_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ExportSpecifier(data) ->
+            exported_str = node_to_str_with_indent(data.exported, indent_level + 1)
+            local_str = node_to_str_with_indent(data.local, indent_level + 1)
+            Str.concat(indent, "ExportSpecifier {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  exported: ")
+            |> Str.concat(exported_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  local: ")
+            |> Str.concat(local_str)
+            |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("}")
 
