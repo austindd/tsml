@@ -5,6 +5,7 @@ module [
     # Position,
     ProgramKind,
     VariableDeclarationKind,
+    MethodKind,
     PropertyKind,
     AssignmentOperator,
     LogicalOperator,
@@ -203,6 +204,10 @@ Node : [
                 handler : Option Node,
                 finalizer : Option Node,
             }),
+    CatchClause (WithBaseNodeData {
+                param : Option Node,
+                body : Node,
+            }),
     WhileStatement (WithBaseNodeData {
                 test : Node,
                 body : Node,
@@ -234,6 +239,18 @@ Node : [
     VariableDeclarator (WithBaseNodeData {
                 id : Node,
                 init : Option Node,
+            }),
+    ClassDeclaration (WithBaseNodeData {
+                id : Node,
+                superClass : Option Node,
+                body : Node,
+            }),
+    MethodDefinition (WithBaseNodeData {
+                key : Node,
+                value : Node,
+                kind : MethodKind,
+                computed : Bool,
+                static : Bool,
             }),
     UnaryExpression (WithBaseNodeData {
                 operator : UnaryOperator,
@@ -282,6 +299,13 @@ VariableDeclarationKind : [
     Var,
     Let,
     Const,
+]
+
+MethodKind : [
+    Constructor,
+    Method,
+    Get,
+    Set,
 ]
 
 PropertyKind : [
@@ -849,6 +873,112 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("}")
 
+        ClassDeclaration(data) ->
+            super_class_str = when data.superClass is
+                Some(super) ->
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  superClass: ")
+                    |> Str.concat(node_to_str_with_indent(super, indent_level + 1))
+                    |> Str.concat(",")
+                None -> ""
+
+            Str.concat(indent, "ClassDeclaration {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  id: ")
+            |> Str.concat(node_to_str_with_indent(data.id, indent_level + 1))
+            |> Str.concat(",")
+            |> Str.concat(super_class_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("  body: ")
+            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        ReturnStatement(data) ->
+            argument_str = when data.argument is
+                Some(arg) ->
+                    " "
+                    |> Str.concat(node_to_str_with_indent(arg, indent_level + 1))
+                None -> ""
+
+            Str.concat(indent, "ReturnStatement {")
+            |> Str.concat(argument_str)
+            |> Str.concat(" }")
+
+        ThrowStatement(data) ->
+            Str.concat(indent, "ThrowStatement { ")
+            |> Str.concat(node_to_str_with_indent(data.argument, indent_level + 1))
+            |> Str.concat(" }")
+
+        TryStatement(data) ->
+            handler_str = when data.handler is
+                Some(handler) ->
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  handler: ")
+                    |> Str.concat(node_to_str_with_indent(handler, indent_level + 1))
+                    |> Str.concat(",")
+                None -> ""
+
+            finalizer_str = when data.finalizer is
+                Some(finalizer) ->
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  finalizer: ")
+                    |> Str.concat(node_to_str_with_indent(finalizer, indent_level + 1))
+                None -> ""
+
+            Str.concat(indent, "TryStatement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  block: ")
+            |> Str.concat(node_to_str_with_indent(data.block, indent_level + 1))
+            |> Str.concat(",")
+            |> Str.concat(handler_str)
+            |> Str.concat(finalizer_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        CatchClause(data) ->
+            param_str = when data.param is
+                Some(param) ->
+                    " param: "
+                    |> Str.concat(node_to_str_with_indent(param, indent_level + 1))
+                    |> Str.concat(",")
+                None -> ""
+
+            Str.concat(indent, "CatchClause {")
+            |> Str.concat(param_str)
+            |> Str.concat(" body: ")
+            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat(" }")
+
+        MethodDefinition(data) ->
+            kind_str = method_kind_to_str(data.kind)
+            static_str = if data.static then " (static)" else ""
+            computed_str = if data.computed then " (computed)" else ""
+
+            Str.concat(indent, "MethodDefinition {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  kind: ")
+            |> Str.concat(kind_str)
+            |> Str.concat(static_str)
+            |> Str.concat(computed_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  key: ")
+            |> Str.concat(node_to_str_with_indent(data.key, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  value: ")
+            |> Str.concat(node_to_str_with_indent(data.value, indent_level + 1))
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
         _ ->
             Str.concat(indent, "UnsupportedNode")
 
@@ -893,6 +1023,14 @@ variable_declaration_kind_to_str = |kind|
         Var -> "Var"
         Let -> "Let"
         Const -> "Const"
+
+method_kind_to_str : MethodKind -> Str
+method_kind_to_str = |kind|
+    when kind is
+        Constructor -> "constructor"
+        Method -> "method"
+        Get -> "get"
+        Set -> "set"
 
 property_kind_to_str : PropertyKind -> Str
 property_kind_to_str = |kind|

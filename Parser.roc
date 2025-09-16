@@ -17,6 +17,7 @@ import Ast exposing [
     Node,
     ProgramKind,
     VariableDeclarationKind,
+    MethodKind,
     PropertyKind,
     AssignmentOperator,
     LogicalOperator,
@@ -816,6 +817,22 @@ parse_statement = |token_list|
         [FunctionKeyword, .. as rest] ->
             parse_function_declaration(rest)
 
+        # Class declaration
+        [ClassKeyword, .. as rest] ->
+            parse_class_declaration(rest)
+
+        # Return statement
+        [ReturnKeyword, .. as rest] ->
+            parse_return_statement(rest)
+
+        # Throw statement
+        [ThrowKeyword, .. as rest] ->
+            parse_throw_statement(rest)
+
+        # Try statement
+        [TryKeyword, .. as rest] ->
+            parse_try_statement(rest)
+
         # Expression statement (fallback)
         _ ->
             parse_expression_statement(token_list)
@@ -1225,6 +1242,179 @@ parse_function_body_statements = |statements, token_list|
             (stmt, remaining_tokens) = parse_statement(token_list)
             new_statements = List.append(statements, stmt)
             parse_function_body_statements(new_statements, remaining_tokens)
+
+parse_class_declaration : List Token -> (Node, List Token)
+parse_class_declaration = |token_list|
+    when token_list is
+        [IdentifierToken(class_name), .. as rest1] ->
+            class_id = Identifier({ name: class_name })
+
+            # Check for extends clause
+            (super_class, rest2) = when rest1 is
+                [ExtendsKeyword, IdentifierToken(super_name), .. as rest] ->
+                    super_id = Identifier({ name: super_name })
+                    (Some(super_id), rest)
+                _ ->
+                    (None, rest1)
+
+            # Parse class body
+            (class_body, rest3) = parse_class_body(rest2)
+
+            class_decl = ClassDeclaration({
+                id: class_id,
+                superClass: super_class,
+                body: class_body,
+            })
+            (class_decl, rest3)
+
+        _ ->
+            (Error({ message: "Expected class name after 'class' keyword" }), token_list)
+
+parse_class_body : List Token -> (Node, List Token)
+parse_class_body = |token_list|
+    when token_list is
+        [OpenBraceToken, .. as rest] ->
+            # For now, create an empty class body
+            # TODO: Parse class methods and properties
+            (body, remaining_tokens) = parse_class_body_statements([], rest)
+            (body, remaining_tokens)
+
+        _ ->
+            (Error({ message: "Expected '{' to start class body" }), token_list)
+
+parse_class_body_statements : List Node, List Token -> (Node, List Token)
+parse_class_body_statements = |statements, token_list|
+    when token_list is
+        [CloseBraceToken, .. as rest] ->
+            # Create a simple block statement for the class body
+            block = BlockStatement({ body: statements })
+            (block, rest)
+
+        [] ->
+            (Error({ message: "Expected '}' to close class body" }), [])
+
+        # Parse constructor method
+        [ConstructorKeyword, .. as rest] ->
+            (method_def, remaining) = parse_method_definition(Constructor, rest)
+            new_statements = List.append(statements, method_def)
+            parse_class_body_statements(new_statements, remaining)
+
+        # Parse regular method (identifier followed by parentheses)
+        [IdentifierToken(method_name), OpenParenToken, .. as rest] ->
+            method_key = Identifier({ name: method_name })
+            (method_def, remaining) = parse_method_definition_with_key(Method, method_key, List.prepend(rest, OpenParenToken))
+            new_statements = List.append(statements, method_def)
+            parse_class_body_statements(new_statements, remaining)
+
+        # Skip other tokens for now (getters, setters, properties, etc.)
+        [_, .. as rest] ->
+            parse_class_body_statements(statements, rest)
+
+parse_method_definition : MethodKind, List Token -> (Node, List Token)
+parse_method_definition = |kind, token_list|
+    when token_list is
+        [OpenParenToken, .. as rest] ->
+            method_key = when kind is
+                Constructor -> Identifier({ name: "constructor" })
+                _ -> Identifier({ name: "method" })
+            parse_method_definition_with_key(kind, method_key, token_list)
+        _ ->
+            (Error({ message: "Expected '(' after method name" }), token_list)
+
+parse_method_definition_with_key : MethodKind, Node, List Token -> (Node, List Token)
+parse_method_definition_with_key = |kind, key, token_list|
+    # Parse method as a function expression
+    (func_expr, remaining) = parse_function_expression(token_list)
+
+    method_def = MethodDefinition({
+        key: key,
+        value: func_expr,
+        kind: kind,
+        computed: Bool.false,
+        static: Bool.false,
+    })
+    (method_def, remaining)
+
+parse_return_statement : List Token -> (Node, List Token)
+parse_return_statement = |token_list|
+    when token_list is
+        # Return with no argument (just return;)
+        [SemicolonToken, .. as rest] ->
+            return_stmt = ReturnStatement({ argument: None })
+            (return_stmt, rest)
+
+        # Return with argument
+        _ ->
+            (argument, rest1) = parse_expression(Nud, 0, token_list)
+            # Consume optional semicolon
+            rest2 = when rest1 is
+                [SemicolonToken, .. as rest] -> rest
+                _ -> rest1
+            return_stmt = ReturnStatement({ argument: Some(argument) })
+            (return_stmt, rest2)
+
+parse_throw_statement : List Token -> (Node, List Token)
+parse_throw_statement = |token_list|
+    # Throw always requires an argument
+    (argument, rest1) = parse_expression(Nud, 0, token_list)
+    # Consume optional semicolon
+    rest2 = when rest1 is
+        [SemicolonToken, .. as rest] -> rest
+        _ -> rest1
+    throw_stmt = ThrowStatement({ argument: argument })
+    (throw_stmt, rest2)
+
+parse_try_statement : List Token -> (Node, List Token)
+parse_try_statement = |token_list|
+    # Parse try block
+    (try_block, rest1) = parse_block_statement(token_list)
+
+    # Parse optional catch clause
+    (catch_clause, rest2) = when rest1 is
+        [CatchKeyword, .. as rest] ->
+            parse_catch_clause(rest)
+        _ ->
+            (None, rest1)
+
+    # Parse optional finally clause
+    (finally_clause, rest3) = when rest2 is
+        [FinallyKeyword, .. as rest] ->
+            (finally_block, remaining) = parse_block_statement(rest)
+            (Some(finally_block), remaining)
+        _ ->
+            (None, rest2)
+
+    try_stmt = TryStatement({
+        block: try_block,
+        handler: catch_clause,
+        finalizer: finally_clause,
+    })
+    (try_stmt, rest3)
+
+parse_catch_clause : List Token -> (Option Node, List Token)
+parse_catch_clause = |token_list|
+    when token_list is
+        # Catch with parameter: catch (e) { ... }
+        [OpenParenToken, IdentifierToken(param_name), CloseParenToken, .. as rest] ->
+            param = Identifier({ name: param_name })
+            (catch_body, remaining) = parse_block_statement(rest)
+            catch_clause = CatchClause({
+                param: Some(param),
+                body: catch_body,
+            })
+            (Some(catch_clause), remaining)
+
+        # Catch without parameter: catch { ... }
+        [OpenBraceToken, ..] ->
+            (catch_body, remaining) = parse_block_statement(token_list)
+            catch_clause = CatchClause({
+                param: None,
+                body: catch_body,
+            })
+            (Some(catch_clause), remaining)
+
+        _ ->
+            (None, token_list)
 
 parse_arrow_function_body : Node, List Token -> (Node, List Token)
 parse_arrow_function_body = |params_node, token_list|
