@@ -77,6 +77,12 @@ main! = |_|
     # Member access function call
     _ = test_single_case("console.log('hello');")
 
+    # New expression with arguments
+    _ = test_single_case("new Date(2023, 11, 25);")
+
+    # New expression without arguments
+    _ = test_single_case("new Date;")
+
     # Simple variable declaration
     _ = test_single_case("let x = 42;")
 

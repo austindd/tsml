@@ -628,6 +628,20 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("}")
 
+        NewExpression(data) ->
+            args_count = List.len(data.arguments) |> Num.to_str
+            Str.concat(indent, "NewExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  callee: ")
+            |> Str.concat(node_to_str_inline(data.callee, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  arguments: [")
+            |> Str.concat(args_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
         MemberExpression(data) ->
             computed_str = Inspect.to_str(data.computed)
             Str.concat(indent, "MemberExpression {\n")

@@ -176,6 +176,10 @@ parse_primary_expression = |token_list|
         [FunctionKeyword, .. as rest1] ->
             parse_function_expression(rest1)
 
+        # New expressions
+        [NewKeyword, .. as rest1] ->
+            parse_new_expression(rest1)
+
         [OpenParenToken, .. as rest1] ->
             when rest1 is
                 # Empty parentheses - could be arrow function params
@@ -1163,6 +1167,61 @@ parse_function_expression = |token_list|
 
         _ ->
             (Error({ message: "Expected function parameters or name" }), token_list)
+
+parse_new_expression : List Token -> (Node, List Token)
+parse_new_expression = |token_list|
+    # Parse the constructor (callee)
+    (callee, rest1) = parse_primary_expression(token_list)
+
+    # Check if there are arguments (optional for new expressions)
+    when rest1 is
+        [OpenParenToken, .. as rest2] ->
+            # Parse arguments like a function call
+            parse_new_arguments(callee, [], rest2)
+
+        _ ->
+            # New expression without arguments (like `new Date`)
+            new_expr = NewExpression(
+                {
+                    callee: callee,
+                    arguments: [],
+                },
+            )
+            (new_expr, rest1)
+
+parse_new_arguments : Node, List Node, List Token -> (Node, List Token)
+parse_new_arguments = |callee, arguments, token_list|
+    when token_list is
+        [CloseParenToken, .. as rest] ->
+            new_expr = NewExpression(
+                {
+                    callee: callee,
+                    arguments: arguments,
+                },
+            )
+            (new_expr, rest)
+
+        [] ->
+            (Error({ message: "Unexpected end of new expression" }), [])
+
+        _ ->
+            (arg, remaining_tokens) = parse_expression(Nud, 0, token_list)
+            when remaining_tokens is
+                [CommaToken, .. as rest] ->
+                    parse_new_arguments(callee, List.append(arguments, arg), rest)
+
+                [CloseParenToken, .. as rest] ->
+                    final_args = List.append(arguments, arg)
+                    new_expr = NewExpression(
+                        {
+                            callee: callee,
+                            arguments: final_args,
+                        },
+                    )
+                    (new_expr, rest)
+
+                _ ->
+                    (Error({ message: "Expected comma or close paren in new expression" }), remaining_tokens)
 
 parse_function_parameters : List Token -> (List Node, List Token)
 parse_function_parameters = |token_list|
