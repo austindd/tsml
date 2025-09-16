@@ -578,11 +578,11 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  key: ")
-            |> Str.concat(node_to_str_with_indent(data.key, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.key, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  value: ")
-            |> Str.concat(node_to_str_with_indent(data.value, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.value, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -596,11 +596,11 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  left: ")
-            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.left, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  right: ")
-            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.right, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -619,7 +619,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  argument: ")
-            |> Str.concat(node_to_str_with_indent(data.argument, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.argument, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -638,7 +638,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  argument: ")
-            |> Str.concat(node_to_str_with_indent(data.argument, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.argument, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -676,11 +676,11 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "MemberExpression {\n")
             |> Str.concat(indent)
             |> Str.concat("  object: ")
-            |> Str.concat(node_to_str_with_indent(data.object, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.object, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  property: ")
-            |> Str.concat(node_to_str_with_indent(data.property, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.property, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  computed: ")
@@ -727,7 +727,7 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "FunctionDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  id: ")
-            |> Str.concat(node_to_str_with_indent(data.id, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.id, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  params: [")
@@ -735,7 +735,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(" items],\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
-            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  async: ")
@@ -749,13 +749,15 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         FunctionExpression(data) ->
-            id_str = when data.id is
-                Some(identifier) ->
-                    " id: "
-                    |> Str.concat(node_to_str_with_indent(identifier, indent_level + 1))
-                    |> Str.concat(",\n")
-                    |> Str.concat(indent)
-                None -> ""
+            id_str =
+                when data.id is
+                    Some(identifier) ->
+                        " id: "
+                        |> Str.concat(node_to_str_inline(identifier, indent_level + 1))
+                        |> Str.concat(",\n")
+                        |> Str.concat(indent)
+
+                    None -> ""
 
             async_str = Inspect.to_str(data.async)
             generator_str = Inspect.to_str(data.generator)
@@ -835,11 +837,11 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "IfStatement {\n")
             |> Str.concat(indent)
             |> Str.concat("  test: ")
-            |> Str.concat(node_to_str_with_indent(data.test, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.test, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  consequent: ")
-            |> Str.concat(node_to_str_with_indent(data.consequent, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.consequent, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  alternate: ")
@@ -852,11 +854,11 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "WhileStatement {\n")
             |> Str.concat(indent)
             |> Str.concat("  test: ")
-            |> Str.concat(node_to_str_with_indent(data.test, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.test, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
-            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -880,7 +882,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
-            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -889,15 +891,15 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "ForOfStatement {\n")
             |> Str.concat(indent)
             |> Str.concat("  left: ")
-            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.left, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  right: ")
-            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.right, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
-            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -906,15 +908,15 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "ForInStatement {\n")
             |> Str.concat(indent)
             |> Str.concat("  left: ")
-            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.left, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  right: ")
-            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.right, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
-            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -925,7 +927,7 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "SwitchStatement {\n")
             |> Str.concat(indent)
             |> Str.concat("  discriminant: ")
-            |> Str.concat(node_to_str_with_indent(data.discriminant, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.discriminant, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  cases: [")
@@ -936,17 +938,19 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         SwitchCase(data) ->
-            test_str = when data.test is
-                Some(test) ->
-                    "\n"
-                    |> Str.concat(indent)
-                    |> Str.concat("  test: ")
-                    |> Str.concat(node_to_str_with_indent(test, indent_level + 1))
-                    |> Str.concat(",\n")
-                None ->
-                    "\n"
-                    |> Str.concat(indent)
-                    |> Str.concat("  test: null,\n")
+            test_str =
+                when data.test is
+                    Some(test) ->
+                        "\n"
+                        |> Str.concat(indent)
+                        |> Str.concat("  test: ")
+                        |> Str.concat(node_to_str_inline(test, indent_level + 1))
+                        |> Str.concat(",\n")
+
+                    None ->
+                        "\n"
+                        |> Str.concat(indent)
+                        |> Str.concat("  test: null,\n")
 
             consequent_count = List.len(data.consequent) |> Num.to_str
             consequent_str = list_to_str_with_indent(data.consequent, indent_level + 2)
@@ -970,11 +974,11 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  left: ")
-            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.left, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  right: ")
-            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.right, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -988,11 +992,11 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  left: ")
-            |> Str.concat(node_to_str_with_indent(data.left, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.left, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  right: ")
-            |> Str.concat(node_to_str_with_indent(data.right, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.right, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -1001,15 +1005,15 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "ConditionalExpression {\n")
             |> Str.concat(indent)
             |> Str.concat("  test: ")
-            |> Str.concat(node_to_str_with_indent(data.test, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.test, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  consequent: ")
-            |> Str.concat(node_to_str_with_indent(data.consequent, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.consequent, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  alternate: ")
-            |> Str.concat(node_to_str_with_indent(data.alternate, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.alternate, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -1079,26 +1083,30 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         ExportNamedDeclaration(data) ->
-            declaration_str = when data.declaration is
-                Some(decl) ->
-                    "\n"
-                    |> Str.concat(indent)
-                    |> Str.concat("  declaration: ")
-                    |> Str.concat(node_to_str_with_indent(decl, indent_level + 1))
-                    |> Str.concat(",\n")
-                None -> ""
+            declaration_str =
+                when data.declaration is
+                    Some(decl) ->
+                        "\n"
+                        |> Str.concat(indent)
+                        |> Str.concat("  declaration: ")
+                        |> Str.concat(node_to_str_inline(decl, indent_level + 1))
+                        |> Str.concat(",\n")
+
+                    None -> ""
 
             specifiers_count = List.len(data.specifiers) |> Num.to_str
             specifiers_str = list_to_str_with_indent(data.specifiers, indent_level + 2)
 
-            source_str = when data.source is
-                Some(src) ->
-                    "\n"
-                    |> Str.concat(indent)
-                    |> Str.concat("  source: ")
-                    |> Str.concat(node_to_str_with_indent(src, indent_level + 1))
-                    |> Str.concat(",\n")
-                None -> ""
+            source_str =
+                when data.source is
+                    Some(src) ->
+                        "\n"
+                        |> Str.concat(indent)
+                        |> Str.concat("  source: ")
+                        |> Str.concat(node_to_str_inline(src, indent_level + 1))
+                        |> Str.concat(",\n")
+
+                    None -> ""
 
             Str.concat(indent, "ExportNamedDeclaration {")
             |> Str.concat(declaration_str)
@@ -1112,7 +1120,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         ExportDefaultDeclaration(data) ->
-            declaration_str = node_to_str_with_indent(data.declaration, indent_level + 1)
+            declaration_str = node_to_str_inline(data.declaration, indent_level + 1)
             Str.concat(indent, "ExportDefaultDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  declaration: ")
@@ -1122,7 +1130,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         ExportAllDeclaration(data) ->
-            source_str = node_to_str_with_indent(data.source, indent_level + 1)
+            source_str = node_to_str_inline(data.source, indent_level + 1)
             Str.concat(indent, "ExportAllDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  source: ")
@@ -1132,8 +1140,8 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         ExportSpecifier(data) ->
-            exported_str = node_to_str_with_indent(data.exported, indent_level + 1)
-            local_str = node_to_str_with_indent(data.local, indent_level + 1)
+            exported_str = node_to_str_inline(data.exported, indent_level + 1)
+            local_str = node_to_str_inline(data.local, indent_level + 1)
             Str.concat(indent, "ExportSpecifier {\n")
             |> Str.concat(indent)
             |> Str.concat("  exported: ")
@@ -1147,14 +1155,16 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         ClassDeclaration(data) ->
-            super_class_str = when data.superClass is
-                Some(super) ->
-                    "\n"
-                    |> Str.concat(indent)
-                    |> Str.concat("  superClass: ")
-                    |> Str.concat(node_to_str_with_indent(super, indent_level + 1))
-                    |> Str.concat(",")
-                None -> ""
+            super_class_str =
+                when data.superClass is
+                    Some(super) ->
+                        "\n"
+                        |> Str.concat(indent)
+                        |> Str.concat("  superClass: ")
+                        |> Str.concat(node_to_str_inline(super, indent_level + 1))
+                        |> Str.concat(",")
+
+                    None -> ""
 
             Str.concat(indent, "ClassDeclaration {\n")
             |> Str.concat(indent)
@@ -1171,33 +1181,39 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         ReturnStatement(data) ->
-            argument_str = when data.argument is
-                Some(arg) ->
-                    " "
-                    |> Str.concat(node_to_str_inline(arg, indent_level + 1))
-                None -> ""
+            argument_str =
+                when data.argument is
+                    Some(arg) ->
+                        " "
+                        |> Str.concat(node_to_str_inline(arg, indent_level + 1))
+
+                    None -> ""
 
             Str.concat(indent, "ReturnStatement {")
             |> Str.concat(argument_str)
             |> Str.concat(" }")
 
         BreakStatement(data) ->
-            label_str = when data.label is
-                Some(label) ->
-                    " label: "
-                    |> Str.concat(node_to_str_inline(label, indent_level + 1))
-                None -> ""
+            label_str =
+                when data.label is
+                    Some(label) ->
+                        " label: "
+                        |> Str.concat(node_to_str_inline(label, indent_level + 1))
+
+                    None -> ""
 
             Str.concat(indent, "BreakStatement {")
             |> Str.concat(label_str)
             |> Str.concat(" }")
 
         ContinueStatement(data) ->
-            label_str = when data.label is
-                Some(label) ->
-                    " label: "
-                    |> Str.concat(node_to_str_inline(label, indent_level + 1))
-                None -> ""
+            label_str =
+                when data.label is
+                    Some(label) ->
+                        " label: "
+                        |> Str.concat(node_to_str_inline(label, indent_level + 1))
+
+                    None -> ""
 
             Str.concat(indent, "ContinueStatement {")
             |> Str.concat(label_str)
@@ -1209,27 +1225,31 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(" }")
 
         TryStatement(data) ->
-            handler_str = when data.handler is
-                Some(handler) ->
-                    "\n"
-                    |> Str.concat(indent)
-                    |> Str.concat("  handler: ")
-                    |> Str.concat(node_to_str_with_indent(handler, indent_level + 1))
-                    |> Str.concat(",")
-                None -> ""
+            handler_str =
+                when data.handler is
+                    Some(handler) ->
+                        "\n"
+                        |> Str.concat(indent)
+                        |> Str.concat("  handler: ")
+                        |> Str.concat(node_to_str_inline(handler, indent_level + 1))
+                        |> Str.concat(",")
 
-            finalizer_str = when data.finalizer is
-                Some(finalizer) ->
-                    "\n"
-                    |> Str.concat(indent)
-                    |> Str.concat("  finalizer: ")
-                    |> Str.concat(node_to_str_with_indent(finalizer, indent_level + 1))
-                None -> ""
+                    None -> ""
+
+            finalizer_str =
+                when data.finalizer is
+                    Some(finalizer) ->
+                        "\n"
+                        |> Str.concat(indent)
+                        |> Str.concat("  finalizer: ")
+                        |> Str.concat(node_to_str_inline(finalizer, indent_level + 1))
+
+                    None -> ""
 
             Str.concat(indent, "TryStatement {\n")
             |> Str.concat(indent)
             |> Str.concat("  block: ")
-            |> Str.concat(node_to_str_with_indent(data.block, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.block, indent_level + 1))
             |> Str.concat(",")
             |> Str.concat(handler_str)
             |> Str.concat(finalizer_str)
@@ -1238,17 +1258,19 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("}")
 
         CatchClause(data) ->
-            param_str = when data.param is
-                Some(param) ->
-                    " param: "
-                    |> Str.concat(node_to_str_with_indent(param, indent_level + 1))
-                    |> Str.concat(",")
-                None -> ""
+            param_str =
+                when data.param is
+                    Some(param) ->
+                        " param: "
+                        |> Str.concat(node_to_str_inline(param, indent_level + 1))
+                        |> Str.concat(",")
+
+                    None -> ""
 
             Str.concat(indent, "CatchClause {")
             |> Str.concat(param_str)
             |> Str.concat(" body: ")
-            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
             |> Str.concat(" }")
 
         MethodDefinition(data) ->
