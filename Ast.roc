@@ -885,6 +885,48 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("}")
 
+        SwitchStatement(data) ->
+            cases_count = List.len(data.cases) |> Num.to_str
+            cases_str = list_to_str_with_indent(data.cases, indent_level + 2)
+            Str.concat(indent, "SwitchStatement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  discriminant: ")
+            |> Str.concat(node_to_str_with_indent(data.discriminant, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  cases: [")
+            |> Str.concat(cases_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(cases_str)
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        SwitchCase(data) ->
+            test_str = when data.test is
+                Some(test) ->
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  test: ")
+                    |> Str.concat(node_to_str_with_indent(test, indent_level + 1))
+                    |> Str.concat(",\n")
+                None ->
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  test: null,\n")
+
+            consequent_count = List.len(data.consequent) |> Num.to_str
+            consequent_str = list_to_str_with_indent(data.consequent, indent_level + 2)
+
+            Str.concat(indent, "SwitchCase {")
+            |> Str.concat(test_str)
+            |> Str.concat(indent)
+            |> Str.concat("  consequent: [")
+            |> Str.concat(consequent_count)
+            |> Str.concat(" items]\n")
+            |> Str.concat(consequent_str)
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
         AssignmentExpression(data) ->
             op_str = assignment_operator_to_str(data.operator)
             Str.concat(indent, "AssignmentExpression {\n")
@@ -1103,6 +1145,28 @@ node_to_str_with_indent = |node, indent_level|
 
             Str.concat(indent, "ReturnStatement {")
             |> Str.concat(argument_str)
+            |> Str.concat(" }")
+
+        BreakStatement(data) ->
+            label_str = when data.label is
+                Some(label) ->
+                    " label: "
+                    |> Str.concat(node_to_str_inline(label, indent_level + 1))
+                None -> ""
+
+            Str.concat(indent, "BreakStatement {")
+            |> Str.concat(label_str)
+            |> Str.concat(" }")
+
+        ContinueStatement(data) ->
+            label_str = when data.label is
+                Some(label) ->
+                    " label: "
+                    |> Str.concat(node_to_str_inline(label, indent_level + 1))
+                None -> ""
+
+            Str.concat(indent, "ContinueStatement {")
+            |> Str.concat(label_str)
             |> Str.concat(" }")
 
         ThrowStatement(data) ->

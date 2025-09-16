@@ -828,6 +828,10 @@ parse_statement = |token_list|
         [ForKeyword, .. as rest] ->
             parse_for_statement(rest)
 
+        # Switch statement
+        [SwitchKeyword, .. as rest] ->
+            parse_switch_statement(rest)
+
         # Function declaration
         [FunctionKeyword, .. as rest] ->
             parse_function_declaration(rest)
@@ -847,6 +851,14 @@ parse_statement = |token_list|
         # Return statement
         [ReturnKeyword, .. as rest] ->
             parse_return_statement(rest)
+
+        # Break statement
+        [BreakKeyword, .. as rest] ->
+            parse_break_statement(rest)
+
+        # Continue statement
+        [ContinueKeyword, .. as rest] ->
+            parse_continue_statement(rest)
 
         # Throw statement
         [ThrowKeyword, .. as rest] ->
@@ -1894,4 +1906,163 @@ parse_export_specifiers = |specifiers, token_list|
             })
             new_specifiers = List.append(specifiers, error_specifier)
             (new_specifiers, token_list)
+
+# Switch statement parsing
+parse_switch_statement : List Token -> (Node, List Token)
+parse_switch_statement = |token_list|
+    when token_list is
+        [OpenParenToken, .. as rest1] ->
+            # Parse the discriminant expression
+            (discriminant, rest2) = parse_expression(Nud, 0, rest1)
+            when rest2 is
+                [CloseParenToken, OpenBraceToken, .. as rest3] ->
+                    # Parse switch cases
+                    (cases, rest4) = parse_switch_cases([], rest3)
+                    when rest4 is
+                        [CloseBraceToken, .. as rest5] ->
+                            switch_stmt = SwitchStatement({
+                                discriminant: discriminant,
+                                cases: cases,
+                            })
+                            (switch_stmt, rest5)
+                        _ ->
+                            error_switch = SwitchStatement({
+                                discriminant: discriminant,
+                                cases: cases,
+                            })
+                            (error_switch, rest4)
+                _ ->
+                    error_switch = SwitchStatement({
+                        discriminant: Error({ message: "Expected ')' and '{' after switch discriminant" }),
+                        cases: [],
+                    })
+                    (error_switch, rest2)
+        _ ->
+            error_switch = SwitchStatement({
+                discriminant: Error({ message: "Expected '(' after switch keyword" }),
+                cases: [],
+            })
+            (error_switch, token_list)
+
+parse_switch_cases : List Node, List Token -> (List Node, List Token)
+parse_switch_cases = |cases, token_list|
+    when token_list is
+        # End of switch body
+        [CloseBraceToken, .. as rest] ->
+            (cases, [CloseBraceToken] |> List.concat(rest))
+
+        # Case clause
+        [CaseKeyword, .. as rest1] ->
+            (test_expr, rest2) = parse_expression(Nud, 0, rest1)
+            when rest2 is
+                [ColonToken, .. as rest3] ->
+                    (consequent, rest4) = parse_case_consequent([], rest3)
+                    case_node = SwitchCase({
+                        test: Some(test_expr),
+                        consequent: consequent,
+                    })
+                    new_cases = List.append(cases, case_node)
+                    parse_switch_cases(new_cases, rest4)
+                _ ->
+                    error_case = SwitchCase({
+                        test: Some(Error({ message: "Expected ':' after case test" })),
+                        consequent: [],
+                    })
+                    new_cases = List.append(cases, error_case)
+                    parse_switch_cases(new_cases, rest2)
+
+        # Default clause
+        [DefaultKeyword, ColonToken, .. as rest1] ->
+            (consequent, rest2) = parse_case_consequent([], rest1)
+            default_case = SwitchCase({
+                test: None,
+                consequent: consequent,
+            })
+            new_cases = List.append(cases, default_case)
+            parse_switch_cases(new_cases, rest2)
+
+        # Error case - unexpected token
+        [_, .. as rest] ->
+            error_case = SwitchCase({
+                test: Some(Error({ message: "Expected 'case' or 'default' in switch body" })),
+                consequent: [],
+            })
+            new_cases = List.append(cases, error_case)
+            (new_cases, rest)
+
+        # Empty case
+        [] ->
+            (cases, [])
+
+parse_case_consequent : List Node, List Token -> (List Node, List Token)
+parse_case_consequent = |statements, token_list|
+    when token_list is
+        # End of case - next case or default
+        [CaseKeyword, .. as rest] ->
+            (statements, [CaseKeyword] |> List.concat(rest))
+
+        [DefaultKeyword, .. as rest] ->
+            (statements, [DefaultKeyword] |> List.concat(rest))
+
+        # End of switch body
+        [CloseBraceToken, .. as rest] ->
+            (statements, [CloseBraceToken] |> List.concat(rest))
+
+        # Parse a statement
+        _ ->
+            (stmt, rest) = parse_statement(token_list)
+            new_statements = List.append(statements, stmt)
+            parse_case_consequent(new_statements, rest)
+
+# Break statement parsing
+parse_break_statement : List Token -> (Node, List Token)
+parse_break_statement = |token_list|
+    when token_list is
+        # break label;
+        [IdentifierToken(label), SemicolonToken, .. as rest] ->
+            label_node = Identifier({ name: label })
+            break_stmt = BreakStatement({ label: Some(label_node) })
+            (break_stmt, rest)
+
+        # break label (without semicolon)
+        [IdentifierToken(label), .. as rest] ->
+            label_node = Identifier({ name: label })
+            break_stmt = BreakStatement({ label: Some(label_node) })
+            (break_stmt, rest)
+
+        # break;
+        [SemicolonToken, .. as rest] ->
+            break_stmt = BreakStatement({ label: None })
+            (break_stmt, rest)
+
+        # break (without semicolon - ASI)
+        _ ->
+            break_stmt = BreakStatement({ label: None })
+            (break_stmt, token_list)
+
+# Continue statement parsing
+parse_continue_statement : List Token -> (Node, List Token)
+parse_continue_statement = |token_list|
+    when token_list is
+        # continue label;
+        [IdentifierToken(label), SemicolonToken, .. as rest] ->
+            label_node = Identifier({ name: label })
+            continue_stmt = ContinueStatement({ label: Some(label_node) })
+            (continue_stmt, rest)
+
+        # continue label (without semicolon)
+        [IdentifierToken(label), .. as rest] ->
+            label_node = Identifier({ name: label })
+            continue_stmt = ContinueStatement({ label: Some(label_node) })
+            (continue_stmt, rest)
+
+        # continue;
+        [SemicolonToken, .. as rest] ->
+            continue_stmt = ContinueStatement({ label: None })
+            (continue_stmt, rest)
+
+        # continue (without semicolon - ASI)
+        _ ->
+            continue_stmt = ContinueStatement({ label: None })
+            (continue_stmt, token_list)
 
