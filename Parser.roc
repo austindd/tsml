@@ -203,8 +203,9 @@ parse_primary_expression = |token_list|
                             (node, rest2)
 
                         [tok, ..] ->
+                            token_name = Token.ts_token_debug_display(tok)
                             (
-                                Error({ message: "parse_expression() failed -- Expected close paren, but got ${ts_token_debug_display(tok)}" }),
+                                Error({ message: "parse_expression() failed -- Expected close paren, but got $(token_name)" }),
                                 remaining_tokens,
                             )
 
@@ -217,7 +218,12 @@ parse_primary_expression = |token_list|
         [CloseParenToken, .. as rest] ->
             (Error({ message: "Unexpected close paren" }), rest)
 
-        _ -> crash("parse_primary_expression() failed -- This should never happen")
+        [] ->
+            (Error({ message: "parse_primary_expression: Empty token list" }), [])
+
+        [tok, .. as rest] ->
+            token_name = Token.ts_token_debug_display(tok)
+            (Error({ message: "parse_primary_expression: Unexpected token $(token_name)" }), rest)
 
 parse_expression_led : Node, U16, List Token -> (Node, List Token)
 parse_expression_led = |left_node, min_precedence, token_list|
@@ -363,7 +369,9 @@ parse_expression_led = |left_node, min_precedence, token_list|
 
                 # FunctionCall
                 [OpenParenToken, .. as rest1] ->
-                    parse_function_call(left_node, rest1)
+                    (call_expr, rest2) = parse_function_call(left_node, rest1)
+                    # Continue parsing for additional operators (like sequence expressions)
+                    parse_expression_led(call_expr, min_precedence, rest2)
 
                 # MemberAccess - dot notation
                 [DotToken, .. as rest1] ->
@@ -644,7 +652,8 @@ parse_array_elements = |elements, token_list|
             (Error({ message: "Unexpected end of array literal" }), [])
 
         _ ->
-            (element, remaining_tokens) = parse_expression(Nud, 0, token_list)
+            # Parse expression with precedence higher than sequence (50) to avoid treating commas as sequence operators
+            (element, remaining_tokens) = parse_expression(Nud, 100, token_list)
             when remaining_tokens is
                 [CommaToken, .. as rest] ->
                     parse_array_elements(List.append(elements, element), rest)
