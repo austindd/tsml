@@ -173,8 +173,14 @@ parse_primary_expression = |token_list|
             parse_object_literal(rest1)
 
         # Function expressions
+        [AsyncKeyword, FunctionKeyword, AsteriskToken, .. as rest1] ->
+            parse_async_generator_function_expression(rest1)
+
         [AsyncKeyword, FunctionKeyword, .. as rest1] ->
             parse_async_function_expression(rest1)
+
+        [FunctionKeyword, AsteriskToken, .. as rest1] ->
+            parse_generator_function_expression(rest1)
 
         # Async arrow functions - async x => ... or async (x) => ...
         [AsyncKeyword, .. as rest1] ->
@@ -249,6 +255,19 @@ parse_primary_expression = |token_list|
             (argument, rest2) = parse_expression(Nud, 1600, rest1)  # High precedence for await
             await_expr = AwaitExpression({ argument: argument })
             (await_expr, rest2)
+
+        # Yield expressions
+        [YieldKeyword, AsteriskToken, .. as rest1] ->
+            # yield* expression (delegate)
+            (argument, rest2) = parse_expression(Nud, 1600, rest1)  # High precedence for yield
+            yield_expr = YieldExpression({ argument: argument, delegate: Bool.true })
+            (yield_expr, rest2)
+
+        [YieldKeyword, .. as rest1] ->
+            # yield expression (non-delegate)
+            (argument, rest2) = parse_expression(Nud, 1600, rest1)  # High precedence for yield
+            yield_expr = YieldExpression({ argument: argument, delegate: Bool.false })
+            (yield_expr, rest2)
 
         [CloseParenToken, .. as rest] ->
             (Error({ message: "Unexpected close paren" }), rest)
@@ -891,9 +910,17 @@ parse_statement = |token_list|
         [SwitchKeyword, .. as rest] ->
             parse_switch_statement(rest)
 
+        # Async generator function declaration
+        [AsyncKeyword, FunctionKeyword, AsteriskToken, .. as rest] ->
+            parse_async_generator_function_declaration(rest)
+
         # Async function declaration
         [AsyncKeyword, FunctionKeyword, .. as rest] ->
             parse_async_function_declaration(rest)
+
+        # Generator function declaration
+        [FunctionKeyword, AsteriskToken, .. as rest] ->
+            parse_generator_function_declaration(rest)
 
         # Function declaration
         [FunctionKeyword, .. as rest] ->
@@ -1386,6 +1413,48 @@ parse_async_function_declaration = |token_list|
         _ ->
             crash("parse_async_function_declaration() failed -- This should never happen")
 
+parse_generator_function_declaration : List Token -> (Node, List Token)
+parse_generator_function_declaration = |token_list|
+    when token_list is
+        [IdentifierToken(name), .. as rest1] ->
+            identifier = Identifier({ name: name })
+            (params, rest2) = parse_function_parameters(rest1)
+            (body, rest3) = parse_function_body(rest2)
+            func_decl = FunctionDeclaration(
+                {
+                    id: identifier,
+                    params: params,
+                    body: body,
+                    generator: Bool.true,
+                    async: Bool.false,
+                },
+            )
+            (func_decl, rest3)
+
+        _ ->
+            crash("parse_generator_function_declaration() failed -- This should never happen")
+
+parse_async_generator_function_declaration : List Token -> (Node, List Token)
+parse_async_generator_function_declaration = |token_list|
+    when token_list is
+        [IdentifierToken(name), .. as rest1] ->
+            identifier = Identifier({ name: name })
+            (params, rest2) = parse_function_parameters(rest1)
+            (body, rest3) = parse_function_body(rest2)
+            func_decl = FunctionDeclaration(
+                {
+                    id: identifier,
+                    params: params,
+                    body: body,
+                    generator: Bool.true,
+                    async: Bool.true,
+                },
+            )
+            (func_decl, rest3)
+
+        _ ->
+            crash("parse_async_generator_function_declaration() failed -- This should never happen")
+
 parse_function_expression : List Token -> (Node, List Token)
 parse_function_expression = |token_list|
     when token_list is
@@ -1459,6 +1528,80 @@ parse_async_function_expression = |token_list|
 
         _ ->
             (Error({ message: "Expected async function parameters or name" }), token_list)
+
+parse_generator_function_expression : List Token -> (Node, List Token)
+parse_generator_function_expression = |token_list|
+    when token_list is
+        [IdentifierToken(name), .. as rest1] ->
+            # Named generator function expression
+            identifier = Identifier({ name: name })
+            (params, rest2) = parse_function_parameters(rest1)
+            (body, rest3) = parse_function_body(rest2)
+            func_expr = FunctionExpression(
+                {
+                    id: Some(identifier),
+                    params: params,
+                    body: body,
+                    generator: Bool.true,
+                    async: Bool.false,
+                },
+            )
+            (func_expr, rest3)
+
+        [OpenParenToken, .. as rest1] ->
+            # Anonymous generator function expression
+            (params, rest2) = parse_function_parameters(token_list)
+            (body, rest3) = parse_function_body(rest2)
+            func_expr = FunctionExpression(
+                {
+                    id: None,
+                    params: params,
+                    body: body,
+                    generator: Bool.true,
+                    async: Bool.false,
+                },
+            )
+            (func_expr, rest3)
+
+        _ ->
+            (Error({ message: "Expected generator function parameters or name" }), token_list)
+
+parse_async_generator_function_expression : List Token -> (Node, List Token)
+parse_async_generator_function_expression = |token_list|
+    when token_list is
+        [IdentifierToken(name), .. as rest1] ->
+            # Named async generator function expression
+            identifier = Identifier({ name: name })
+            (params, rest2) = parse_function_parameters(rest1)
+            (body, rest3) = parse_function_body(rest2)
+            func_expr = FunctionExpression(
+                {
+                    id: Some(identifier),
+                    params: params,
+                    body: body,
+                    generator: Bool.true,
+                    async: Bool.true,
+                },
+            )
+            (func_expr, rest3)
+
+        [OpenParenToken, .. as rest1] ->
+            # Anonymous async generator function expression
+            (params, rest2) = parse_function_parameters(token_list)
+            (body, rest3) = parse_function_body(rest2)
+            func_expr = FunctionExpression(
+                {
+                    id: None,
+                    params: params,
+                    body: body,
+                    generator: Bool.true,
+                    async: Bool.true,
+                },
+            )
+            (func_expr, rest3)
+
+        _ ->
+            (Error({ message: "Expected async generator function parameters or name" }), token_list)
 
 parse_new_expression : List Token -> (Node, List Token)
 parse_new_expression = |token_list|

@@ -336,6 +336,10 @@ Node : [
     AwaitExpression (WithBaseNodeData {
                 argument : Node,
             }),
+    YieldExpression (WithBaseNodeData {
+                argument : Node,
+                delegate : Bool,
+            }),
 ]
 
 ProgramKind : [
@@ -1238,6 +1242,21 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("  argument: ")
             |> Str.concat(argument_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        YieldExpression(data) ->
+            argument_str = node_to_str_inline(data.argument, indent_level + 1)
+            delegate_str = if data.delegate then "Bool.true" else "Bool.false"
+            Str.concat(indent, "YieldExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  argument: ")
+            |> Str.concat(argument_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  delegate: ")
+            |> Str.concat(delegate_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
