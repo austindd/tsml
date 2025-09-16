@@ -937,6 +937,14 @@ parse_statement = |token_list|
         [ClassKeyword, .. as rest] ->
             parse_class_declaration(rest)
 
+        # TypeScript interface declaration
+        [InterfaceKeyword, .. as rest] ->
+            parse_interface_declaration(rest)
+
+        # TypeScript type alias declaration
+        [TypeKeyword, .. as rest] ->
+            parse_type_alias_declaration(rest)
+
         # Import declaration
         [ImportKeyword, .. as rest] ->
             parse_import_declaration(rest)
@@ -1008,7 +1016,16 @@ parse_variable_declarator = |token_list|
     when token_list is
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
-            when rest1 is
+
+            # Check for type annotation: let name: type
+            (type_annotation, remaining_after_type) = when rest1 is
+                [ColonToken, .. as rest2] ->
+                    parse_type_annotation(rest2)
+                _ ->
+                    # No type annotation
+                    (None, rest1)
+
+            when remaining_after_type is
                 [EqualsToken, .. as rest2] ->
                     # Has initializer
                     (init_expr, rest3) = parse_expression(Nud, 0, rest2)
@@ -1028,7 +1045,7 @@ parse_variable_declarator = |token_list|
                             init: None,
                         },
                     )
-                    (declarator, rest1)
+                    (declarator, remaining_after_type)
 
         # Array destructuring: [a, b] = expr
         [OpenBracketToken, .. as rest1] ->
@@ -1384,7 +1401,16 @@ parse_function_declaration = |token_list|
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
-            (body, rest3) = parse_function_body(rest2)
+
+            # Check for return type annotation: function name(): type
+            (return_type, rest3) = when rest2 is
+                [ColonToken, .. as rest_after_colon] ->
+                    parse_type_annotation(rest_after_colon)
+                _ ->
+                    # No return type annotation
+                    (None, rest2)
+
+            (body, rest4) = parse_function_body(rest3)
             func_decl = FunctionDeclaration(
                 {
                     id: identifier,
@@ -1394,7 +1420,7 @@ parse_function_declaration = |token_list|
                     async: Bool.false,
                 },
             )
-            (func_decl, rest3)
+            (func_decl, rest4)
 
         _ ->
             crash("parse_function_declaration() failed -- This should never happen")
@@ -1405,7 +1431,16 @@ parse_async_function_declaration = |token_list|
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
-            (body, rest3) = parse_function_body(rest2)
+
+            # Check for return type annotation: async function name(): type
+            (return_type, rest3) = when rest2 is
+                [ColonToken, .. as rest_after_colon] ->
+                    parse_type_annotation(rest_after_colon)
+                _ ->
+                    # No return type annotation
+                    (None, rest2)
+
+            (body, rest4) = parse_function_body(rest3)
             func_decl = FunctionDeclaration(
                 {
                     id: identifier,
@@ -1415,7 +1450,7 @@ parse_async_function_declaration = |token_list|
                     async: Bool.true,
                 },
             )
-            (func_decl, rest3)
+            (func_decl, rest4)
 
         _ ->
             crash("parse_async_function_declaration() failed -- This should never happen")
@@ -1426,7 +1461,16 @@ parse_generator_function_declaration = |token_list|
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
-            (body, rest3) = parse_function_body(rest2)
+
+            # Check for return type annotation: function* name(): type
+            (return_type, rest3) = when rest2 is
+                [ColonToken, .. as rest_after_colon] ->
+                    parse_type_annotation(rest_after_colon)
+                _ ->
+                    # No return type annotation
+                    (None, rest2)
+
+            (body, rest4) = parse_function_body(rest3)
             func_decl = FunctionDeclaration(
                 {
                     id: identifier,
@@ -1436,7 +1480,7 @@ parse_generator_function_declaration = |token_list|
                     async: Bool.false,
                 },
             )
-            (func_decl, rest3)
+            (func_decl, rest4)
 
         _ ->
             crash("parse_generator_function_declaration() failed -- This should never happen")
@@ -1447,7 +1491,16 @@ parse_async_generator_function_declaration = |token_list|
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
-            (body, rest3) = parse_function_body(rest2)
+
+            # Check for return type annotation: async function* name(): type
+            (return_type, rest3) = when rest2 is
+                [ColonToken, .. as rest_after_colon] ->
+                    parse_type_annotation(rest_after_colon)
+                _ ->
+                    # No return type annotation
+                    (None, rest2)
+
+            (body, rest4) = parse_function_body(rest3)
             func_decl = FunctionDeclaration(
                 {
                     id: identifier,
@@ -1457,7 +1510,7 @@ parse_async_generator_function_declaration = |token_list|
                     async: Bool.true,
                 },
             )
-            (func_decl, rest3)
+            (func_decl, rest4)
 
         _ ->
             crash("parse_async_generator_function_declaration() failed -- This should never happen")
@@ -1687,19 +1740,31 @@ parse_parameter_list = |params, token_list|
             (params, rest)
 
         [IdentifierToken(param_name), .. as rest1] ->
+            # Check for type annotation: param: type
+            (param_with_type, remaining_after_type) = when rest1 is
+                [ColonToken, .. as rest2] ->
+                    (type_annotation, remaining) = parse_type_annotation(rest2)
+                    identifier_with_type = Identifier({ name: param_name })
+                    # For now, we'll create a simple identifier but in a full implementation
+                    # we'd need a TypeScript-specific parameter node with type annotation
+                    (identifier_with_type, remaining)
+                _ ->
+                    # No type annotation
+                    (Identifier({ name: param_name }), rest1)
+
             # Check for default value: param = defaultValue
-            (param, remaining_tokens) = when rest1 is
+            (param, remaining_tokens) = when remaining_after_type is
                 [EqualsToken, .. as rest2] ->
                     # Parse default value with precedence 60 to stop at comma
                     (default_expr, remaining) = parse_expression(Nud, 60, rest2)
                     assignment_pattern = AssignmentPattern({
-                        left: Identifier({ name: param_name }),
+                        left: param_with_type,
                         right: default_expr,
                     })
                     (assignment_pattern, remaining)
                 _ ->
-                    # No default value, just identifier
-                    (Identifier({ name: param_name }), rest1)
+                    # No default value
+                    (param_with_type, remaining_after_type)
 
             new_params = List.append(params, param)
             when remaining_tokens is
@@ -2775,4 +2840,286 @@ parse_continue_statement = |token_list|
         _ ->
             continue_stmt = ContinueStatement({ label: None })
             (continue_stmt, token_list)
+
+# TypeScript interface declaration parsing
+parse_interface_declaration : List Token -> (Node, List Token)
+parse_interface_declaration = |token_list|
+    when token_list is
+        [IdentifierToken(interface_name), .. as rest1] ->
+            interface_id = Identifier({ name: interface_name })
+
+            # Check for extends clause
+            (extends_clause, rest2) = when rest1 is
+                [ExtendsKeyword, .. as rest] ->
+                    (extends_list, remaining) = parse_interface_extends(rest)
+                    (Some(extends_list), remaining)
+                _ ->
+                    (None, rest1)
+
+            # Parse interface body
+            (interface_body, rest3) = parse_interface_body(rest2)
+
+            interface_decl = TSInterfaceDeclaration({
+                id: interface_id,
+                body: interface_body,
+                extends: extends_clause,
+            })
+            (interface_decl, rest3)
+
+        _ ->
+            (Error({ message: "Expected interface name after 'interface' keyword" }), token_list)
+
+parse_interface_extends : List Token -> (List Node, List Token)
+parse_interface_extends = |token_list|
+    when token_list is
+        [IdentifierToken(type_name), .. as rest1] ->
+            type_ref = TSTypeReference({ typeName: Identifier({ name: type_name }), typeParameters: None })
+
+            # Check for more extends (comma-separated)
+            when rest1 is
+                [CommaToken, .. as rest2] ->
+                    (more_extends, rest3) = parse_interface_extends(rest2)
+                    (List.prepend(more_extends, type_ref), rest3)
+                _ ->
+                    ([type_ref], rest1)
+
+        _ ->
+            ([], token_list)
+
+parse_interface_body : List Token -> (Node, List Token)
+parse_interface_body = |token_list|
+    when token_list is
+        [OpenBraceToken, .. as rest1] ->
+            parse_interface_body_statements([], rest1)
+
+        _ ->
+            (Error({ message: "Expected '{' for interface body" }), token_list)
+
+parse_interface_body_statements : List Node, List Token -> (Node, List Token)
+parse_interface_body_statements = |statements, token_list|
+    when token_list is
+        [CloseBraceToken, .. as rest] ->
+            interface_body = TSInterfaceBody({ body: statements })
+            (interface_body, rest)
+
+        [IdentifierToken(prop_name), QuestionToken, ColonToken, .. as rest1] ->
+            # Optional property: name?: type
+            (type_annotation, rest2) = parse_type_annotation(rest1)
+            prop_key = Identifier({ name: prop_name })
+            prop_sig = TSPropertySignature({
+                key: prop_key,
+                typeAnnotation: Some(type_annotation),
+                optional: Bool.true,
+            })
+            new_statements = List.append(statements, prop_sig)
+            parse_interface_body_statements(new_statements, rest2)
+
+        [IdentifierToken(prop_name), ColonToken, .. as rest1] ->
+            # Required property: name: type
+            (type_annotation, rest2) = parse_type_annotation(rest1)
+            prop_key = Identifier({ name: prop_name })
+            prop_sig = TSPropertySignature({
+                key: prop_key,
+                typeAnnotation: Some(type_annotation),
+                optional: Bool.false,
+            })
+            new_statements = List.append(statements, prop_sig)
+            parse_interface_body_statements(new_statements, rest2)
+
+        [IdentifierToken(method_name), OpenParenToken, .. as rest1] ->
+            # Method signature: name(params): returnType
+            method_key = Identifier({ name: method_name })
+            (params, rest2) = parse_method_signature_params([], rest1)
+            (return_type, rest3) = when rest2 is
+                [ColonToken, .. as rest] ->
+                    (type_node, remaining) = parse_type_annotation(rest)
+                    (Some(type_node), remaining)
+                _ ->
+                    (None, rest2)
+
+            method_sig = TSMethodSignature({
+                key: method_key,
+                params: params,
+                returnType: return_type,
+            })
+            new_statements = List.append(statements, method_sig)
+            parse_interface_body_statements(new_statements, rest3)
+
+        [SemicolonToken, .. as rest] ->
+            # Skip semicolons
+            parse_interface_body_statements(statements, rest)
+
+        [CommaToken, .. as rest] ->
+            # Skip commas
+            parse_interface_body_statements(statements, rest)
+
+        _ ->
+            # End of statements or error
+            interface_body = TSInterfaceBody({ body: statements })
+            (interface_body, token_list)
+
+parse_method_signature_params : List Node, List Token -> (List Node, List Token)
+parse_method_signature_params = |params, token_list|
+    when token_list is
+        [CloseParenToken, .. as rest] ->
+            (params, rest)
+
+        [IdentifierToken(param_name), ColonToken, .. as rest1] ->
+            # Parameter with type: name: type
+            (type_annotation, rest2) = parse_type_annotation(rest1)
+            param = Identifier({ name: param_name })  # Simplified - in real TS this would be a parameter with type
+            new_params = List.append(params, param)
+
+            when rest2 is
+                [CommaToken, .. as rest3] ->
+                    parse_method_signature_params(new_params, rest3)
+                _ ->
+                    parse_method_signature_params(new_params, rest2)
+
+        _ ->
+            (params, token_list)
+
+# TypeScript type alias declaration parsing
+parse_type_alias_declaration : List Token -> (Node, List Token)
+parse_type_alias_declaration = |token_list|
+    when token_list is
+        [IdentifierToken(type_name), EqualsToken, .. as rest1] ->
+            type_id = Identifier({ name: type_name })
+            (type_annotation, rest2) = parse_type_annotation(rest1)
+
+            # Consume optional semicolon
+            rest3 = when rest2 is
+                [SemicolonToken, .. as rest] -> rest
+                _ -> rest2
+
+            type_alias = TSTypeAliasDeclaration({
+                id: type_id,
+                typeAnnotation: type_annotation,
+            })
+            (type_alias, rest3)
+
+        _ ->
+            (Error({ message: "Expected type alias syntax: type Name = Type" }), token_list)
+
+# Parse TypeScript type annotations
+parse_type_annotation : List Token -> (Node, List Token)
+parse_type_annotation = |token_list|
+    when token_list is
+        # Built-in type keywords (from tokenizer)
+        [StringKeyword, .. as rest] ->
+            (TSStringKeyword({}), rest)
+
+        [NumberKeyword, .. as rest] ->
+            (TSNumberKeyword({}), rest)
+
+        [BooleanKeyword, .. as rest] ->
+            (TSBooleanKeyword({}), rest)
+
+        [VoidKeyword, .. as rest] ->
+            (TSVoidKeyword({}), rest)
+
+        # Other TypeScript keywords
+        [IdentifierToken("void"), .. as rest] ->
+            (TSVoidKeyword({}), rest)
+
+        [IdentifierToken("any"), .. as rest] ->
+            (TSAnyKeyword({}), rest)
+
+        [IdentifierToken("unknown"), .. as rest] ->
+            (TSUnknownKeyword({}), rest)
+
+        # Typeof type: typeof expression
+        [TypeofKeyword, .. as rest] ->
+            parse_typeof_type(rest)
+
+        # Function type: (param1: type1, param2: type2) => returnType
+        [OpenParenToken, .. as rest] ->
+            parse_function_type(rest)
+
+        # Type reference (custom types)
+        [IdentifierToken(type_name), .. as rest] ->
+            type_ref = TSTypeReference({
+                typeName: Identifier({ name: type_name }),
+                typeParameters: None,
+            })
+            (type_ref, rest)
+
+        _ ->
+            (Error({ message: "Expected type annotation" }), token_list)
+
+parse_typeof_type : List Token -> (Node, List Token)
+parse_typeof_type = |token_list|
+    when token_list is
+        [IdentifierToken(expr_name), .. as rest] ->
+            # Create an identifier node for the expression
+            expr_node = Identifier({ name: expr_name })
+            typeof_type = TSTypeofType({
+                exprName: expr_node,
+            })
+            (typeof_type, rest)
+
+        _ ->
+            (Error({ message: "Expected identifier after 'typeof'" }), token_list)
+
+parse_function_type : List Token -> (Node, List Token)
+parse_function_type = |token_list|
+    # For now, just parse a simple function type without complex recursion
+    # This will collect tokens until we see ) => and then parse the return type
+    collect_function_type_tokens([], token_list)
+
+collect_function_type_tokens : List Token, List Token -> (Node, List Token)
+collect_function_type_tokens = |collected, token_list|
+    when token_list is
+        [CloseParenToken, EqualsGreaterThanToken, .. as rest] ->
+            # Found the end pattern ") =>"
+            # Parse return type
+            (return_type, remaining) = parse_simple_type_annotation(rest)
+
+            # Create a simple function type with empty parameters for now
+            function_type = TSFunctionType({
+                parameters: [],
+                returnType: return_type,
+            })
+            (function_type, remaining)
+
+        [token, .. as rest] ->
+            # Continue collecting
+            new_collected = List.append(collected, token)
+            collect_function_type_tokens(new_collected, rest)
+
+        [] ->
+            # End of tokens, return error
+            (Error({ message: "Incomplete function type" }), [])
+
+# Simpler type annotation parser that doesn't handle function types (to avoid infinite recursion)
+parse_simple_type_annotation : List Token -> (Node, List Token)
+parse_simple_type_annotation = |token_list|
+    when token_list is
+        [StringKeyword, .. as rest] ->
+            (TSStringKeyword({}), rest)
+
+        [NumberKeyword, .. as rest] ->
+            (TSNumberKeyword({}), rest)
+
+        [BooleanKeyword, .. as rest] ->
+            (TSBooleanKeyword({}), rest)
+
+        [VoidKeyword, .. as rest] ->
+            (TSVoidKeyword({}), rest)
+
+        [IdentifierToken("any"), .. as rest] ->
+            (TSAnyKeyword({}), rest)
+
+        [IdentifierToken("unknown"), .. as rest] ->
+            (TSUnknownKeyword({}), rest)
+
+        [IdentifierToken(type_name), .. as rest] ->
+            type_ref = TSTypeReference({
+                typeName: Identifier({ name: type_name }),
+                typeParameters: None,
+            })
+            (type_ref, rest)
+
+        _ ->
+            (Error({ message: "Expected simple type annotation" }), token_list)
 

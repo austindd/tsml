@@ -349,6 +349,49 @@ Node : [
                 argument : Node,
                 delegate : Bool,
             }),
+    # TypeScript-specific nodes
+    TSInterfaceDeclaration (WithBaseNodeData {
+                id : Node,
+                body : Node,
+                extends : Option (List Node),
+            }),
+    TSInterfaceBody (WithBaseNodeData {
+                body : List Node,
+            }),
+    TSMethodSignature (WithBaseNodeData {
+                key : Node,
+                params : List Node,
+                returnType : Option Node,
+            }),
+    TSPropertySignature (WithBaseNodeData {
+                key : Node,
+                typeAnnotation : Option Node,
+                optional : Bool,
+            }),
+    TSTypeAliasDeclaration (WithBaseNodeData {
+                id : Node,
+                typeAnnotation : Node,
+            }),
+    TSTypeAnnotation (WithBaseNodeData {
+                typeAnnotation : Node,
+            }),
+    TSTypeReference (WithBaseNodeData {
+                typeName : Node,
+                typeParameters : Option (List Node),
+            }),
+    TSStringKeyword (WithBaseNodeData {}),
+    TSNumberKeyword (WithBaseNodeData {}),
+    TSBooleanKeyword (WithBaseNodeData {}),
+    TSVoidKeyword (WithBaseNodeData {}),
+    TSAnyKeyword (WithBaseNodeData {}),
+    TSUnknownKeyword (WithBaseNodeData {}),
+    TSFunctionType (WithBaseNodeData {
+                parameters : List Node,
+                returnType : Node,
+            }),
+    TSTypeofType (WithBaseNodeData {
+                exprName : Node,
+            }),
 ]
 
 ProgramKind : [
@@ -1302,6 +1345,136 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
+
+        # TypeScript-specific nodes
+        TSInterfaceDeclaration(data) ->
+            id_str = node_to_str_inline(data.id, indent_level + 1)
+            body_str = node_to_str_inline(data.body, indent_level + 1)
+            extends_str = when data.extends is
+                Some(extends_list) ->
+                    count = List.len(extends_list) |> Num.to_str
+                    ",\n$(indent)  extends: [$(count) items]"
+                None -> ""
+            Str.concat(indent, "TSInterfaceDeclaration {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  id: ")
+            |> Str.concat(id_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  body: ")
+            |> Str.concat(body_str)
+            |> Str.concat(extends_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        TSInterfaceBody(data) ->
+            body_count = List.len(data.body) |> Num.to_str
+            Str.concat(indent, "TSInterfaceBody { body: [$(body_count) items] }")
+
+        TSMethodSignature(data) ->
+            key_str = node_to_str_inline(data.key, indent_level + 1)
+            params_count = List.len(data.params) |> Num.to_str
+            return_type_str = when data.returnType is
+                Some(ret_type) ->
+                    ret_str = node_to_str_inline(ret_type, indent_level + 1)
+                    ",\n$(indent)  returnType: $(ret_str)"
+                None -> ""
+            Str.concat(indent, "TSMethodSignature {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  key: ")
+            |> Str.concat(key_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  params: [$(params_count) items]")
+            |> Str.concat(return_type_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        TSPropertySignature(data) ->
+            key_str = node_to_str_inline(data.key, indent_level + 1)
+            optional_str = if data.optional then "Bool.true" else "Bool.false"
+            type_annotation_str = when data.typeAnnotation is
+                Some(type_ann) ->
+                    ann_str = node_to_str_inline(type_ann, indent_level + 1)
+                    ",\n$(indent)  typeAnnotation: $(ann_str)"
+                None -> ""
+            Str.concat(indent, "TSPropertySignature {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  key: ")
+            |> Str.concat(key_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  optional: ")
+            |> Str.concat(optional_str)
+            |> Str.concat(type_annotation_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        TSTypeAliasDeclaration(data) ->
+            id_str = node_to_str_inline(data.id, indent_level + 1)
+            type_annotation_str = node_to_str_inline(data.typeAnnotation, indent_level + 1)
+            Str.concat(indent, "TSTypeAliasDeclaration {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  id: ")
+            |> Str.concat(id_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  typeAnnotation: ")
+            |> Str.concat(type_annotation_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        TSTypeAnnotation(data) ->
+            type_annotation_str = node_to_str_inline(data.typeAnnotation, indent_level + 1)
+            Str.concat(indent, "TSTypeAnnotation { typeAnnotation: $(type_annotation_str) }")
+
+        TSTypeReference(data) ->
+            type_name_str = node_to_str_inline(data.typeName, indent_level + 1)
+            type_params_str = when data.typeParameters is
+                Some(params) ->
+                    count = List.len(params) |> Num.to_str
+                    ", typeParameters: [$(count) items]"
+                None -> ""
+            Str.concat(indent, "TSTypeReference { typeName: $(type_name_str)$(type_params_str) }")
+
+        TSStringKeyword(_) ->
+            Str.concat(indent, "TSStringKeyword")
+
+        TSNumberKeyword(_) ->
+            Str.concat(indent, "TSNumberKeyword")
+
+        TSBooleanKeyword(_) ->
+            Str.concat(indent, "TSBooleanKeyword")
+
+        TSVoidKeyword(_) ->
+            Str.concat(indent, "TSVoidKeyword")
+
+        TSAnyKeyword(_) ->
+            Str.concat(indent, "TSAnyKeyword")
+
+        TSUnknownKeyword(_) ->
+            Str.concat(indent, "TSUnknownKeyword")
+
+        TSFunctionType(data) ->
+            params_str = List.map(data.parameters, |param| node_to_str_inline(param, indent_level + 1))
+                        |> Str.join_with(", ")
+            return_type_str = node_to_str_inline(data.returnType, indent_level + 1)
+
+            Str.concat(indent, "TSFunctionType { params: [")
+            |> Str.concat(params_str)
+            |> Str.concat("] => ")
+            |> Str.concat(return_type_str)
+            |> Str.concat(" }")
+
+        TSTypeofType(data) ->
+            expr_str = node_to_str_inline(data.exprName, indent_level + 1)
+            Str.concat(indent, "TSTypeofType { typeof ")
+            |> Str.concat(expr_str)
+            |> Str.concat(" }")
 
         ClassDeclaration(data) ->
             super_class_str =
