@@ -2,8 +2,8 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import Token
-import Ast
 import Parser
+import Ast
 
 # Helper function to check if a token is trivia (whitespace, comments, etc.)
 is_trivia_token : Token.Token -> Bool
@@ -27,48 +27,53 @@ extract_tokens_and_errors = |token_results|
         (tokens, errors) = state
         when result is
             Ok(token) -> (List.append(tokens, token), errors)
-            Err(error) ->
+            Err(_error) ->
                 error_str = "TokenError"
                 (tokens, List.append(errors, error_str))
     )
 
-test_template_literal : Str => {}
-test_template_literal = |code|
-    _ = Stdout.line!("Testing: $(code)")
+test_single_case! : Str => {}
+test_single_case! = |test_code|
+    _ = Stdout.line!("\n📝 Testing:")
+    _ = Stdout.line!(test_code)
 
-    # Tokenize
-    token_results = Token.tokenize_str(code)
-    (all_tokens, _) = extract_tokens_and_errors(token_results)
+    # Step 1: Tokenize
+    token_results = Token.tokenize_str(test_code)
+    (all_tokens, _errors) = extract_tokens_and_errors(token_results)
 
-    # Display tokens
-    _ = Stdout.line!("Tokens:")
-    token_display = all_tokens
-        |> List.map(Token.ts_token_debug_display)
-        |> Str.join_with(", ")
-    _ = Stdout.line!(token_display)
+    # Filter out trivia tokens for parsing
+    tokens = List.drop_if(all_tokens, is_trivia_token)
 
-    # Filter trivia and parse
-    parse_tokens = List.drop_if(all_tokens, is_trivia_token)
-    ast = Parser.parse_program(parse_tokens)
-
-    # Display result
-    ast_display = Ast.node_to_str(ast)
-    _ = Stdout.line!("AST:")
-    _ = Stdout.line!(ast_display)
-    _ = Stdout.line!("")
+    # Step 2: Parse
+    ast = Parser.parse_program(tokens)
+    ast_str = Ast.node_to_str(ast)
+    _ = Stdout.line!("✨ AST:")
+    _ = Stdout.line!(ast_str)
     {}
 
 main! = |_|
-    _ = Stdout.line!("Testing Template Literal Implementation")
-    _ = Stdout.line!("")
+    _ = Stdout.line!("🚀 Test Template Literals")
+    _ = Stdout.line!("=========================\n")
 
-    # Test simple template literal
-    _ = test_template_literal("`hello world`")
+    # Test basic template literals (no interpolation)
+    _ = test_single_case!("`hello world`")
+    _ = test_single_case!("`simple string`")
 
-    # Test template literal with expression interpolation
-    _ = test_template_literal("`Hello \${name}!`")
+    # Test template literals with expressions
+    _ = test_single_case!("`Hello \${name}!`")
+    _ = test_single_case!("`Value: \${x + y}`")
 
-    # Test template literal with multiple expressions
-    _ = test_template_literal("`The result is \${x + y} units`")
+    # Test multiple interpolations
+    _ = test_single_case!("`\${first} and \${second}`")
+    _ = test_single_case!("`Start \${middle} end`")
 
-    Stdout.line!("All template literal tests completed!")
+    # Test tagged template literals
+    _ = test_single_case!("tag`hello world`")
+    _ = test_single_case!("myTag`Hello \${name}!`")
+    _ = test_single_case!("html`<div>\${content}</div>`")
+
+    # Test nested expressions in templates
+    _ = test_single_case!("`Result: \${func(a, b)}`")
+    _ = test_single_case!("`Count: \${items.length}`")
+
+    Stdout.line!("🎉 Done!")

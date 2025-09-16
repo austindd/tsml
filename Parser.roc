@@ -427,6 +427,13 @@ parse_expression_led = |left_node, min_precedence, token_list|
                     # Continue parsing for additional operators (like sequence expressions)
                     parse_expression_led(call_expr, min_precedence, rest2)
 
+                # Tagged template literals
+                [NoSubstitutionTemplateLiteralToken(_), .. as rest1]
+                | [TemplateHead(_), .. as rest1] ->
+                    (template, rest2) = parse_template_literal(token_list)
+                    tagged_template = TaggedTemplateExpression({ tag: left_node, quasi: template })
+                    parse_expression_led(tagged_template, min_precedence, rest2)
+
                 # MemberAccess - dot notation
                 [DotToken, .. as rest1] ->
                     parse_member_access_dot(left_node, rest1)
@@ -2097,10 +2104,10 @@ parse_template_literal = |token_list|
     when token_list is
         # Simple template literal without interpolation
         [NoSubstitutionTemplateLiteralToken(content), .. as rest] ->
-            quasi = Identifier({ name: content }) # Placeholder for TemplateElement
+            template_element = TemplateElement({ value: content, raw: content, tail: Bool.true })
             template = TemplateLiteral(
                 {
-                    quasis: [quasi],
+                    quasis: [template_element],
                     expressions: [],
                 },
             )
@@ -2108,8 +2115,8 @@ parse_template_literal = |token_list|
 
         # Template literal with interpolation - starts with TemplateHead
         [TemplateHead(content), .. as rest] ->
-            quasi = Identifier({ name: content }) # Placeholder for TemplateElement
-            parse_template_parts([quasi], [], rest)
+            template_element = TemplateElement({ value: content, raw: content, tail: Bool.false })
+            parse_template_parts([template_element], [], rest)
 
         _ ->
             # Error case - unexpected token
@@ -2145,14 +2152,14 @@ parse_template_continuation = |quasis, expressions, token_list|
     when token_list is
         # Middle part: ${expr}middle${
         [TemplateMiddle(content), .. as rest] ->
-            quasi = Identifier({ name: content }) # Placeholder for TemplateElement
-            new_quasis = List.append(quasis, quasi)
+            template_element = TemplateElement({ value: content, raw: content, tail: Bool.false })
+            new_quasis = List.append(quasis, template_element)
             parse_template_parts(new_quasis, expressions, rest)
 
         # End part: ${expr}end`
         [TemplateTail(content), .. as rest] ->
-            quasi = Identifier({ name: content }) # Placeholder for TemplateElement
-            final_quasis = List.append(quasis, quasi)
+            template_element = TemplateElement({ value: content, raw: content, tail: Bool.true })
+            final_quasis = List.append(quasis, template_element)
             template = TemplateLiteral(
                 {
                     quasis: final_quasis,

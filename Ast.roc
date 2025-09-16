@@ -111,6 +111,15 @@ Node : [
                 quasis : List Node,
                 expressions : List Node,
             }),
+    TemplateElement (WithBaseNodeData {
+                value : Str,
+                raw : Str,
+                tail : Bool,
+            }),
+    TaggedTemplateExpression (WithBaseNodeData {
+                tag : Node,
+                quasi : Node,
+            }),
     ThisExpression (WithBaseNodeData {}),
     ArrayExpression (WithBaseNodeData {
                 elements : List Node,
@@ -564,6 +573,39 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(" items], expressions: [")
             |> Str.concat(expr_count)
             |> Str.concat(" items] }")
+
+        TemplateElement(data) ->
+            tail_str = if data.tail then "Bool.true" else "Bool.false"
+            Str.concat(indent, "TemplateElement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  value: \"")
+            |> Str.concat(data.value)
+            |> Str.concat("\",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  raw: \"")
+            |> Str.concat(data.raw)
+            |> Str.concat("\",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  tail: ")
+            |> Str.concat(tail_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        TaggedTemplateExpression(data) ->
+            tag_str = node_to_str_inline(data.tag, indent_level + 1)
+            quasi_str = node_to_str_inline(data.quasi, indent_level + 1)
+            Str.concat(indent, "TaggedTemplateExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  tag: ")
+            |> Str.concat(tag_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  quasi: ")
+            |> Str.concat(quasi_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         ThisExpression(_) ->
             Str.concat(indent, "ThisExpression")
