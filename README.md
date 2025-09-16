@@ -182,14 +182,19 @@ Program {
 ### Running Tests
 ```bash
 # Test TypeScript features
-roc dev test_typescript.roc
-roc dev test_tuple_types.roc
-roc dev test_variable_types.roc
-roc dev test_arrays_unions.roc
+roc dev tests/test_typescript.roc
+roc dev tests/test_tuple_types.roc
+roc dev tests/test_variable_types.roc
+roc dev tests/test_arrays_unions.roc
 
 # Test JavaScript features
-roc dev test_async_await.roc
-roc dev test_classes.roc
+roc dev tests/test_async_await.roc
+roc dev tests/test_classes.roc
+
+# Run any test from the tests directory
+roc dev tests/test_template_literals.roc
+roc dev tests/test_destructuring.roc
+roc dev tests/test_for_loops.roc
 ```
 
 ## 🏛️ Architecture
