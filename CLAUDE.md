@@ -40,8 +40,12 @@ roc format .
 roc test
 
 # Test specific modules
-roc test test_main.roc
 roc test TokenTest.roc
+
+# Run individual test programs from tests directory
+roc dev tests/test_tuple_types.roc
+roc dev tests/test_async_await.roc
+roc dev tests/test_typescript.roc
 ```
 
 ### Building
@@ -100,4 +104,4 @@ roc build main.roc
 
 ## Testing Strategy
 
-Test files use the pattern `test_*.roc` and can be run individually with `roc test <filename>`.
+Test files are organized in the `tests/` directory using the pattern `test_*.roc` and can be run individually with `roc dev tests/<filename>`. The `TokenTest.roc` module contains unit tests that can be run with `roc test TokenTest.roc`.
