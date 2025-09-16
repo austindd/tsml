@@ -1440,9 +1440,22 @@ parse_parameter_list = |params, token_list|
             (params, rest)
 
         [IdentifierToken(param_name), .. as rest1] ->
-            param = Identifier({ name: param_name })
+            # Check for default value: param = defaultValue
+            (param, remaining_tokens) = when rest1 is
+                [EqualsToken, .. as rest2] ->
+                    # Parse default value with precedence 60 to stop at comma
+                    (default_expr, remaining) = parse_expression(Nud, 60, rest2)
+                    assignment_pattern = AssignmentPattern({
+                        left: Identifier({ name: param_name }),
+                        right: default_expr,
+                    })
+                    (assignment_pattern, remaining)
+                _ ->
+                    # No default value, just identifier
+                    (Identifier({ name: param_name }), rest1)
+
             new_params = List.append(params, param)
-            when rest1 is
+            when remaining_tokens is
                 [CommaToken, .. as rest2] ->
                     parse_parameter_list(new_params, rest2)
 
@@ -1506,6 +1519,28 @@ parse_parameter_list = |params, token_list|
                         ),
                         rest2,
                     )
+
+        # Rest parameter: ...param
+        [DotDotDotToken, .. as rest1] ->
+            when rest1 is
+                [IdentifierToken(param_name), .. as rest2] ->
+                    rest_param = RestElement({ argument: Identifier({ name: param_name }) })
+                    new_params = List.append(params, rest_param)
+                    # Rest parameter must be last (semantically, but we allow parsing)
+                    when rest2 is
+                        [CloseParenToken, .. as rest3] ->
+                            (new_params, rest3)
+                        [CommaToken, .. as rest3] ->
+                            # Continue parsing (semantically invalid but syntactically allowed)
+                            parse_parameter_list(new_params, rest3)
+                        _ ->
+                            # Continue parsing remaining tokens
+                            parse_parameter_list(new_params, rest2)
+                _ ->
+                    # Error: rest parameter needs identifier
+                    error_param = RestElement({ argument: Error({ message: "Expected identifier after ..." }) })
+                    new_params = List.append(params, error_param)
+                    parse_parameter_list(new_params, rest1)
 
         _ ->
             (
