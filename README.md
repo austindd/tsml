@@ -13,6 +13,8 @@ tsml is a modern compiler pipeline that transforms TypeScript and JavaScript sou
 ### 🎯 **Comprehensive TypeScript Support**
 - **Interface Declarations** with inheritance and optional properties
 - **Type Aliases** for custom type definitions
+- **Enum Declarations** with numeric, string, and computed values
+- **Const Enums** for compile-time constants
 - **Union Types** (`string | number | boolean`)
 - **Array Types** with unlimited nesting (`string[][]`)
 - **Tuple Types** with literal values (`[1, 2, 3]`)
@@ -143,6 +145,45 @@ FunctionDeclaration {
 }
 ```
 
+### TypeScript Enums
+```typescript
+enum Color { Red, Green, Blue }
+
+enum Status {
+  Active = 1,
+  Inactive = 0
+}
+
+const enum Direction {
+  Up = "UP",
+  Down = "DOWN"
+}
+
+enum Values {
+  A = 1,
+  B = A * 2,
+  C = B + 1
+}
+```
+
+**Generates:**
+```
+TSEnumDeclaration {
+  id: Identifier { name: "Status" },
+  members: [2 items]
+}
+
+TSEnumDeclaration {
+  const id: Identifier { name: "Direction" },
+  members: [2 items]
+}
+
+TSEnumDeclaration {
+  id: Identifier { name: "Values" },
+  members: [3 items]
+}
+```
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -183,6 +224,7 @@ Program {
 ```bash
 # Test TypeScript features
 roc dev tests/test_typescript.roc
+roc dev tests/test_enum_types.roc
 roc dev tests/test_tuple_types.roc
 roc dev tests/test_variable_types.roc
 roc dev tests/test_arrays_unions.roc
