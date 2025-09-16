@@ -705,6 +705,40 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("}")
 
+        FunctionExpression(data) ->
+            id_str = when data.id is
+                Some(identifier) ->
+                    " id: "
+                    |> Str.concat(node_to_str_with_indent(identifier, indent_level + 1))
+                    |> Str.concat(",\n")
+                    |> Str.concat(indent)
+                None -> ""
+
+            async_str = Inspect.to_str(data.async)
+            generator_str = Inspect.to_str(data.generator)
+            params_count = List.len(data.params) |> Num.to_str
+
+            Str.concat(indent, "FunctionExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat(id_str)
+            |> Str.concat("  params: [")
+            |> Str.concat(params_count)
+            |> Str.concat(" items],\n")
+            |> Str.concat(indent)
+            |> Str.concat("  body: ")
+            |> Str.concat(node_to_str_with_indent(data.body, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  async: ")
+            |> Str.concat(async_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  generator: ")
+            |> Str.concat(generator_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
         ArrowFunctionExpression(data) ->
             async_str = Inspect.to_str(data.async)
             generator_str = Inspect.to_str(data.generator)

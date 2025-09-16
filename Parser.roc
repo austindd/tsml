@@ -761,7 +761,8 @@ parse_member_access_dot = |object, token_list|
                     computed: Bool.false,
                 },
             )
-            (member_expr, rest)
+            # Continue parsing for additional operators (like function calls)
+            parse_expression_led(member_expr, 0, rest)
 
         _ ->
             (Error({ message: "Expected identifier after dot" }), token_list)
@@ -778,7 +779,8 @@ parse_member_access_bracket = |object, token_list|
                     computed: Bool.true,
                 },
             )
-            (member_expr, rest2)
+            # Continue parsing for additional operators (like function calls)
+            parse_expression_led(member_expr, 0, rest2)
 
         _ ->
             (Error({ message: "Expected close bracket in member access" }), rest1)
@@ -1323,17 +1325,36 @@ parse_method_definition = |kind, token_list|
 
 parse_method_definition_with_key : MethodKind, Node, List Token -> (Node, List Token)
 parse_method_definition_with_key = |kind, key, token_list|
-    # Parse method as a function expression
-    (func_expr, remaining) = parse_function_expression(token_list)
+    # Parse method as an anonymous function expression
+    when token_list is
+        [OpenParenToken, .. as rest] ->
+            (params, rest2) = parse_function_parameters(token_list)
+            (body, rest3) = parse_function_body(rest2)
+            func_expr = FunctionExpression({
+                id: None,
+                params: params,
+                body: body,
+                generator: Bool.false,
+                async: Bool.false,
+            })
+            method_def = MethodDefinition({
+                key: key,
+                value: func_expr,
+                kind: kind,
+                computed: Bool.false,
+                static: Bool.false,
+            })
+            (method_def, rest3)
 
-    method_def = MethodDefinition({
-        key: key,
-        value: func_expr,
-        kind: kind,
-        computed: Bool.false,
-        static: Bool.false,
-    })
-    (method_def, remaining)
+        _ ->
+            error_method = MethodDefinition({
+                key: key,
+                value: Error({ message: "Expected '(' for method parameters" }),
+                kind: kind,
+                computed: Bool.false,
+                static: Bool.false,
+            })
+            (error_method, token_list)
 
 parse_return_statement : List Token -> (Node, List Token)
 parse_return_statement = |token_list|

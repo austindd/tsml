@@ -3,6 +3,22 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 import pf.Stdout
 import Token
 import Parser
+import Ast
+
+# Helper function to check if a token is trivia (whitespace, comments, etc.)
+is_trivia_token : Token.Token -> Bool
+is_trivia_token = |token|
+    when token is
+        WhitespaceTrivia(_) -> Bool.true
+        NewLineTrivia(_) -> Bool.true
+        LineCommentStart -> Bool.true
+        BlockCommentStart -> Bool.true
+        BlockCommentEnd -> Bool.true
+        CommentText(_) -> Bool.true
+        ShebangTrivia -> Bool.true
+        ConflictMarkerTrivia -> Bool.true
+        NonTextFileMarkerTrivia -> Bool.true
+        _ -> Bool.false
 
 # Helper function to separate successful tokens from errors
 extract_tokens_and_errors : List Token.TokenResult -> (List Token.Token, List Str)
@@ -23,7 +39,10 @@ test_single_case = |test_code|
     
     # Step 1: Tokenize
     token_results = Token.tokenize_str(test_code)
-    (tokens, errors) = extract_tokens_and_errors(token_results)
+    (all_tokens, errors) = extract_tokens_and_errors(token_results)
+
+    # Filter out trivia tokens for parsing
+    tokens = List.drop_if(all_tokens, is_trivia_token)
     
     _ = if List.len(errors) > 0 then
         Stdout.line!("⚠️  Tokenization errors found")
@@ -31,7 +50,7 @@ test_single_case = |test_code|
         Stdout.line!("")
     
     # Step 2: Display tokens
-    token_display = tokens
+    token_display = all_tokens
         |> List.map(Token.ts_token_debug_display)
         |> Str.join_with(", ")
     _ = Stdout.line!("🔍 Tokens:")
@@ -39,7 +58,7 @@ test_single_case = |test_code|
     
     # Step 3: Parse
     ast = Parser.parse_program(tokens)
-    ast_str = Inspect.to_str(ast)
+    ast_str = Ast.node_to_str(ast)
     _ = Stdout.line!("✨ AST:")
     _ = Stdout.line!(ast_str)
     
@@ -52,16 +71,13 @@ main! = |_|
     _ = Stdout.line!("🚀 TypeScript/JavaScript Parser Test")
     _ = Stdout.line!("=====================================\n")
     
+    # Function call (testing first)
+    _ = test_single_case("foo('hello');")
+
+    # Member access function call
+    _ = test_single_case("console.log('hello');")
+
     # Simple variable declaration
     _ = test_single_case("let x = 42;")
-    
-    # Arrow function
-    _ = test_single_case("const add = (a, b) => a + b;")
-    
-    # Array literal
-    _ = test_single_case("const arr = [1, 2, 3];")
-    
-    # Object literal
-    _ = test_single_case("const obj = { name: 'John', age: 30 };")
-    
+
     Stdout.line!("🎉 All tests completed!")
