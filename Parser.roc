@@ -2244,17 +2244,17 @@ parse_array_pattern_elements = |elements, token_list|
                 [IdentifierToken(name), .. as rest2] ->
                     rest_element = RestElement({ argument: Identifier({ name: name }) })
                     new_elements = List.append(elements, rest_element)
-                    # Rest element must be last
+                    # Continue parsing after rest element (semantically invalid but syntactically valid)
                     when rest2 is
                         [CloseBracketToken, .. as rest3] ->
                             array_pattern = ArrayPattern({ elements: new_elements })
                             (array_pattern, rest3)
-                        [CommaToken, CloseBracketToken, .. as rest3] ->
-                            array_pattern = ArrayPattern({ elements: new_elements })
-                            (array_pattern, rest3)
+                        [CommaToken, .. as rest3] ->
+                            # Continue parsing more elements after rest (semantically invalid but allowed)
+                            parse_array_pattern_elements(new_elements, rest3)
                         _ ->
-                            error_pattern = ArrayPattern({ elements: new_elements })
-                            (error_pattern, rest2)
+                            # No comma or close bracket - continue with remaining tokens
+                            parse_array_pattern_elements(new_elements, rest2)
                 _ ->
                     # Error: rest element needs identifier
                     error_element = RestElement({ argument: Error({ message: "Expected identifier after ..." }) })
