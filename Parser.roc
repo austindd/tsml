@@ -1020,7 +1020,8 @@ parse_variable_declarator = |token_list|
             # Check for type annotation: let name: type
             (type_annotation, remaining_after_type) = when rest1 is
                 [ColonToken, .. as rest2] ->
-                    parse_type_annotation(rest2)
+                    (type_node, remaining) = parse_type_annotation(rest2)
+                    (Some(type_node), remaining)
                 _ ->
                     # No type annotation
                     (None, rest1)
@@ -1405,7 +1406,8 @@ parse_function_declaration = |token_list|
             # Check for return type annotation: function name(): type
             (return_type, rest3) = when rest2 is
                 [ColonToken, .. as rest_after_colon] ->
-                    parse_type_annotation(rest_after_colon)
+                    (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                    (Some(type_node), remaining)
                 _ ->
                     # No return type annotation
                     (None, rest2)
@@ -1435,7 +1437,8 @@ parse_async_function_declaration = |token_list|
             # Check for return type annotation: async function name(): type
             (return_type, rest3) = when rest2 is
                 [ColonToken, .. as rest_after_colon] ->
-                    parse_type_annotation(rest_after_colon)
+                    (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                    (Some(type_node), remaining)
                 _ ->
                     # No return type annotation
                     (None, rest2)
@@ -1465,7 +1468,8 @@ parse_generator_function_declaration = |token_list|
             # Check for return type annotation: function* name(): type
             (return_type, rest3) = when rest2 is
                 [ColonToken, .. as rest_after_colon] ->
-                    parse_type_annotation(rest_after_colon)
+                    (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                    (Some(type_node), remaining)
                 _ ->
                     # No return type annotation
                     (None, rest2)
@@ -1495,7 +1499,8 @@ parse_async_generator_function_declaration = |token_list|
             # Check for return type annotation: async function* name(): type
             (return_type, rest3) = when rest2 is
                 [ColonToken, .. as rest_after_colon] ->
-                    parse_type_annotation(rest_after_colon)
+                    (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                    (Some(type_node), remaining)
                 _ ->
                     # No return type annotation
                     (None, rest2)
@@ -3036,6 +3041,10 @@ parse_type_annotation = |token_list|
         [OpenParenToken, .. as rest] ->
             parse_function_type(rest)
 
+        # Object type literal: { prop1: type1; prop2: type2 }
+        [OpenBraceToken, .. as rest] ->
+            parse_object_type_literal(rest)
+
         # Type reference (custom types)
         [IdentifierToken(type_name), .. as rest] ->
             type_ref = TSTypeReference({
@@ -3122,4 +3131,86 @@ parse_simple_type_annotation = |token_list|
 
         _ ->
             (Error({ message: "Expected simple type annotation" }), token_list)
+
+parse_object_type_literal : List Token -> (Node, List Token)
+parse_object_type_literal = |token_list|
+    # Parse object type members: { prop1: type1; prop2: type2; }
+    (members, rest1) = parse_object_type_members([], token_list)
+
+    when rest1 is
+        [CloseBraceToken, .. as rest2] ->
+            object_type = TSTypeLiteral({
+                members: members,
+            })
+            (object_type, rest2)
+
+        _ ->
+            (Error({ message: "Expected '}' in object type literal" }), rest1)
+
+parse_object_type_members : List Node, List Token -> (List Node, List Token)
+parse_object_type_members = |members, token_list|
+    when token_list is
+        # Empty object type or end of members
+        [CloseBraceToken, ..] ->
+            (members, token_list)
+
+        [] ->
+            # End of tokens
+            (members, [])
+
+        # Property type: propName: type
+        [IdentifierToken(prop_name), ColonToken, .. as rest1] ->
+            # Parse the property type
+            (prop_type, rest2) = parse_simple_type_annotation(rest1)
+
+            # Create a property signature (reusing TSPropertySignature)
+            prop_signature = TSPropertySignature({
+                key: Identifier({ name: prop_name }),
+                typeAnnotation: Some(prop_type),
+                optional: Bool.false,
+            })
+            new_members = List.append(members, prop_signature)
+
+            when rest2 is
+                [SemicolonToken, .. as rest3] ->
+                    # More properties (semicolon separated)
+                    parse_object_type_members(new_members, rest3)
+
+                [CommaToken, .. as rest3] ->
+                    # More properties (comma separated)
+                    parse_object_type_members(new_members, rest3)
+
+                _ ->
+                    # No more properties
+                    (new_members, rest2)
+
+        # Optional property: propName?: type
+        [IdentifierToken(prop_name), QuestionToken, ColonToken, .. as rest1] ->
+            # Parse the property type
+            (prop_type, rest2) = parse_simple_type_annotation(rest1)
+
+            # Create an optional property signature
+            prop_signature = TSPropertySignature({
+                key: Identifier({ name: prop_name }),
+                typeAnnotation: Some(prop_type),
+                optional: Bool.true,
+            })
+            new_members = List.append(members, prop_signature)
+
+            when rest2 is
+                [SemicolonToken, .. as rest3] ->
+                    # More properties (semicolon separated)
+                    parse_object_type_members(new_members, rest3)
+
+                [CommaToken, .. as rest3] ->
+                    # More properties (comma separated)
+                    parse_object_type_members(new_members, rest3)
+
+                _ ->
+                    # No more properties
+                    (new_members, rest2)
+
+        _ ->
+            # Skip unexpected tokens and return what we have
+            (members, token_list)
 

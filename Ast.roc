@@ -392,6 +392,9 @@ Node : [
     TSTypeofType (WithBaseNodeData {
                 exprName : Node,
             }),
+    TSTypeLiteral (WithBaseNodeData {
+                members : List Node,
+            }),
 ]
 
 ProgramKind : [
@@ -1475,6 +1478,12 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "TSTypeofType { typeof ")
             |> Str.concat(expr_str)
             |> Str.concat(" }")
+
+        TSTypeLiteral(data) ->
+            members_count = List.len(data.members) |> Num.to_str
+            Str.concat(indent, "TSTypeLiteral { members: [")
+            |> Str.concat(members_count)
+            |> Str.concat(" items] }")
 
         ClassDeclaration(data) ->
             super_class_str =
