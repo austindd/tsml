@@ -3056,8 +3056,8 @@ parse_type_annotation = |token_list|
 
 parse_union_type : List Token -> (Node, List Token)
 parse_union_type = |token_list|
-    # Parse the first type (with potential array suffix)
-    (first_type, rest1) = parse_array_type(token_list)
+    # Parse the first type (with potential intersection)
+    (first_type, rest1) = parse_intersection_type(token_list)
 
     # Look for union operator |
     collect_union_types([first_type], rest1)
@@ -3067,7 +3067,7 @@ collect_union_types = |types, token_list|
     when token_list is
         [BarToken, .. as rest] ->
             # Parse the next type in the union
-            (next_type, remaining) = parse_array_type(rest)
+            (next_type, remaining) = parse_intersection_type(rest)
             new_types = List.append(types, next_type)
             collect_union_types(new_types, remaining)
 
@@ -3083,6 +3083,36 @@ collect_union_types = |types, token_list|
                     # Multiple types, create union
                     union_type = TSUnionType({ types: types })
                     (union_type, token_list)
+
+parse_intersection_type : List Token -> (Node, List Token)
+parse_intersection_type = |token_list|
+    # Parse the first type (with potential array suffix)
+    (first_type, rest1) = parse_array_type(token_list)
+
+    # Look for intersection operator &
+    collect_intersection_types([first_type], rest1)
+
+collect_intersection_types : List Node, List Token -> (Node, List Token)
+collect_intersection_types = |types, token_list|
+    when token_list is
+        [AmpersandToken, .. as rest] ->
+            # Parse the next type in the intersection
+            (next_type, remaining) = parse_array_type(rest)
+            new_types = List.append(types, next_type)
+            collect_intersection_types(new_types, remaining)
+
+        _ ->
+            # No more intersection types
+            when List.len(types) is
+                1 ->
+                    # Single type, return it directly
+                    when List.first(types) is
+                        Ok(single_type) -> (single_type, token_list)
+                        Err(_) -> (Error({ message: "Failed to get single type" }), token_list)
+                _ ->
+                    # Multiple types, create intersection
+                    intersection_type = TSIntersectionType({ types: types })
+                    (intersection_type, token_list)
 
 parse_array_type : List Token -> (Node, List Token)
 parse_array_type = |token_list|

@@ -414,6 +414,9 @@ Node : [
     TSUnionType (WithBaseNodeData {
                 types : List Node,
             }),
+    TSIntersectionType (WithBaseNodeData {
+                types : List Node,
+            }),
     TSTupleType (WithBaseNodeData {
                 elementTypes : List Node,
             }),
@@ -1617,6 +1620,12 @@ node_to_str_with_indent = |node, indent_level|
         TSUnionType(data) ->
             types_count = List.len(data.types) |> Num.to_str
             Str.concat(indent, "TSUnionType { types: [")
+            |> Str.concat(types_count)
+            |> Str.concat(" items] }")
+
+        TSIntersectionType(data) ->
+            types_count = List.len(data.types) |> Num.to_str
+            Str.concat(indent, "TSIntersectionType { types: [")
             |> Str.concat(types_count)
             |> Str.concat(" items] }")
 
