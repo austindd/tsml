@@ -3105,8 +3105,49 @@ parse_type_alias_declaration = |token_list|
 # Parse TypeScript type annotations
 parse_type_annotation : List Token -> (Node, List Token)
 parse_type_annotation = |token_list|
-    # Parse union types (Type1 | Type2 | Type3)
-    parse_union_type(token_list)
+    # Parse conditional types (T extends U ? X : Y)
+    parse_conditional_type(token_list)
+
+parse_conditional_type : List Token -> (Node, List Token)
+parse_conditional_type = |token_list|
+    # First parse the check type (which could be a union)
+    (check_type, rest1) = parse_union_type(token_list)
+
+    # Look for extends keyword
+    when rest1 is
+        [ExtendsKeyword, .. as rest2] ->
+            # Parse the extends type
+            (extends_type, rest3) = parse_union_type(rest2)
+
+            # Look for ? to start conditional
+            when rest3 is
+                [QuestionToken, .. as rest4] ->
+                    # Parse the true type
+                    (true_type, rest5) = parse_conditional_type(rest4)
+
+                    # Look for : to separate true and false types
+                    when rest5 is
+                        [ColonToken, .. as rest6] ->
+                            # Parse the false type
+                            (false_type, rest7) = parse_conditional_type(rest6)
+
+                            # Create conditional type
+                            conditional = TSConditionalType({
+                                checkType: check_type,
+                                extendsType: extends_type,
+                                trueType: true_type,
+                                falseType: false_type,
+                            })
+                            (conditional, rest7)
+                        _ ->
+                            # Missing colon, return what we have
+                            (check_type, rest1)
+                _ ->
+                    # No conditional, just extends (like in type parameters)
+                    (check_type, rest1)
+        _ ->
+            # No extends, return the check type
+            (check_type, rest1)
 
 parse_union_type : List Token -> (Node, List Token)
 parse_union_type = |token_list|

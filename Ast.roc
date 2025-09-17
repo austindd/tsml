@@ -429,6 +429,12 @@ Node : [
                 quasis : List Node,
                 types : List Node,
             }),
+    TSConditionalType (WithBaseNodeData {
+                checkType : Node,
+                extendsType : Node,
+                trueType : Node,
+                falseType : Node,
+            }),
     TSEnumDeclaration (WithBaseNodeData {
                 id : Node,
                 members : List Node,
@@ -1654,6 +1660,31 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(" items], types: [")
             |> Str.concat(types_count)
             |> Str.concat(" items] }")
+
+        TSConditionalType(data) ->
+            check_str = node_to_str_inline(data.checkType, indent_level + 1)
+            extends_str = node_to_str_inline(data.extendsType, indent_level + 1)
+            true_str = node_to_str_inline(data.trueType, indent_level + 1)
+            false_str = node_to_str_inline(data.falseType, indent_level + 1)
+            Str.concat(indent, "TSConditionalType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  checkType: ")
+            |> Str.concat(check_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  extendsType: ")
+            |> Str.concat(extends_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  trueType: ")
+            |> Str.concat(true_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  falseType: ")
+            |> Str.concat(false_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSEnumDeclaration(data) ->
             id_str = node_to_str_inline(data.id, indent_level + 1)
