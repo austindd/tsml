@@ -149,6 +149,7 @@ Node : [
                 body : Node,
                 generator : Bool,
                 async : Bool,
+                typeParameters : Option Node,
             }),
     FunctionDeclaration (WithBaseNodeData {
                 id : Node,
@@ -924,6 +925,14 @@ node_to_str_with_indent = |node, indent_level|
 
                     None -> ""
 
+            type_params_str = when data.typeParameters is
+                Some(type_params) ->
+                    "  typeParameters: "
+                    |> Str.concat(node_to_str_inline(type_params, indent_level + 1))
+                    |> Str.concat(",\n")
+                    |> Str.concat(indent)
+                None -> ""
+
             async_str = Inspect.to_str(data.async)
             generator_str = Inspect.to_str(data.generator)
             params_count = List.len(data.params) |> Num.to_str
@@ -931,6 +940,7 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "FunctionExpression {\n")
             |> Str.concat(indent)
             |> Str.concat(id_str)
+            |> Str.concat(type_params_str)
             |> Str.concat("  params: [")
             |> Str.concat(params_count)
             |> Str.concat(" items],\n")

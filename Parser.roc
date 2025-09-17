@@ -1536,6 +1536,10 @@ parse_async_generator_function_declaration = |token_list|
 parse_function_expression : List Token -> (Node, List Token)
 parse_function_expression = |token_list|
     when token_list is
+        [LessThanToken, .. as rest] ->
+            # Generic function expression: function<T>(param: T): T { ... }
+            parse_generic_function_expression(token_list)
+
         [IdentifierToken(name), .. as rest1] ->
             # Named function expression
             identifier = Identifier({ name: name })
@@ -1548,6 +1552,7 @@ parse_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
+                    typeParameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1563,6 +1568,7 @@ parse_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
+                    typeParameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1585,6 +1591,7 @@ parse_async_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.true,
+                    typeParameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1600,6 +1607,7 @@ parse_async_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.true,
+                    typeParameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1622,6 +1630,7 @@ parse_generator_function_expression = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.false,
+                    typeParameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1637,6 +1646,7 @@ parse_generator_function_expression = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.false,
+                    typeParameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1659,6 +1669,7 @@ parse_async_generator_function_expression = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.true,
+                    typeParameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1674,6 +1685,7 @@ parse_async_generator_function_expression = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.true,
+                    typeParameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1995,6 +2007,7 @@ parse_method_definition_with_key = |kind, key, token_list|
                 body: body,
                 generator: Bool.false,
                 async: Bool.false,
+                typeParameters: None,
             })
             method_def = MethodDefinition({
                 key: key,
@@ -3639,4 +3652,58 @@ parse_generic_function_type = |token_list|
         _ ->
             # Not a valid generic function type
             (Error({ message: "Expected function parameters after generic type parameters" }), token_list)
+
+# Parse generic function expression: function<T>(param: T): T { ... }
+parse_generic_function_expression : List Token -> (Node, List Token)
+parse_generic_function_expression = |token_list|
+    # Parse type parameters <T, U, ...>
+    (type_params, rest1) = parse_type_parameters(token_list)
+
+    # Parse the rest as a regular function expression
+    when rest1 is
+        [IdentifierToken(name), .. as rest2] ->
+            # Named generic function expression
+            identifier = Identifier({ name: name })
+            (params, rest3) = parse_function_parameters(rest2)
+            # Parse optional return type annotation ": Type"
+            rest4 = when rest3 is
+                [ColonToken, .. as rest_after_colon] ->
+                    # Skip the return type annotation for now
+                    (_, rest_after_type) = parse_type_annotation(rest_after_colon)
+                    rest_after_type
+                _ -> rest3
+            (body, rest5) = parse_function_body(rest4)
+            func_expr = FunctionExpression({
+                id: Some(identifier),
+                params: params,
+                body: body,
+                generator: Bool.false,
+                async: Bool.false,
+                typeParameters: type_params,
+            })
+            (func_expr, rest5)
+
+        [OpenParenToken, .. as rest2] ->
+            # Anonymous generic function expression
+            (params, rest3) = parse_function_parameters(rest1)
+            # Parse optional return type annotation ": Type"
+            rest4 = when rest3 is
+                [ColonToken, .. as rest_after_colon] ->
+                    # Skip the return type annotation for now
+                    (_, rest_after_type) = parse_type_annotation(rest_after_colon)
+                    rest_after_type
+                _ -> rest3
+            (body, rest5) = parse_function_body(rest4)
+            func_expr = FunctionExpression({
+                id: None,
+                params: params,
+                body: body,
+                generator: Bool.false,
+                async: Bool.false,
+                typeParameters: type_params,
+            })
+            (func_expr, rest5)
+
+        _ ->
+            (Error({ message: "Expected function name or parameters after generic type parameters" }), token_list)
 
