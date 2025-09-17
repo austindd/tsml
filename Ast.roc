@@ -366,11 +366,6 @@ Node : [
                 params : List Node,
                 returnType : Option Node,
             }),
-    TSPropertySignature (WithBaseNodeData {
-                key : Node,
-                typeAnnotation : Option Node,
-                optional : Bool,
-            }),
     TSTypeAliasDeclaration (WithBaseNodeData {
                 id : Node,
                 typeAnnotation : Node,
@@ -401,6 +396,17 @@ Node : [
             }),
     TSTypeLiteral (WithBaseNodeData {
                 members : List Node,
+            }),
+    TSPropertySignature (WithBaseNodeData {
+                key : Node,
+                typeAnnotation : Option Node,
+                optional : Bool,
+                readonly : Bool,
+            }),
+    TSIndexSignature (WithBaseNodeData {
+                parameters : List Node,
+                typeAnnotation : Option Node,
+                readonly : Bool,
             }),
     TSArrayType (WithBaseNodeData {
                 elementType : Node,
@@ -1472,6 +1478,7 @@ node_to_str_with_indent = |node, indent_level|
         TSPropertySignature(data) ->
             key_str = node_to_str_inline(data.key, indent_level + 1)
             optional_str = if data.optional then "Bool.true" else "Bool.false"
+            readonly_str = if data.readonly then "Bool.true" else "Bool.false"
             type_annotation_str = when data.typeAnnotation is
                 Some(type_ann) ->
                     ann_str = node_to_str_inline(type_ann, indent_level + 1)
@@ -1485,6 +1492,10 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("  optional: ")
             |> Str.concat(optional_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  readonly: ")
+            |> Str.concat(readonly_str)
             |> Str.concat(type_annotation_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
@@ -1579,6 +1590,23 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "TSTypeLiteral { members: [")
             |> Str.concat(members_count)
             |> Str.concat(" items] }")
+
+        TSIndexSignature(data) ->
+            params_count = List.len(data.parameters) |> Num.to_str
+            type_str = when data.typeAnnotation is
+                Some(type_ann) ->
+                    ann_str = node_to_str_inline(type_ann, indent_level + 1)
+                    Str.concat(": ", ann_str)
+                None -> ""
+            readonly_str = if data.readonly then "readonly " else ""
+
+            Str.concat(indent, "TSIndexSignature { ")
+            |> Str.concat(readonly_str)
+            |> Str.concat("[")
+            |> Str.concat(params_count)
+            |> Str.concat(" params]")
+            |> Str.concat(type_str)
+            |> Str.concat(" }")
 
         TSArrayType(data) ->
             element_str = node_to_str_inline(data.elementType, indent_level + 1)

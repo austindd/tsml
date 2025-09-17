@@ -2945,6 +2945,7 @@ parse_interface_body_statements = |statements, token_list|
                 key: prop_key,
                 typeAnnotation: Some(type_annotation),
                 optional: Bool.true,
+                readonly: Bool.false,
             })
             new_statements = List.append(statements, prop_sig)
             parse_interface_body_statements(new_statements, rest2)
@@ -2957,6 +2958,7 @@ parse_interface_body_statements = |statements, token_list|
                 key: prop_key,
                 typeAnnotation: Some(type_annotation),
                 optional: Bool.false,
+                readonly: Bool.false,
             })
             new_statements = List.append(statements, prop_sig)
             parse_interface_body_statements(new_statements, rest2)
@@ -3610,31 +3612,13 @@ parse_object_type_members = |members, token_list|
             # End of tokens
             (members, [])
 
-        # Property type: propName: type
-        [IdentifierToken(prop_name), ColonToken, .. as rest1] ->
-            # Parse the property type
-            (prop_type, rest2) = parse_simple_type_annotation(rest1)
+        # Index signature: [key: string]: type
+        [OpenBracketToken, .. as rest] ->
+            parse_index_signature(members, token_list)
 
-            # Create a property signature (reusing TSPropertySignature)
-            prop_signature = TSPropertySignature({
-                key: Identifier({ name: prop_name }),
-                typeAnnotation: Some(prop_type),
-                optional: Bool.false,
-            })
-            new_members = List.append(members, prop_signature)
-
-            when rest2 is
-                [SemicolonToken, .. as rest3] ->
-                    # More properties (semicolon separated)
-                    parse_object_type_members(new_members, rest3)
-
-                [CommaToken, .. as rest3] ->
-                    # More properties (comma separated)
-                    parse_object_type_members(new_members, rest3)
-
-                _ ->
-                    # No more properties
-                    (new_members, rest2)
+        # readonly modifier
+        [IdentifierToken("readonly"), .. as rest] ->
+            parse_readonly_member(members, rest)
 
         # Optional property: propName?: type
         [IdentifierToken(prop_name), QuestionToken, ColonToken, .. as rest1] ->
@@ -3646,6 +3630,22 @@ parse_object_type_members = |members, token_list|
                 key: Identifier({ name: prop_name }),
                 typeAnnotation: Some(prop_type),
                 optional: Bool.true,
+                readonly: Bool.false,
+            })
+            new_members = List.append(members, prop_signature)
+            continue_parsing_members(new_members, rest2)
+
+        # Property type: propName: type
+        [IdentifierToken(prop_name), ColonToken, .. as rest1] ->
+            # Parse the property type
+            (prop_type, rest2) = parse_simple_type_annotation(rest1)
+
+            # Create a property signature
+            prop_signature = TSPropertySignature({
+                key: Identifier({ name: prop_name }),
+                typeAnnotation: Some(prop_type),
+                optional: Bool.false,
+                readonly: Bool.false,
             })
             new_members = List.append(members, prop_signature)
 
@@ -3664,6 +3664,130 @@ parse_object_type_members = |members, token_list|
 
         _ ->
             # Skip unexpected tokens and return what we have
+            (members, token_list)
+
+# Helper to continue parsing after a member
+continue_parsing_members : List Node, List Token -> (List Node, List Token)
+continue_parsing_members = |members, token_list|
+    when token_list is
+        [SemicolonToken, .. as rest] | [CommaToken, .. as rest] ->
+            # More properties
+            parse_object_type_members(members, rest)
+        _ ->
+            # No separator, continue or end
+            parse_object_type_members(members, token_list)
+
+# Parse an index signature: [key: string]: type
+parse_index_signature : List Node, List Token -> (List Node, List Token)
+parse_index_signature = |members, token_list|
+    when token_list is
+        [OpenBracketToken, IdentifierToken(param_name), ColonToken, .. as rest1] ->
+            # Parse the parameter type (e.g., string, number, symbol)
+            (param_type, rest2) = parse_type_annotation(rest1)
+
+            when rest2 is
+                [CloseBracketToken, ColonToken, .. as rest3] ->
+                    # Parse the value type
+                    (value_type, rest4) = parse_type_annotation(rest3)
+
+                    # Create the index signature parameter
+                    param = TSPropertySignature({
+                        key: Identifier({ name: param_name }),
+                        typeAnnotation: Some(param_type),
+                        optional: Bool.false,
+                        readonly: Bool.false,
+                    })
+
+                    # Create the index signature
+                    index_sig = TSIndexSignature({
+                        parameters: [param],
+                        typeAnnotation: Some(value_type),
+                        readonly: Bool.false,
+                    })
+
+                    new_members = List.append(members, index_sig)
+                    continue_parsing_members(new_members, rest4)
+
+                _ ->
+                    # Invalid index signature
+                    (members, token_list)
+
+        _ ->
+            (members, token_list)
+
+# Parse a readonly member (property or index signature)
+parse_readonly_member : List Node, List Token -> (List Node, List Token)
+parse_readonly_member = |members, token_list|
+    when token_list is
+        # readonly [key: string]: type
+        [OpenBracketToken, .. as rest] ->
+            when rest is
+                [IdentifierToken(param_name), ColonToken, .. as rest1] ->
+                    # Parse the parameter type
+                    (param_type, rest2) = parse_type_annotation(rest1)
+
+                    when rest2 is
+                        [CloseBracketToken, ColonToken, .. as rest3] ->
+                            # Parse the value type
+                            (value_type, rest4) = parse_type_annotation(rest3)
+
+                            # Create the index signature parameter
+                            param = TSPropertySignature({
+                                key: Identifier({ name: param_name }),
+                                typeAnnotation: Some(param_type),
+                                optional: Bool.false,
+                                readonly: Bool.false,
+                            })
+
+                            # Create the readonly index signature
+                            index_sig = TSIndexSignature({
+                                parameters: [param],
+                                typeAnnotation: Some(value_type),
+                                readonly: Bool.true,
+                            })
+
+                            new_members = List.append(members, index_sig)
+                            continue_parsing_members(new_members, rest4)
+
+                        _ ->
+                            (members, token_list)
+
+                _ ->
+                    (members, token_list)
+
+        # readonly propName: type or readonly propName?: type
+        [IdentifierToken(prop_name), .. as rest] ->
+            when rest is
+                [QuestionToken, ColonToken, .. as rest1] ->
+                    # readonly optional property
+                    (prop_type, rest2) = parse_simple_type_annotation(rest1)
+
+                    prop_signature = TSPropertySignature({
+                        key: Identifier({ name: prop_name }),
+                        typeAnnotation: Some(prop_type),
+                        optional: Bool.true,
+                        readonly: Bool.true,
+                    })
+                    new_members = List.append(members, prop_signature)
+                    continue_parsing_members(new_members, rest2)
+
+                [ColonToken, .. as rest1] ->
+                    # readonly property
+                    (prop_type, rest2) = parse_simple_type_annotation(rest1)
+
+                    prop_signature = TSPropertySignature({
+                        key: Identifier({ name: prop_name }),
+                        typeAnnotation: Some(prop_type),
+                        optional: Bool.false,
+                        readonly: Bool.true,
+                    })
+                    new_members = List.append(members, prop_signature)
+                    continue_parsing_members(new_members, rest2)
+
+                _ ->
+                    (members, token_list)
+
+        _ ->
             (members, token_list)
 
 # Parse generic function type: <T>(param: T) => ReturnType
