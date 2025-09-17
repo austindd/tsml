@@ -435,6 +435,13 @@ Node : [
                 trueType : Node,
                 falseType : Node,
             }),
+    TSMappedType (WithBaseNodeData {
+                typeParameter : Node,
+                constraint : Node,
+                typeAnnotation : Option Node,
+                optional : Option Bool,  # true for +?, false for -?, None for no modifier
+                readonly : Option Bool,  # true for +readonly, false for -readonly, None for no modifier
+            }),
     TSEnumDeclaration (WithBaseNodeData {
                 id : Node,
                 members : List Node,
@@ -1682,6 +1689,37 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("  falseType: ")
             |> Str.concat(false_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
+
+        TSMappedType(data) ->
+            param_str = node_to_str_inline(data.typeParameter, indent_level + 1)
+            constraint_str = node_to_str_inline(data.constraint, indent_level + 1)
+            type_str = when data.typeAnnotation is
+                Some(type_ann) ->
+                    ann_str = node_to_str_inline(type_ann, indent_level + 1)
+                    ",\n$(indent)  typeAnnotation: $(ann_str)"
+                None -> ""
+            optional_str = when data.optional is
+                Some(opt) ->
+                    if opt then ",\n$(indent)  optional: +?" else ",\n$(indent)  optional: -?"
+                None -> ""
+            readonly_str = when data.readonly is
+                Some(ro) ->
+                    if ro then ",\n$(indent)  readonly: +readonly" else ",\n$(indent)  readonly: -readonly"
+                None -> ""
+            Str.concat(indent, "TSMappedType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  typeParameter: ")
+            |> Str.concat(param_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  constraint: ")
+            |> Str.concat(constraint_str)
+            |> Str.concat(type_str)
+            |> Str.concat(optional_str)
+            |> Str.concat(readonly_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")

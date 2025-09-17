@@ -144,6 +144,7 @@ Token : [
     TrueKeyword,
     TryKeyword,
     TypeofKeyword,
+    KeyofKeyword,
     VarKeyword,
     VoidKeyword,
     WhileKeyword,
@@ -342,6 +343,7 @@ ts_token_debug_display = |token|
         TrueKeyword -> "TrueKeyword"
         TryKeyword -> "TryKeyword"
         TypeofKeyword -> "TypeofKeyword"
+        KeyofKeyword -> "KeyofKeyword"
         VarKeyword -> "VarKeyword"
         VoidKeyword -> "VoidKeyword"
         WhileKeyword -> "WhileKeyword"
@@ -659,6 +661,10 @@ utf8_list_to_ts_token_list_inner = |u8_list, token_list|
 
         [105, 109, 112, 108, 101, 109, 101, 110, 116, 115, .. as u8s] -> # implements
             (token, rest) = handle_possible_keyword(ImplementsKeyword, [105, 109, 112, 108, 101, 109, 101, 110, 116, 115], u8s)
+            utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
+
+        [107, 101, 121, 111, 102, .. as u8s] -> # keyof
+            (token, rest) = handle_possible_keyword(KeyofKeyword, [107, 101, 121, 111, 102], u8s)
             utf8_list_to_ts_token_list_inner(rest, List.append(token_list, Ok(token)))
 
         [108, 101, 116, .. as u8s] -> # let

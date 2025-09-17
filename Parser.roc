@@ -3271,6 +3271,10 @@ parse_primary_type = |token_list|
         [TypeofKeyword, .. as rest] ->
             parse_typeof_type(rest)
 
+        # Keyof type: keyof T
+        [KeyofKeyword, .. as rest] ->
+            parse_keyof_type(rest)
+
         # Function type OR parenthesized type: (param1: type1) => returnType OR (string | number)
         [OpenParenToken, .. as rest] ->
             parse_parenthesized_or_function_type(rest)
@@ -3357,6 +3361,19 @@ parse_typeof_type = |token_list|
 
         _ ->
             (Error({ message: "Expected identifier after 'typeof'" }), token_list)
+
+parse_keyof_type : List Token -> (Node, List Token)
+parse_keyof_type = |token_list|
+    # Parse the type after keyof
+    (inner_type, rest) = parse_primary_type(token_list)
+
+    # For now, just return keyof as a type reference
+    # In a full implementation, we'd have a TSKeyofType node
+    keyof_ref = TSTypeReference({
+        typeName: Identifier({ name: "keyof" }),
+        typeParameters: Some([inner_type]),
+    })
+    (keyof_ref, rest)
 
 parse_parenthesized_or_function_type : List Token -> (Node, List Token)
 parse_parenthesized_or_function_type = |token_list|
@@ -3713,18 +3730,81 @@ parse_simple_type_annotation = |token_list|
 
 parse_object_type_literal : List Token -> (Node, List Token)
 parse_object_type_literal = |token_list|
-    # Parse object type members: { prop1: type1; prop2: type2; }
-    (members, rest1) = parse_object_type_members([], token_list)
+    # Check if this is a mapped type: { [K in T]: U }
+    when token_list is
+        [OpenBracketToken, IdentifierToken(param_name), InKeyword, .. as rest] ->
+            # This is a mapped type
+            parse_mapped_type(param_name, rest)
 
-    when rest1 is
-        [CloseBraceToken, .. as rest2] ->
-            object_type = TSTypeLiteral({
-                members: members,
-            })
-            (object_type, rest2)
+        # Could also have readonly modifier: { readonly [K in T]: U }
+        [IdentifierToken("readonly"), OpenBracketToken, IdentifierToken(param_name), InKeyword, .. as rest] ->
+            # This is a readonly mapped type
+            parse_mapped_type_with_modifiers(param_name, Some(Bool.true), None, rest)
 
         _ ->
-            (Error({ message: "Expected '}' in object type literal" }), rest1)
+            # Regular object type literal: { prop1: type1; prop2: type2; }
+            (members, rest1) = parse_object_type_members([], token_list)
+
+            when rest1 is
+                [CloseBraceToken, .. as rest2] ->
+                    object_type = TSTypeLiteral({
+                        members: members,
+                    })
+                    (object_type, rest2)
+
+                _ ->
+                    (Error({ message: "Expected '}' in object type literal" }), rest1)
+
+parse_mapped_type : Str, List Token -> (Node, List Token)
+parse_mapped_type = |param_name, token_list|
+    parse_mapped_type_with_modifiers(param_name, None, None, token_list)
+
+parse_mapped_type_with_modifiers : Str, Option Bool, Option Bool, List Token -> (Node, List Token)
+parse_mapped_type_with_modifiers = |param_name, readonly_mod, optional_mod, token_list|
+    # Parse the constraint type (after 'in')
+    (constraint, rest1) = parse_union_type(token_list)
+
+    when rest1 is
+        [CloseBracketToken, .. as rest2] ->
+            # Now look for ]: and the type
+            when rest2 is
+                [ColonToken, .. as rest3] ->
+                    # Check for optional modifier before the type
+                    (final_optional, rest4) = when rest3 is
+                        [QuestionToken, ColonToken, .. as rest_q] ->
+                            # Optional modifier: [K in T]?: U
+                            (Some(Bool.true), rest_q)
+                        _ ->
+                            (optional_mod, rest3)
+
+                    # Parse the type annotation
+                    (type_ann, rest5) = parse_type_annotation(rest4)
+
+                    # Look for closing brace
+                    when rest5 is
+                        [CloseBraceToken, .. as rest6] ->
+                            # Create type parameter
+                            type_param = TSTypeParameter({
+                                name: Identifier({ name: param_name }),
+                                constraint: None,
+                                default: None,
+                            })
+
+                            # Create mapped type
+                            mapped_type = TSMappedType({
+                                typeParameter: type_param,
+                                constraint: constraint,
+                                typeAnnotation: Some(type_ann),
+                                optional: final_optional,
+                                readonly: readonly_mod,
+                            })
+                            (mapped_type, rest6)
+                        _ ->
+                            (Error({ message: "Expected '}' after mapped type" }), rest5)
+                _ ->
+                    (Error({ message: "Expected ':' after mapped type parameter" }), rest2)
+        _ ->
+            (Error({ message: "Expected ']' after mapped type constraint" }), rest1)
 
 parse_object_type_members : List Node, List Token -> (List Node, List Token)
 parse_object_type_members = |members, token_list|
