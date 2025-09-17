@@ -937,9 +937,13 @@ parse_statement = |token_list|
         [FunctionKeyword, .. as rest] ->
             parse_function_declaration(rest)
 
+        # Decorator (for class/method/property)
+        [AtToken, .. as rest] ->
+            parse_decorated_declaration(token_list)
+
         # Class declaration
         [ClassKeyword, .. as rest] ->
-            parse_class_declaration(rest)
+            parse_class_declaration_with_decorators([], rest)
 
         # TypeScript interface declaration
         [InterfaceKeyword, .. as rest] ->
@@ -1916,8 +1920,55 @@ parse_function_body_statements = |statements, token_list|
             new_statements = List.append(statements, stmt)
             parse_function_body_statements(new_statements, remaining_tokens)
 
+parse_decorated_declaration : List Token -> (Node, List Token)
+parse_decorated_declaration = |token_list|
+    # Parse decorators
+    (decorators, rest) = parse_decorators([], token_list)
+
+    # Now parse the decorated item
+    when rest is
+        [ClassKeyword, .. as rest1] ->
+            parse_class_declaration_with_decorators(decorators, rest1)
+        _ ->
+            # For now, only support class decorators
+            (Error({ message: "Decorators are currently only supported on classes" }), rest)
+
+parse_decorators : List Node, List Token -> (List Node, List Token)
+parse_decorators = |decorators, token_list|
+    when token_list is
+        [AtToken, .. as rest] ->
+            # Parse the decorator expression
+            (decorator_expr, rest1) = parse_decorator_expression(rest)
+            decorator = Decorator({ expression: decorator_expr })
+            new_decorators = List.append(decorators, decorator)
+            # Check for more decorators
+            parse_decorators(new_decorators, rest1)
+        _ ->
+            # No more decorators
+            (decorators, token_list)
+
+parse_decorator_expression : List Token -> (Node, List Token)
+parse_decorator_expression = |token_list|
+    when token_list is
+        [IdentifierToken(name), OpenParenToken, .. as rest] ->
+            # Decorator with arguments: @decorator(args)
+            callee = Identifier({ name: name })
+            (decorator_call, rest1) = parse_new_arguments(callee, [], rest)
+            (decorator_call, rest1)
+
+        [IdentifierToken(name), .. as rest] ->
+            # Simple decorator: @decorator
+            (Identifier({ name: name }), rest)
+
+        _ ->
+            (Error({ message: "Expected decorator name after '@'" }), token_list)
+
 parse_class_declaration : List Token -> (Node, List Token)
 parse_class_declaration = |token_list|
+    parse_class_declaration_with_decorators([], token_list)
+
+parse_class_declaration_with_decorators : List Node, List Token -> (Node, List Token)
+parse_class_declaration_with_decorators = |decorators, token_list|
     when token_list is
         [IdentifierToken(class_name), .. as rest1] ->
             class_id = Identifier({ name: class_name })
@@ -1937,6 +1988,7 @@ parse_class_declaration = |token_list|
                 id: class_id,
                 superClass: super_class,
                 body: class_body,
+                decorators: decorators,
             })
             (class_decl, rest3)
 
@@ -2015,6 +2067,7 @@ parse_method_definition_with_key = |kind, key, token_list|
                 kind: kind,
                 computed: Bool.false,
                 static: Bool.false,
+                decorators: [],
             })
             (method_def, rest3)
 
@@ -2025,6 +2078,7 @@ parse_method_definition_with_key = |kind, key, token_list|
                 kind: kind,
                 computed: Bool.false,
                 static: Bool.false,
+                decorators: [],
             })
             (error_method, token_list)
 
@@ -2945,6 +2999,7 @@ parse_interface_body_statements = |statements, token_list|
                 key: prop_key,
                 typeAnnotation: Some(type_annotation),
                 optional: Bool.true,
+                readonly: Bool.false,
             })
             new_statements = List.append(statements, prop_sig)
             parse_interface_body_statements(new_statements, rest2)
@@ -2957,6 +3012,7 @@ parse_interface_body_statements = |statements, token_list|
                 key: prop_key,
                 typeAnnotation: Some(type_annotation),
                 optional: Bool.false,
+                readonly: Bool.false,
             })
             new_statements = List.append(statements, prop_sig)
             parse_interface_body_statements(new_statements, rest2)
@@ -3054,8 +3110,8 @@ parse_type_annotation = |token_list|
 
 parse_union_type : List Token -> (Node, List Token)
 parse_union_type = |token_list|
-    # Parse the first type (with potential array suffix)
-    (first_type, rest1) = parse_array_type(token_list)
+    # Parse the first type (with potential intersection)
+    (first_type, rest1) = parse_intersection_type(token_list)
 
     # Look for union operator |
     collect_union_types([first_type], rest1)
@@ -3065,7 +3121,7 @@ collect_union_types = |types, token_list|
     when token_list is
         [BarToken, .. as rest] ->
             # Parse the next type in the union
-            (next_type, remaining) = parse_array_type(rest)
+            (next_type, remaining) = parse_intersection_type(rest)
             new_types = List.append(types, next_type)
             collect_union_types(new_types, remaining)
 
@@ -3081,6 +3137,36 @@ collect_union_types = |types, token_list|
                     # Multiple types, create union
                     union_type = TSUnionType({ types: types })
                     (union_type, token_list)
+
+parse_intersection_type : List Token -> (Node, List Token)
+parse_intersection_type = |token_list|
+    # Parse the first type (with potential array suffix)
+    (first_type, rest1) = parse_array_type(token_list)
+
+    # Look for intersection operator &
+    collect_intersection_types([first_type], rest1)
+
+collect_intersection_types : List Node, List Token -> (Node, List Token)
+collect_intersection_types = |types, token_list|
+    when token_list is
+        [AmpersandToken, .. as rest] ->
+            # Parse the next type in the intersection
+            (next_type, remaining) = parse_array_type(rest)
+            new_types = List.append(types, next_type)
+            collect_intersection_types(new_types, remaining)
+
+        _ ->
+            # No more intersection types
+            when List.len(types) is
+                1 ->
+                    # Single type, return it directly
+                    when List.first(types) is
+                        Ok(single_type) -> (single_type, token_list)
+                        Err(_) -> (Error({ message: "Failed to get single type" }), token_list)
+                _ ->
+                    # Multiple types, create intersection
+                    intersection_type = TSIntersectionType({ types: types })
+                    (intersection_type, token_list)
 
 parse_array_type : List Token -> (Node, List Token)
 parse_array_type = |token_list|
@@ -3610,31 +3696,13 @@ parse_object_type_members = |members, token_list|
             # End of tokens
             (members, [])
 
-        # Property type: propName: type
-        [IdentifierToken(prop_name), ColonToken, .. as rest1] ->
-            # Parse the property type
-            (prop_type, rest2) = parse_simple_type_annotation(rest1)
+        # Index signature: [key: string]: type
+        [OpenBracketToken, .. as rest] ->
+            parse_index_signature(members, token_list)
 
-            # Create a property signature (reusing TSPropertySignature)
-            prop_signature = TSPropertySignature({
-                key: Identifier({ name: prop_name }),
-                typeAnnotation: Some(prop_type),
-                optional: Bool.false,
-            })
-            new_members = List.append(members, prop_signature)
-
-            when rest2 is
-                [SemicolonToken, .. as rest3] ->
-                    # More properties (semicolon separated)
-                    parse_object_type_members(new_members, rest3)
-
-                [CommaToken, .. as rest3] ->
-                    # More properties (comma separated)
-                    parse_object_type_members(new_members, rest3)
-
-                _ ->
-                    # No more properties
-                    (new_members, rest2)
+        # readonly modifier
+        [IdentifierToken("readonly"), .. as rest] ->
+            parse_readonly_member(members, rest)
 
         # Optional property: propName?: type
         [IdentifierToken(prop_name), QuestionToken, ColonToken, .. as rest1] ->
@@ -3646,6 +3714,22 @@ parse_object_type_members = |members, token_list|
                 key: Identifier({ name: prop_name }),
                 typeAnnotation: Some(prop_type),
                 optional: Bool.true,
+                readonly: Bool.false,
+            })
+            new_members = List.append(members, prop_signature)
+            continue_parsing_members(new_members, rest2)
+
+        # Property type: propName: type
+        [IdentifierToken(prop_name), ColonToken, .. as rest1] ->
+            # Parse the property type
+            (prop_type, rest2) = parse_simple_type_annotation(rest1)
+
+            # Create a property signature
+            prop_signature = TSPropertySignature({
+                key: Identifier({ name: prop_name }),
+                typeAnnotation: Some(prop_type),
+                optional: Bool.false,
+                readonly: Bool.false,
             })
             new_members = List.append(members, prop_signature)
 
@@ -3664,6 +3748,130 @@ parse_object_type_members = |members, token_list|
 
         _ ->
             # Skip unexpected tokens and return what we have
+            (members, token_list)
+
+# Helper to continue parsing after a member
+continue_parsing_members : List Node, List Token -> (List Node, List Token)
+continue_parsing_members = |members, token_list|
+    when token_list is
+        [SemicolonToken, .. as rest] | [CommaToken, .. as rest] ->
+            # More properties
+            parse_object_type_members(members, rest)
+        _ ->
+            # No separator, continue or end
+            parse_object_type_members(members, token_list)
+
+# Parse an index signature: [key: string]: type
+parse_index_signature : List Node, List Token -> (List Node, List Token)
+parse_index_signature = |members, token_list|
+    when token_list is
+        [OpenBracketToken, IdentifierToken(param_name), ColonToken, .. as rest1] ->
+            # Parse the parameter type (e.g., string, number, symbol)
+            (param_type, rest2) = parse_type_annotation(rest1)
+
+            when rest2 is
+                [CloseBracketToken, ColonToken, .. as rest3] ->
+                    # Parse the value type
+                    (value_type, rest4) = parse_type_annotation(rest3)
+
+                    # Create the index signature parameter
+                    param = TSPropertySignature({
+                        key: Identifier({ name: param_name }),
+                        typeAnnotation: Some(param_type),
+                        optional: Bool.false,
+                        readonly: Bool.false,
+                    })
+
+                    # Create the index signature
+                    index_sig = TSIndexSignature({
+                        parameters: [param],
+                        typeAnnotation: Some(value_type),
+                        readonly: Bool.false,
+                    })
+
+                    new_members = List.append(members, index_sig)
+                    continue_parsing_members(new_members, rest4)
+
+                _ ->
+                    # Invalid index signature
+                    (members, token_list)
+
+        _ ->
+            (members, token_list)
+
+# Parse a readonly member (property or index signature)
+parse_readonly_member : List Node, List Token -> (List Node, List Token)
+parse_readonly_member = |members, token_list|
+    when token_list is
+        # readonly [key: string]: type
+        [OpenBracketToken, .. as rest] ->
+            when rest is
+                [IdentifierToken(param_name), ColonToken, .. as rest1] ->
+                    # Parse the parameter type
+                    (param_type, rest2) = parse_type_annotation(rest1)
+
+                    when rest2 is
+                        [CloseBracketToken, ColonToken, .. as rest3] ->
+                            # Parse the value type
+                            (value_type, rest4) = parse_type_annotation(rest3)
+
+                            # Create the index signature parameter
+                            param = TSPropertySignature({
+                                key: Identifier({ name: param_name }),
+                                typeAnnotation: Some(param_type),
+                                optional: Bool.false,
+                                readonly: Bool.false,
+                            })
+
+                            # Create the readonly index signature
+                            index_sig = TSIndexSignature({
+                                parameters: [param],
+                                typeAnnotation: Some(value_type),
+                                readonly: Bool.true,
+                            })
+
+                            new_members = List.append(members, index_sig)
+                            continue_parsing_members(new_members, rest4)
+
+                        _ ->
+                            (members, token_list)
+
+                _ ->
+                    (members, token_list)
+
+        # readonly propName: type or readonly propName?: type
+        [IdentifierToken(prop_name), .. as rest] ->
+            when rest is
+                [QuestionToken, ColonToken, .. as rest1] ->
+                    # readonly optional property
+                    (prop_type, rest2) = parse_simple_type_annotation(rest1)
+
+                    prop_signature = TSPropertySignature({
+                        key: Identifier({ name: prop_name }),
+                        typeAnnotation: Some(prop_type),
+                        optional: Bool.true,
+                        readonly: Bool.true,
+                    })
+                    new_members = List.append(members, prop_signature)
+                    continue_parsing_members(new_members, rest2)
+
+                [ColonToken, .. as rest1] ->
+                    # readonly property
+                    (prop_type, rest2) = parse_simple_type_annotation(rest1)
+
+                    prop_signature = TSPropertySignature({
+                        key: Identifier({ name: prop_name }),
+                        typeAnnotation: Some(prop_type),
+                        optional: Bool.false,
+                        readonly: Bool.true,
+                    })
+                    new_members = List.append(members, prop_signature)
+                    continue_parsing_members(new_members, rest2)
+
+                _ ->
+                    (members, token_list)
+
+        _ ->
             (members, token_list)
 
 # Parse generic function type: <T>(param: T) => ReturnType
@@ -3752,24 +3960,82 @@ parse_generic_function_expression = |token_list|
 # Parse template literal type: `prefix${Type}suffix${OtherType}tail`
 parse_template_literal_type : List Token -> (Node, List Token)
 parse_template_literal_type = |token_list|
-    # This is a simplified implementation that converts template literal with types to TSTemplateLiteralType
-    # For a full implementation, we'd need to properly parse the alternating quasi/type pattern
+    # Parse the template literal with type expressions
+    # Pattern: TemplateHead -> DollarBrace -> Type -> CloseBrace -> (TemplateMiddle -> DollarBrace -> Type -> CloseBrace)* -> TemplateTail
 
-    # For now, let's create a basic implementation that just creates the node structure
-    # In a real implementation, we'd need to parse:
-    # TemplateHead -> expression -> TemplateMiddle -> expression -> ... -> TemplateTail
+    when token_list is
+        [TemplateHead(value), DollarBraceToken, .. as rest] ->
+            # Create first quasi (template element)
+            first_quasi = TemplateElement({
+                value: value,
+                raw: value,
+                tail: Bool.false
+            })
 
-    # Create empty quasis and types for now - a proper implementation would parse these
-    template_literal_type = TSTemplateLiteralType({
-        quasis: [],  # Would contain TemplateElement nodes
-        types: [],   # Would contain the parsed type expressions
-    })
+            # Parse the alternating pattern of types and quasis
+            parse_template_literal_parts([first_quasi], [], rest)
 
-    # For now, just consume the entire template literal as a single token
-    # This is a simplified approach - real parsing would be more complex
-    remaining = when token_list is
-        [_, .. as rest] -> rest
-        [] -> []
+        _ ->
+            # Not a valid template literal type
+            (Error({ message: "Expected template literal type" }), token_list)
 
-    (template_literal_type, remaining)
+# Parse the alternating parts of a template literal type
+parse_template_literal_parts : List Node, List Node, List Token -> (Node, List Token)
+parse_template_literal_parts = |quasis, types, token_list|
+    # Parse type expression until CloseBraceToken
+    (type_expr, rest1) = parse_type_until_close_brace(token_list)
+
+    when rest1 is
+        [CloseBraceToken, TemplateTail(value), .. as rest2] ->
+            # End of template literal - add final quasi
+            final_quasi = TemplateElement({
+                value: value,
+                raw: value,
+                tail: Bool.true
+            })
+            final_quasis = List.append(quasis, final_quasi)
+            final_types = List.append(types, type_expr)
+
+            template_literal = TSTemplateLiteralType({
+                quasis: final_quasis,
+                types: final_types,
+            })
+            (template_literal, rest2)
+
+        [CloseBraceToken, TemplateMiddle(value), DollarBraceToken, .. as rest2] ->
+            # More expressions to parse
+            middle_quasi = TemplateElement({
+                value: value,
+                raw: value,
+                tail: Bool.false
+            })
+            new_quasis = List.append(quasis, middle_quasi)
+            new_types = List.append(types, type_expr)
+
+            # Recursively parse the next type expression
+            parse_template_literal_parts(new_quasis, new_types, rest2)
+
+        _ ->
+            # Invalid template literal structure
+            (Error({ message: "Invalid template literal type structure" }), token_list)
+
+# Parse a type expression until we hit a CloseBraceToken
+parse_type_until_close_brace : List Token -> (Node, List Token)
+parse_type_until_close_brace = |token_list|
+    # For template literal types, we need to parse the type expression inside ${}
+    when token_list is
+        [CloseBraceToken, .. as rest] ->
+            # Empty type expression
+            (Error({ message: "Empty type in template literal" }), rest)
+
+        _ ->
+            # Parse the type annotation
+            (type_node, rest) = parse_type_annotation(token_list)
+
+            # Make sure we stopped at a CloseBraceToken
+            when rest is
+                [CloseBraceToken, ..] ->
+                    (type_node, rest)
+                _ ->
+                    (type_node, rest)
 

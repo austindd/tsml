@@ -13,13 +13,20 @@ tsml is a modern compiler pipeline that transforms TypeScript and JavaScript sou
 ### 🎯 **Comprehensive TypeScript Support**
 - **Interface Declarations** with inheritance and optional properties
 - **Type Aliases** for custom type definitions
+- **Generic Types** with type parameters, constraints, and defaults
+- **Intersection Types** (`A & B & C`)
+- **Union Types** (`string | number | boolean`)
+- **Index Signatures** for dynamic property access (`[key: string]: any`)
+- **Literal Types** (string, number, boolean, bigint literals)
+- **Template Literal Types** with expression interpolation
 - **Enum Declarations** with numeric, string, and computed values
 - **Const Enums** for compile-time constants
-- **Union Types** (`string | number | boolean`)
 - **Array Types** with unlimited nesting (`string[][]`)
 - **Tuple Types** with literal values (`[1, 2, 3]`)
 - **Object Type Literals** (`{ x: number; y: number }`)
 - **Variable Type Annotations** on all declaration kinds
+- **Function Type Annotations** with generic parameters
+- **Decorators** on classes and methods (`@sealed`, `@injectable()`)
 
 ### 🔧 **JavaScript Language Features**
 - **Async/Await** functions and expressions
@@ -145,6 +152,104 @@ FunctionDeclaration {
 }
 ```
 
+### Generic Types
+```typescript
+interface Container<T> {
+  value: T;
+}
+
+type Pair<T, U = string> = [T, U];
+
+interface Constrained<T extends number> {
+  data: T;
+}
+
+function identity<T>(value: T): T {
+  return value;
+}
+```
+
+**Generates:**
+```
+TSInterfaceDeclaration {
+  id: Identifier { name: "Container" },
+  typeParameters: TSTypeParameterDeclaration { params: [1 items] },
+  body: TSInterfaceBody { body: [1 items] }
+}
+
+TSTypeAliasDeclaration {
+  id: Identifier { name: "Pair" },
+  typeParameters: TSTypeParameterDeclaration { params: [2 items] },
+  typeAnnotation: TSTupleType { elementTypes: [2 items] }
+}
+```
+
+### Intersection and Literal Types
+```typescript
+type Person = { name: string } & { age: number };
+type Status = "active" | "inactive" | "pending";
+type Count = 0 | 1 | 2 | 3;
+type Greeting = `Hello, ${string}!`;
+```
+
+**Generates:**
+```
+TSTypeAliasDeclaration {
+  id: Identifier { name: "Person" },
+  typeAnnotation: TSIntersectionType { types: [2 items] }
+}
+
+TSTypeAliasDeclaration {
+  id: Identifier { name: "Status" },
+  typeAnnotation: TSUnionType {
+    types: [
+      TSLiteralType { literal: "active" },
+      TSLiteralType { literal: "inactive" },
+      TSLiteralType { literal: "pending" }
+    ]
+  }
+}
+```
+
+### Index Signatures and Decorators
+```typescript
+type Dictionary = {
+  [key: string]: any;
+  readonly [index: number]: string;
+}
+
+@sealed
+@component({ selector: 'app-root' })
+class AppComponent {
+  @readonly
+  id = 'app';
+}
+```
+
+**Generates:**
+```
+TSTypeLiteral {
+  members: [
+    TSIndexSignature {
+      parameters: [TSPropertySignature { key: "key" }],
+      typeAnnotation: TSAnyKeyword {},
+      readonly: false
+    },
+    TSIndexSignature {
+      parameters: [TSPropertySignature { key: "index" }],
+      typeAnnotation: TSStringKeyword {},
+      readonly: true
+    }
+  ]
+}
+
+ClassDeclaration {
+  id: Identifier { name: "AppComponent" },
+  decorators: [2 items],
+  body: BlockStatement { body: [1 items] }
+}
+```
+
 ### TypeScript Enums
 ```typescript
 enum Color { Red, Green, Blue }
@@ -228,12 +333,17 @@ roc dev tests/test_enum_types.roc
 roc dev tests/test_tuple_types.roc
 roc dev tests/test_variable_types.roc
 roc dev tests/test_arrays_unions.roc
+roc dev tests/test_generic_types.roc
+roc dev tests/test_generic_functions.roc
+roc dev tests/test_literal_types.roc
+roc dev tests/test_detailed_template_literals.roc
+roc dev tests/test_index_signatures.roc
+roc dev tests/test_intersection_types.roc
+roc dev tests/test_decorators.roc
 
 # Test JavaScript features
 roc dev tests/test_async_await.roc
 roc dev tests/test_classes.roc
-
-# Run any test from the tests directory
 roc dev tests/test_template_literals.roc
 roc dev tests/test_destructuring.roc
 roc dev tests/test_for_loops.roc
@@ -261,7 +371,11 @@ Source Code → Tokenization → Trivia Filtering → Parsing → AST Generation
 ## 🎯 Current Status
 
 **✅ Completed Features:**
-- Full TypeScript type system parsing
+- Full TypeScript type system parsing including:
+  - Generics with type parameters, constraints, and defaults
+  - Intersection and union types
+  - Literal and template literal types
+  - Index signatures and decorators
 - Modern JavaScript syntax support
 - ESTree-compliant AST generation
 - Interactive development environment
@@ -271,8 +385,9 @@ Source Code → Tokenization → Trivia Filtering → Parsing → AST Generation
 - Semantic analysis and type checking
 - Code generation and optimization
 - IDE language server protocol
-- Advanced TypeScript features (generics, decorators)
+- Conditional types and mapped types
 - Source map generation
+- Module resolution and imports/exports
 
 ## 🤝 Contributing
 

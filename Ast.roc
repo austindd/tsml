@@ -255,6 +255,7 @@ Node : [
                 id : Node,
                 superClass : Option Node,
                 body : Node,
+                decorators : List Node,
             }),
     MethodDefinition (WithBaseNodeData {
                 key : Node,
@@ -262,6 +263,7 @@ Node : [
                 kind : MethodKind,
                 computed : Bool,
                 static : Bool,
+                decorators : List Node,
             }),
     UnaryExpression (WithBaseNodeData {
                 operator : UnaryOperator,
@@ -366,11 +368,6 @@ Node : [
                 params : List Node,
                 returnType : Option Node,
             }),
-    TSPropertySignature (WithBaseNodeData {
-                key : Node,
-                typeAnnotation : Option Node,
-                optional : Bool,
-            }),
     TSTypeAliasDeclaration (WithBaseNodeData {
                 id : Node,
                 typeAnnotation : Node,
@@ -402,10 +399,24 @@ Node : [
     TSTypeLiteral (WithBaseNodeData {
                 members : List Node,
             }),
+    TSPropertySignature (WithBaseNodeData {
+                key : Node,
+                typeAnnotation : Option Node,
+                optional : Bool,
+                readonly : Bool,
+            }),
+    TSIndexSignature (WithBaseNodeData {
+                parameters : List Node,
+                typeAnnotation : Option Node,
+                readonly : Bool,
+            }),
     TSArrayType (WithBaseNodeData {
                 elementType : Node,
             }),
     TSUnionType (WithBaseNodeData {
+                types : List Node,
+            }),
+    TSIntersectionType (WithBaseNodeData {
                 types : List Node,
             }),
     TSTupleType (WithBaseNodeData {
@@ -437,6 +448,9 @@ Node : [
             }),
     TSTypeParameterDeclaration (WithBaseNodeData {
                 params : List Node,
+            }),
+    Decorator (WithBaseNodeData {
+                expression : Node,
             }),
 ]
 
@@ -1472,6 +1486,7 @@ node_to_str_with_indent = |node, indent_level|
         TSPropertySignature(data) ->
             key_str = node_to_str_inline(data.key, indent_level + 1)
             optional_str = if data.optional then "Bool.true" else "Bool.false"
+            readonly_str = if data.readonly then "Bool.true" else "Bool.false"
             type_annotation_str = when data.typeAnnotation is
                 Some(type_ann) ->
                     ann_str = node_to_str_inline(type_ann, indent_level + 1)
@@ -1485,6 +1500,10 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("  optional: ")
             |> Str.concat(optional_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  readonly: ")
+            |> Str.concat(readonly_str)
             |> Str.concat(type_annotation_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
@@ -1580,6 +1599,23 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(members_count)
             |> Str.concat(" items] }")
 
+        TSIndexSignature(data) ->
+            params_count = List.len(data.parameters) |> Num.to_str
+            type_str = when data.typeAnnotation is
+                Some(type_ann) ->
+                    ann_str = node_to_str_inline(type_ann, indent_level + 1)
+                    Str.concat(": ", ann_str)
+                None -> ""
+            readonly_str = if data.readonly then "readonly " else ""
+
+            Str.concat(indent, "TSIndexSignature { ")
+            |> Str.concat(readonly_str)
+            |> Str.concat("[")
+            |> Str.concat(params_count)
+            |> Str.concat(" params]")
+            |> Str.concat(type_str)
+            |> Str.concat(" }")
+
         TSArrayType(data) ->
             element_str = node_to_str_inline(data.elementType, indent_level + 1)
             Str.concat(indent, "TSArrayType { elementType: ")
@@ -1589,6 +1625,12 @@ node_to_str_with_indent = |node, indent_level|
         TSUnionType(data) ->
             types_count = List.len(data.types) |> Num.to_str
             Str.concat(indent, "TSUnionType { types: [")
+            |> Str.concat(types_count)
+            |> Str.concat(" items] }")
+
+        TSIntersectionType(data) ->
+            types_count = List.len(data.types) |> Num.to_str
+            Str.concat(indent, "TSIntersectionType { types: [")
             |> Str.concat(types_count)
             |> Str.concat(" items] }")
 
@@ -1673,6 +1715,12 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(params_count)
             |> Str.concat(" items] }")
 
+        Decorator(data) ->
+            expr_str = node_to_str_inline(data.expression, indent_level + 1)
+            Str.concat(indent, "Decorator { expression: ")
+            |> Str.concat(expr_str)
+            |> Str.concat(" }")
+
         ClassDeclaration(data) ->
             super_class_str =
                 when data.superClass is
@@ -1685,12 +1733,24 @@ node_to_str_with_indent = |node, indent_level|
 
                     None -> ""
 
+            decorators_str =
+                if List.is_empty(data.decorators) then
+                    ""
+                else
+                    decorators_count = List.len(data.decorators) |> Num.to_str
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  decorators: [")
+                    |> Str.concat(decorators_count)
+                    |> Str.concat(" items],")
+
             Str.concat(indent, "ClassDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  id: ")
             |> Str.concat(node_to_str_inline(data.id, indent_level + 1))
             |> Str.concat(",")
             |> Str.concat(super_class_str)
+            |> Str.concat(decorators_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
