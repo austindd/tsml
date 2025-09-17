@@ -2866,23 +2866,27 @@ parse_interface_declaration = |token_list|
         [IdentifierToken(interface_name), .. as rest1] ->
             interface_id = Identifier({ name: interface_name })
 
+            # Check for type parameters
+            (type_params, rest2) = parse_type_parameters(rest1)
+
             # Check for extends clause
-            (extends_clause, rest2) = when rest1 is
+            (extends_clause, rest3) = when rest2 is
                 [ExtendsKeyword, .. as rest] ->
                     (extends_list, remaining) = parse_interface_extends(rest)
                     (Some(extends_list), remaining)
                 _ ->
-                    (None, rest1)
+                    (None, rest2)
 
             # Parse interface body
-            (interface_body, rest3) = parse_interface_body(rest2)
+            (interface_body, rest4) = parse_interface_body(rest3)
 
             interface_decl = TSInterfaceDeclaration({
                 id: interface_id,
                 body: interface_body,
                 extends: extends_clause,
+                typeParameters: type_params,
             })
-            (interface_decl, rest3)
+            (interface_decl, rest4)
 
         _ ->
             (Error({ message: "Expected interface name after 'interface' keyword" }), token_list)
@@ -3001,20 +3005,30 @@ parse_method_signature_params = |params, token_list|
 parse_type_alias_declaration : List Token -> (Node, List Token)
 parse_type_alias_declaration = |token_list|
     when token_list is
-        [IdentifierToken(type_name), EqualsToken, .. as rest1] ->
+        [IdentifierToken(type_name), .. as rest1] ->
             type_id = Identifier({ name: type_name })
-            (type_annotation, rest2) = parse_type_annotation(rest1)
+
+            # Check for type parameters
+            (type_params, rest2) = parse_type_parameters(rest1)
+
+            # Expect equals sign
+            rest3 = when rest2 is
+                [EqualsToken, .. as rest] -> rest
+                _ -> rest2
+
+            (type_annotation, rest4) = parse_type_annotation(rest3)
 
             # Consume optional semicolon
-            rest3 = when rest2 is
+            rest5 = when rest4 is
                 [SemicolonToken, .. as rest] -> rest
-                _ -> rest2
+                _ -> rest4
 
             type_alias = TSTypeAliasDeclaration({
                 id: type_id,
                 typeAnnotation: type_annotation,
+                typeParameters: type_params,
             })
-            (type_alias, rest3)
+            (type_alias, rest5)
 
         _ ->
             (Error({ message: "Expected type alias syntax: type Name = Type" }), token_list)
@@ -3079,6 +3093,10 @@ parse_array_suffix = |base_type, token_list|
 parse_primary_type : List Token -> (Node, List Token)
 parse_primary_type = |token_list|
     when token_list is
+        # Generic function type: <T>(param: T) => ReturnType
+        [LessThanToken, .. as rest] ->
+            parse_generic_function_type(token_list)
+
         # Built-in type keywords (from tokenizer)
         [StringKeyword, .. as rest] ->
             (TSStringKeyword({}), rest)
@@ -3127,11 +3145,19 @@ parse_primary_type = |token_list|
 
         # Type reference (custom types)
         [IdentifierToken(type_name), .. as rest] ->
+            # Check for type arguments
+            (type_args, rest1) = parse_type_arguments(rest)
+            type_params = when type_args is
+                Some(args) ->
+                    when args is
+                        TSTypeParameterInstantiation(data) -> Some(data.params)
+                        _ -> None
+                None -> None
             type_ref = TSTypeReference({
                 typeName: Identifier({ name: type_name }),
-                typeParameters: None,
+                typeParameters: type_params,
             })
-            (type_ref, rest)
+            (type_ref, rest1)
 
         _ ->
             (Error({ message: "Expected type annotation" }), token_list)
@@ -3350,6 +3376,96 @@ parse_enum_member = |token_list|
     })
     (member, rest2)
 
+parse_type_parameters : List Token -> (Option Node, List Token)
+parse_type_parameters = |token_list|
+    when token_list is
+        [LessThanToken, .. as rest] ->
+            (params, rest1) = parse_type_parameter_list([], rest)
+            when rest1 is
+                [GreaterThanToken, .. as rest2] ->
+                    type_params = TSTypeParameterDeclaration({ params })
+                    (Some(type_params), rest2)
+                _ ->
+                    (None, token_list)
+        _ ->
+            (None, token_list)
+
+parse_type_parameter_list : List Node, List Token -> (List Node, List Token)
+parse_type_parameter_list = |params, token_list|
+    when token_list is
+        [GreaterThanToken, ..] | [] ->
+            (params, token_list)
+        _ ->
+            (param, rest1) = parse_type_parameter(token_list)
+            new_params = List.append(params, param)
+
+            when rest1 is
+                [CommaToken, .. as rest2] ->
+                    parse_type_parameter_list(new_params, rest2)
+                _ ->
+                    (new_params, rest1)
+
+parse_type_parameter : List Token -> (Node, List Token)
+parse_type_parameter = |token_list|
+    # Parse the parameter name
+    (name, rest1) = when token_list is
+        [IdentifierToken(id), .. as rest] ->
+            (Identifier({ name: id }), rest)
+        _ ->
+            (Error({ message: "Expected type parameter name" }), token_list)
+
+    # Check for constraint
+    (constraint, rest2) = when rest1 is
+        [ExtendsKeyword, .. as rest] ->
+            (type_node, remaining) = parse_type_annotation(rest)
+            (Some(type_node), remaining)
+        _ ->
+            (None, rest1)
+
+    # Check for default
+    (default, rest3) = when rest2 is
+        [EqualsToken, .. as rest] ->
+            (type_node, remaining) = parse_type_annotation(rest)
+            (Some(type_node), remaining)
+        _ ->
+            (None, rest2)
+
+    param = TSTypeParameter({
+        name,
+        constraint,
+        default,
+    })
+    (param, rest3)
+
+parse_type_arguments : List Token -> (Option Node, List Token)
+parse_type_arguments = |token_list|
+    when token_list is
+        [LessThanToken, .. as rest] ->
+            (args, rest1) = parse_type_argument_list([], rest)
+            when rest1 is
+                [GreaterThanToken, .. as rest2] ->
+                    type_args = TSTypeParameterInstantiation({ params: args })
+                    (Some(type_args), rest2)
+                _ ->
+                    (None, token_list)
+        _ ->
+            (None, token_list)
+
+parse_type_argument_list : List Node, List Token -> (List Node, List Token)
+parse_type_argument_list = |args, token_list|
+    when token_list is
+        [GreaterThanToken, ..] | [] ->
+            (args, token_list)
+        _ ->
+            (arg, rest1) = parse_type_annotation(token_list)
+            new_args = List.append(args, arg)
+
+            when rest1 is
+                [CommaToken, .. as rest2] ->
+                    parse_type_argument_list(new_args, rest2)
+                _ ->
+                    (new_args, rest1)
+
 parse_function_type : List Token -> (Node, List Token)
 parse_function_type = |token_list|
     # For now, just parse a simple function type without complex recursion
@@ -3368,6 +3484,7 @@ collect_function_type_tokens = |collected, token_list|
             function_type = TSFunctionType({
                 parameters: [],
                 returnType: return_type,
+                typeParameters: None,
             })
             (function_type, remaining)
 
@@ -3493,4 +3610,33 @@ parse_object_type_members = |members, token_list|
         _ ->
             # Skip unexpected tokens and return what we have
             (members, token_list)
+
+# Parse generic function type: <T>(param: T) => ReturnType
+parse_generic_function_type : List Token -> (Node, List Token)
+parse_generic_function_type = |token_list|
+    # Parse type parameters <T, U, ...>
+    (type_params, rest1) = parse_type_parameters(token_list)
+
+    # Parse function type starting with parentheses
+    when rest1 is
+        [OpenParenToken, .. as rest2] ->
+            (function_type, rest3) = parse_parenthesized_or_function_type(rest2)
+
+            # Enhance the function type with type parameters
+            enhanced_type = when function_type is
+                TSFunctionType(data) ->
+                    TSFunctionType({
+                        parameters: data.parameters,
+                        returnType: data.returnType,
+                        typeParameters: type_params,
+                    })
+                _ ->
+                    # If not a function type, return as-is
+                    function_type
+
+            (enhanced_type, rest3)
+
+        _ ->
+            # Not a valid generic function type
+            (Error({ message: "Expected function parameters after generic type parameters" }), token_list)
 

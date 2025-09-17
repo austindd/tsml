@@ -355,6 +355,7 @@ Node : [
                 id : Node,
                 body : Node,
                 extends : Option (List Node),
+                typeParameters : Option Node,
             }),
     TSInterfaceBody (WithBaseNodeData {
                 body : List Node,
@@ -372,6 +373,7 @@ Node : [
     TSTypeAliasDeclaration (WithBaseNodeData {
                 id : Node,
                 typeAnnotation : Node,
+                typeParameters : Option Node,
             }),
     TSTypeAnnotation (WithBaseNodeData {
                 typeAnnotation : Node,
@@ -391,6 +393,7 @@ Node : [
     TSFunctionType (WithBaseNodeData {
                 parameters : List Node,
                 returnType : Node,
+                typeParameters : Option Node,
             }),
     TSTypeofType (WithBaseNodeData {
                 exprName : Node,
@@ -418,6 +421,17 @@ Node : [
     TSEnumMember (WithBaseNodeData {
                 id : Node,
                 initializer : Option Node,
+            }),
+    TSTypeParameter (WithBaseNodeData {
+                name : Node,
+                constraint : Option Node,
+                default : Option Node,
+            }),
+    TSTypeParameterInstantiation (WithBaseNodeData {
+                params : List Node,
+            }),
+    TSTypeParameterDeclaration (WithBaseNodeData {
+                params : List Node,
             }),
 ]
 
@@ -1393,6 +1407,11 @@ node_to_str_with_indent = |node, indent_level|
         TSInterfaceDeclaration(data) ->
             id_str = node_to_str_inline(data.id, indent_level + 1)
             body_str = node_to_str_inline(data.body, indent_level + 1)
+            type_params_str = when data.typeParameters is
+                Some(type_params) ->
+                    type_params_val = node_to_str_inline(type_params, indent_level + 1)
+                    ",\n$(indent)  typeParameters: $(type_params_val)"
+                None -> ""
             extends_str = when data.extends is
                 Some(extends_list) ->
                     count = List.len(extends_list) |> Num.to_str
@@ -1406,6 +1425,7 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(indent)
             |> Str.concat("  body: ")
             |> Str.concat(body_str)
+            |> Str.concat(type_params_str)
             |> Str.concat(extends_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
@@ -1459,10 +1479,16 @@ node_to_str_with_indent = |node, indent_level|
         TSTypeAliasDeclaration(data) ->
             id_str = node_to_str_inline(data.id, indent_level + 1)
             type_annotation_str = node_to_str_inline(data.typeAnnotation, indent_level + 1)
+            type_params_str = when data.typeParameters is
+                Some(type_params) ->
+                    type_params_val = node_to_str_inline(type_params, indent_level + 1)
+                    ",\n$(indent)  typeParameters: $(type_params_val)"
+                None -> ""
             Str.concat(indent, "TSTypeAliasDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  id: ")
             |> Str.concat(id_str)
+            |> Str.concat(type_params_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  typeAnnotation: ")
@@ -1513,7 +1539,16 @@ node_to_str_with_indent = |node, indent_level|
                         |> Str.join_with(", ")
             return_type_str = node_to_str_inline(data.returnType, indent_level + 1)
 
-            Str.concat(indent, "TSFunctionType { params: [")
+            type_params_str = when data.typeParameters is
+                Some(type_params) ->
+                    type_params_inline = node_to_str_inline(type_params, indent_level + 1)
+                    Str.concat("typeParameters: ", type_params_inline)
+                    |> Str.concat(", ")
+                None -> ""
+
+            Str.concat(indent, "TSFunctionType { ")
+            |> Str.concat(type_params_str)
+            |> Str.concat("params: [")
             |> Str.concat(params_str)
             |> Str.concat("] => ")
             |> Str.concat(return_type_str)
@@ -1584,6 +1619,36 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(id_str)
             |> Str.concat(init_str)
             |> Str.concat(" }")
+
+        TSTypeParameter(data) ->
+            name_str = node_to_str_inline(data.name, indent_level + 1)
+            constraint_str = when data.constraint is
+                Some(constraint) ->
+                    constraint_val = node_to_str_inline(constraint, indent_level + 1)
+                    Str.concat(" extends ", constraint_val)
+                None -> ""
+            default_str = when data.default is
+                Some(default) ->
+                    default_val = node_to_str_inline(default, indent_level + 1)
+                    Str.concat(" = ", default_val)
+                None -> ""
+            Str.concat(indent, "TSTypeParameter { name: ")
+            |> Str.concat(name_str)
+            |> Str.concat(constraint_str)
+            |> Str.concat(default_str)
+            |> Str.concat(" }")
+
+        TSTypeParameterDeclaration(data) ->
+            params_count = List.len(data.params) |> Num.to_str
+            Str.concat(indent, "TSTypeParameterDeclaration { params: [")
+            |> Str.concat(params_count)
+            |> Str.concat(" items] }")
+
+        TSTypeParameterInstantiation(data) ->
+            params_count = List.len(data.params) |> Num.to_str
+            Str.concat(indent, "TSTypeParameterInstantiation { params: [")
+            |> Str.concat(params_count)
+            |> Str.concat(" items] }")
 
         ClassDeclaration(data) ->
             super_class_str =
