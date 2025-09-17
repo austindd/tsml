@@ -414,6 +414,10 @@ Node : [
     TSLiteralType (WithBaseNodeData {
                 literal : Node,
             }),
+    TSTemplateLiteralType (WithBaseNodeData {
+                quasis : List Node,
+                types : List Node,
+            }),
     TSEnumDeclaration (WithBaseNodeData {
                 id : Node,
                 members : List Node,
@@ -1599,6 +1603,15 @@ node_to_str_with_indent = |node, indent_level|
             Str.concat(indent, "TSLiteralType { literal: ")
             |> Str.concat(literal_str)
             |> Str.concat(" }")
+
+        TSTemplateLiteralType(data) ->
+            quasis_count = List.len(data.quasis) |> Num.to_str
+            types_count = List.len(data.types) |> Num.to_str
+            Str.concat(indent, "TSTemplateLiteralType { quasis: [")
+            |> Str.concat(quasis_count)
+            |> Str.concat(" items], types: [")
+            |> Str.concat(types_count)
+            |> Str.concat(" items] }")
 
         TSEnumDeclaration(data) ->
             id_str = node_to_str_inline(data.id, indent_level + 1)

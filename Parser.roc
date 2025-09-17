@@ -3156,6 +3156,48 @@ parse_primary_type = |token_list|
         [OpenBracketToken, .. as rest] ->
             parse_tuple_type(rest)
 
+        # Literal types
+        [NumberLiteralToken(value), .. as rest] ->
+            # Numeric literal type: 42
+            literal = NumberLiteral({ value: value })
+            literal_type = TSLiteralType({ literal: literal })
+            (literal_type, rest)
+
+        [StringLiteralToken(value), .. as rest] ->
+            # String literal type: "hello"
+            literal = StringLiteral({ value: value })
+            literal_type = TSLiteralType({ literal: literal })
+            (literal_type, rest)
+
+        [BigIntLiteralToken(value), .. as rest] ->
+            # BigInt literal type: 123n
+            literal = BigIntLiteral({ value: value })
+            literal_type = TSLiteralType({ literal: literal })
+            (literal_type, rest)
+
+        [TrueKeyword, .. as rest] ->
+            # Boolean literal type: true
+            literal = BooleanLiteral({ value: Bool.true })
+            literal_type = TSLiteralType({ literal: literal })
+            (literal_type, rest)
+
+        [FalseKeyword, .. as rest] ->
+            # Boolean literal type: false
+            literal = BooleanLiteral({ value: Bool.false })
+            literal_type = TSLiteralType({ literal: literal })
+            (literal_type, rest)
+
+        [NoSubstitutionTemplateLiteralToken(value), .. as rest] ->
+            # Template literal type: `hello`
+            # For now, treat as a simple string literal in the type context
+            literal = StringLiteral({ value: value })
+            literal_type = TSLiteralType({ literal: literal })
+            (literal_type, rest)
+
+        [TemplateHead(value), .. as rest] ->
+            # Template literal type with expressions: `${typeof x}-suffix`
+            parse_template_literal_type(token_list)
+
         # Type reference (custom types)
         [IdentifierToken(type_name), .. as rest] ->
             # Check for type arguments
@@ -3706,4 +3748,28 @@ parse_generic_function_expression = |token_list|
 
         _ ->
             (Error({ message: "Expected function name or parameters after generic type parameters" }), token_list)
+
+# Parse template literal type: `prefix${Type}suffix${OtherType}tail`
+parse_template_literal_type : List Token -> (Node, List Token)
+parse_template_literal_type = |token_list|
+    # This is a simplified implementation that converts template literal with types to TSTemplateLiteralType
+    # For a full implementation, we'd need to properly parse the alternating quasi/type pattern
+
+    # For now, let's create a basic implementation that just creates the node structure
+    # In a real implementation, we'd need to parse:
+    # TemplateHead -> expression -> TemplateMiddle -> expression -> ... -> TemplateTail
+
+    # Create empty quasis and types for now - a proper implementation would parse these
+    template_literal_type = TSTemplateLiteralType({
+        quasis: [],  # Would contain TemplateElement nodes
+        types: [],   # Would contain the parsed type expressions
+    })
+
+    # For now, just consume the entire template literal as a single token
+    # This is a simplified approach - real parsing would be more complex
+    remaining = when token_list is
+        [_, .. as rest] -> rest
+        [] -> []
+
+    (template_literal_type, remaining)
 
