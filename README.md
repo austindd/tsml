@@ -173,8 +173,8 @@ function identity<T>(value: T): T {
 ```
 TSInterfaceDeclaration {
   id: Identifier { name: "Container" },
-  typeParameters: TSTypeParameterDeclaration { params: [1 items] },
-  body: TSInterfaceBody { body: [1 items] }
+  body: TSInterfaceBody { body: [1 items] },
+  typeParameters: TSTypeParameterDeclaration { params: [1 items] }
 }
 
 TSTypeAliasDeclaration {
@@ -201,52 +201,42 @@ TSTypeAliasDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Status" },
-  typeAnnotation: TSUnionType {
-    types: [
-      TSLiteralType { literal: "active" },
-      TSLiteralType { literal: "inactive" },
-      TSLiteralType { literal: "pending" }
-    ]
+  typeAnnotation: TSUnionType { types: [3 items] }
+}
+
+TSTypeAliasDeclaration {
+  id: Identifier { name: "Greeting" },
+  typeAnnotation: TSTemplateLiteralType {
+    quasis: [2 items],
+    types: [1 items]
   }
 }
 ```
 
 ### Index Signatures and Decorators
 ```typescript
-type Dictionary = {
-  [key: string]: any;
+type ReadonlyDict = {
   readonly [index: number]: string;
 }
 
 @sealed
 @component({ selector: 'app-root' })
 class AppComponent {
-  @readonly
   id = 'app';
 }
 ```
 
 **Generates:**
 ```
-TSTypeLiteral {
-  members: [
-    TSIndexSignature {
-      parameters: [TSPropertySignature { key: "key" }],
-      typeAnnotation: TSAnyKeyword {},
-      readonly: false
-    },
-    TSIndexSignature {
-      parameters: [TSPropertySignature { key: "index" }],
-      typeAnnotation: TSStringKeyword {},
-      readonly: true
-    }
-  ]
+TSTypeAliasDeclaration {
+  id: Identifier { name: "ReadonlyDict" },
+  typeAnnotation: TSTypeLiteral { members: [1 items] }
 }
 
 ClassDeclaration {
   id: Identifier { name: "AppComponent" },
   decorators: [2 items],
-  body: BlockStatement { body: [1 items] }
+  body: BlockStatement { body: [] }
 }
 ```
 
