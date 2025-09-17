@@ -255,6 +255,7 @@ Node : [
                 id : Node,
                 superClass : Option Node,
                 body : Node,
+                decorators : List Node,
             }),
     MethodDefinition (WithBaseNodeData {
                 key : Node,
@@ -262,6 +263,7 @@ Node : [
                 kind : MethodKind,
                 computed : Bool,
                 static : Bool,
+                decorators : List Node,
             }),
     UnaryExpression (WithBaseNodeData {
                 operator : UnaryOperator,
@@ -446,6 +448,9 @@ Node : [
             }),
     TSTypeParameterDeclaration (WithBaseNodeData {
                 params : List Node,
+            }),
+    Decorator (WithBaseNodeData {
+                expression : Node,
             }),
 ]
 
@@ -1710,6 +1715,12 @@ node_to_str_with_indent = |node, indent_level|
             |> Str.concat(params_count)
             |> Str.concat(" items] }")
 
+        Decorator(data) ->
+            expr_str = node_to_str_inline(data.expression, indent_level + 1)
+            Str.concat(indent, "Decorator { expression: ")
+            |> Str.concat(expr_str)
+            |> Str.concat(" }")
+
         ClassDeclaration(data) ->
             super_class_str =
                 when data.superClass is
@@ -1722,12 +1733,24 @@ node_to_str_with_indent = |node, indent_level|
 
                     None -> ""
 
+            decorators_str =
+                if List.is_empty(data.decorators) then
+                    ""
+                else
+                    decorators_count = List.len(data.decorators) |> Num.to_str
+                    "\n"
+                    |> Str.concat(indent)
+                    |> Str.concat("  decorators: [")
+                    |> Str.concat(decorators_count)
+                    |> Str.concat(" items],")
+
             Str.concat(indent, "ClassDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  id: ")
             |> Str.concat(node_to_str_inline(data.id, indent_level + 1))
             |> Str.concat(",")
             |> Str.concat(super_class_str)
+            |> Str.concat(decorators_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")

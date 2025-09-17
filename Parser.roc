@@ -937,9 +937,13 @@ parse_statement = |token_list|
         [FunctionKeyword, .. as rest] ->
             parse_function_declaration(rest)
 
+        # Decorator (for class/method/property)
+        [AtToken, .. as rest] ->
+            parse_decorated_declaration(token_list)
+
         # Class declaration
         [ClassKeyword, .. as rest] ->
-            parse_class_declaration(rest)
+            parse_class_declaration_with_decorators([], rest)
 
         # TypeScript interface declaration
         [InterfaceKeyword, .. as rest] ->
@@ -1916,8 +1920,55 @@ parse_function_body_statements = |statements, token_list|
             new_statements = List.append(statements, stmt)
             parse_function_body_statements(new_statements, remaining_tokens)
 
+parse_decorated_declaration : List Token -> (Node, List Token)
+parse_decorated_declaration = |token_list|
+    # Parse decorators
+    (decorators, rest) = parse_decorators([], token_list)
+
+    # Now parse the decorated item
+    when rest is
+        [ClassKeyword, .. as rest1] ->
+            parse_class_declaration_with_decorators(decorators, rest1)
+        _ ->
+            # For now, only support class decorators
+            (Error({ message: "Decorators are currently only supported on classes" }), rest)
+
+parse_decorators : List Node, List Token -> (List Node, List Token)
+parse_decorators = |decorators, token_list|
+    when token_list is
+        [AtToken, .. as rest] ->
+            # Parse the decorator expression
+            (decorator_expr, rest1) = parse_decorator_expression(rest)
+            decorator = Decorator({ expression: decorator_expr })
+            new_decorators = List.append(decorators, decorator)
+            # Check for more decorators
+            parse_decorators(new_decorators, rest1)
+        _ ->
+            # No more decorators
+            (decorators, token_list)
+
+parse_decorator_expression : List Token -> (Node, List Token)
+parse_decorator_expression = |token_list|
+    when token_list is
+        [IdentifierToken(name), OpenParenToken, .. as rest] ->
+            # Decorator with arguments: @decorator(args)
+            callee = Identifier({ name: name })
+            (decorator_call, rest1) = parse_new_arguments(callee, [], rest)
+            (decorator_call, rest1)
+
+        [IdentifierToken(name), .. as rest] ->
+            # Simple decorator: @decorator
+            (Identifier({ name: name }), rest)
+
+        _ ->
+            (Error({ message: "Expected decorator name after '@'" }), token_list)
+
 parse_class_declaration : List Token -> (Node, List Token)
 parse_class_declaration = |token_list|
+    parse_class_declaration_with_decorators([], token_list)
+
+parse_class_declaration_with_decorators : List Node, List Token -> (Node, List Token)
+parse_class_declaration_with_decorators = |decorators, token_list|
     when token_list is
         [IdentifierToken(class_name), .. as rest1] ->
             class_id = Identifier({ name: class_name })
@@ -1937,6 +1988,7 @@ parse_class_declaration = |token_list|
                 id: class_id,
                 superClass: super_class,
                 body: class_body,
+                decorators: decorators,
             })
             (class_decl, rest3)
 
@@ -2015,6 +2067,7 @@ parse_method_definition_with_key = |kind, key, token_list|
                 kind: kind,
                 computed: Bool.false,
                 static: Bool.false,
+                decorators: [],
             })
             (method_def, rest3)
 
@@ -2025,6 +2078,7 @@ parse_method_definition_with_key = |kind, key, token_list|
                 kind: kind,
                 computed: Bool.false,
                 static: Bool.false,
+                decorators: [],
             })
             (error_method, token_list)
 
