@@ -3752,24 +3752,82 @@ parse_generic_function_expression = |token_list|
 # Parse template literal type: `prefix${Type}suffix${OtherType}tail`
 parse_template_literal_type : List Token -> (Node, List Token)
 parse_template_literal_type = |token_list|
-    # This is a simplified implementation that converts template literal with types to TSTemplateLiteralType
-    # For a full implementation, we'd need to properly parse the alternating quasi/type pattern
+    # Parse the template literal with type expressions
+    # Pattern: TemplateHead -> DollarBrace -> Type -> CloseBrace -> (TemplateMiddle -> DollarBrace -> Type -> CloseBrace)* -> TemplateTail
 
-    # For now, let's create a basic implementation that just creates the node structure
-    # In a real implementation, we'd need to parse:
-    # TemplateHead -> expression -> TemplateMiddle -> expression -> ... -> TemplateTail
+    when token_list is
+        [TemplateHead(value), DollarBraceToken, .. as rest] ->
+            # Create first quasi (template element)
+            first_quasi = TemplateElement({
+                value: value,
+                raw: value,
+                tail: Bool.false
+            })
 
-    # Create empty quasis and types for now - a proper implementation would parse these
-    template_literal_type = TSTemplateLiteralType({
-        quasis: [],  # Would contain TemplateElement nodes
-        types: [],   # Would contain the parsed type expressions
-    })
+            # Parse the alternating pattern of types and quasis
+            parse_template_literal_parts([first_quasi], [], rest)
 
-    # For now, just consume the entire template literal as a single token
-    # This is a simplified approach - real parsing would be more complex
-    remaining = when token_list is
-        [_, .. as rest] -> rest
-        [] -> []
+        _ ->
+            # Not a valid template literal type
+            (Error({ message: "Expected template literal type" }), token_list)
 
-    (template_literal_type, remaining)
+# Parse the alternating parts of a template literal type
+parse_template_literal_parts : List Node, List Node, List Token -> (Node, List Token)
+parse_template_literal_parts = |quasis, types, token_list|
+    # Parse type expression until CloseBraceToken
+    (type_expr, rest1) = parse_type_until_close_brace(token_list)
+
+    when rest1 is
+        [CloseBraceToken, TemplateTail(value), .. as rest2] ->
+            # End of template literal - add final quasi
+            final_quasi = TemplateElement({
+                value: value,
+                raw: value,
+                tail: Bool.true
+            })
+            final_quasis = List.append(quasis, final_quasi)
+            final_types = List.append(types, type_expr)
+
+            template_literal = TSTemplateLiteralType({
+                quasis: final_quasis,
+                types: final_types,
+            })
+            (template_literal, rest2)
+
+        [CloseBraceToken, TemplateMiddle(value), DollarBraceToken, .. as rest2] ->
+            # More expressions to parse
+            middle_quasi = TemplateElement({
+                value: value,
+                raw: value,
+                tail: Bool.false
+            })
+            new_quasis = List.append(quasis, middle_quasi)
+            new_types = List.append(types, type_expr)
+
+            # Recursively parse the next type expression
+            parse_template_literal_parts(new_quasis, new_types, rest2)
+
+        _ ->
+            # Invalid template literal structure
+            (Error({ message: "Invalid template literal type structure" }), token_list)
+
+# Parse a type expression until we hit a CloseBraceToken
+parse_type_until_close_brace : List Token -> (Node, List Token)
+parse_type_until_close_brace = |token_list|
+    # For template literal types, we need to parse the type expression inside ${}
+    when token_list is
+        [CloseBraceToken, .. as rest] ->
+            # Empty type expression
+            (Error({ message: "Empty type in template literal" }), rest)
+
+        _ ->
+            # Parse the type annotation
+            (type_node, rest) = parse_type_annotation(token_list)
+
+            # Make sure we stopped at a CloseBraceToken
+            when rest is
+                [CloseBraceToken, ..] ->
+                    (type_node, rest)
+                _ ->
+                    (type_node, rest)
 
