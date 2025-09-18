@@ -60,20 +60,16 @@ interface Admin extends User {
 
 **Generates:**
 ```
-Program {
-  sourceType: Module,
-  body: [
-    TSInterfaceDeclaration {
-      id: Identifier { name: "User" },
-      body: TSInterfaceBody { body: [2 items] },
-      extends: None
-    },
-    TSInterfaceDeclaration {
-      id: Identifier { name: "Admin" },
-      body: TSInterfaceBody { body: [1 items] },
-      extends: Some([1 items])
-    },
-  ]
+TSInterfaceDeclaration {
+  id: Identifier { name: "User" },
+  body: TSInterfaceBody { body: [2 items] },
+  extends: None
+}
+
+TSInterfaceDeclaration {
+  id: Identifier { name: "Admin" },
+  body: TSInterfaceBody { body: [1 items] },
+  extends: Some([1 items])
 }
 ```
 
@@ -87,48 +83,77 @@ type Point = [number, number];
 
 **Generates:**
 ```
-Program {
-  sourceType: Module,
-  body: [
-    TSTypeAliasDeclaration {
-      id: Identifier { name: "Matrix" },
-      typeAnnotation: TSArrayType {
-        elementType: TSArrayType {
-          elementType: TSNumberKeyword
-        }
-      }
-    },
-    TSTypeAliasDeclaration {
-      id: Identifier { name: "StringOrNumber" },
-      typeAnnotation: TSUnionType { types: [2 items] }
-    },
-    TSTypeAliasDeclaration {
-      id: Identifier { name: "MixedArray" },
-      typeAnnotation: TSArrayType {
-        elementType: TSUnionType { types: [2 items] }
-      }
-    },
-    TSTypeAliasDeclaration {
-      id: Identifier { name: "Point" },
-      typeAnnotation: TSTupleType { elementTypes: [2 items] }
-    },
-  ]
+TSTypeAliasDeclaration {
+  id: Identifier { name: "Matrix" },
+  typeAnnotation: TSArrayType {
+    elementType: TSArrayType {
+      elementType: TSNumberKeyword
+    }
+  }
+}
+
+TSTypeAliasDeclaration {
+  id: Identifier { name: "StringOrNumber" },
+  typeAnnotation: TSUnionType { types: [2 items] }
+}
+
+TSTypeAliasDeclaration {
+  id: Identifier { name: "MixedArray" },
+  typeAnnotation: TSArrayType {
+    elementType: TSUnionType { types: [2 items] }
+  }
+}
+
+TSTypeAliasDeclaration {
+  id: Identifier { name: "Point" },
+  typeAnnotation: TSTupleType { elementTypes: [2 items] }
 }
 ```
 
 ### Variable Type Annotations
 ```typescript
 const user: { name: string; age: number } = { name: "Alice", age: 30 };
-let items: string[] = ["apple", "banana"];
-var count: number = 42;
 ```
 
 **Generates:**
 ```
-VariableDeclarator {
-  id: Identifier { name: "user" },
-  typeAnnotation: TSTypeLiteral { members: [2 items] },
-  init: ObjectExpression { properties: [2 items] }
+VariableDeclaration {
+  kind: Const,
+  declarations: [
+    VariableDeclarator {
+      id: Identifier { name: "user" },
+      typeAnnotation: TSTypeLiteral {
+        members: [
+          TSPropertySignature {
+            key: Identifier { name: "name" },
+            optional: Bool.false,
+            readonly: Bool.false,
+            typeAnnotation: TSStringKeyword
+          },
+          TSPropertySignature {
+            key: Identifier { name: "age" },
+            optional: Bool.false,
+            readonly: Bool.false,
+            typeAnnotation: TSNumberKeyword
+          },
+        ]
+      },
+      init: ObjectExpression {
+        properties: [
+          Property {
+            kind: Init,
+            key: Identifier { name: "name" },
+            value: StringLiteral { value: ""Alice"" }
+          },
+          Property {
+            kind: Init,
+            key: Identifier { name: "age" },
+            value: NumberLiteral { value: "30" }
+          }
+        ]
+      }
+    },
+  ]
 }
 ```
 
@@ -138,17 +163,47 @@ async function fetchData(url) {
   const response = await fetch(url);
   return response.json();
 }
-
-const greet = (name) => `Hello, ${name}!`;
 ```
 
 **Generates:**
 ```
 FunctionDeclaration {
   id: Identifier { name: "fetchData" },
-  async: true,
-  params: [1 items],
-  body: BlockStatement { body: [2 items] }
+  params: [
+    Identifier { name: "url" },
+  ],
+  body: FunctionBody {
+    body: [
+      VariableDeclaration {
+        kind: Const,
+        declarations: [
+          VariableDeclarator {
+            id: Identifier { name: "response" },
+            init: AwaitExpression {
+              argument: CallExpression {
+                callee: Identifier { name: "fetch" },
+                arguments: [
+                  Identifier { name: "url" },
+                ]
+              }
+            }
+          },
+        ]
+      },
+      ReturnStatement {
+        CallExpression {
+          callee: MemberExpression {
+            object: Identifier { name: "response" },
+            property: Identifier { name: "json" },
+            computed: Bool.false
+          },
+          arguments: []
+        }
+      },
+    ]
+  },
+  async: Bool.true,
+  generator: Bool.false
 }
 ```
 
