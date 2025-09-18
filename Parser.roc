@@ -98,7 +98,7 @@ parse_expression = |mode, min_precedence, token_list|
             (left_expr, rest_after_left) = parse_primary_expression(token_list)
             # Then continue parsing with Led mode
             parse_expression(Led({ left_node: left_expr }), min_precedence, rest_after_left)
-        
+
         Led({ left_node }) ->
             parse_expression_led(left_node, min_precedence, token_list)
 
@@ -198,6 +198,7 @@ parse_primary_expression = |token_list|
                     when after_paren_content is
                         [CloseParenToken, EqualsGreaterThanToken, .. as arrow_rest] ->
                             parse_async_arrow_function_body(params_node, arrow_rest)
+
                         _ ->
                             # Not an arrow function, treat async as regular identifier
                             async_id = Identifier({ name: "async" })
@@ -225,11 +226,11 @@ parse_primary_expression = |token_list|
                             # Create a special marker for empty params
                             empty_params = Error({ message: "EMPTY_ARROW_PARAMS" })
                             (empty_params, rest2)
-                        
+
                         _ ->
                             # Empty parentheses but not arrow function - this is an error
                             (Error({ message: "Empty parentheses with no expression" }), rest2)
-                
+
                 _ ->
                     # Non-empty parentheses - parse as parenthesized expression
                     (node, remaining_tokens) = parse_expression(Nud, 0, rest1)
@@ -240,7 +241,7 @@ parse_primary_expression = |token_list|
                         [tok, ..] ->
                             token_name = Token.ts_token_debug_display(tok)
                             (
-                                Error({ message: "parse_expression() failed -- Expected close paren, but got $(token_name)" }),
+                                Error({ message: "parse_expression() failed -- Expected close paren, but got ${token_name}" }),
                                 remaining_tokens,
                             )
 
@@ -252,20 +253,20 @@ parse_primary_expression = |token_list|
 
         # Await expressions
         [AwaitKeyword, .. as rest1] ->
-            (argument, rest2) = parse_expression(Nud, 1600, rest1)  # High precedence for await
+            (argument, rest2) = parse_expression(Nud, 1600, rest1) # High precedence for await
             await_expr = AwaitExpression({ argument: argument })
             (await_expr, rest2)
 
         # Yield expressions
         [YieldKeyword, AsteriskToken, .. as rest1] ->
             # yield* expression (delegate)
-            (argument, rest2) = parse_expression(Nud, 1600, rest1)  # High precedence for yield
+            (argument, rest2) = parse_expression(Nud, 1600, rest1) # High precedence for yield
             yield_expr = YieldExpression({ argument: argument, delegate: Bool.true })
             (yield_expr, rest2)
 
         [YieldKeyword, .. as rest1] ->
             # yield expression (non-delegate)
-            (argument, rest2) = parse_expression(Nud, 1600, rest1)  # High precedence for yield
+            (argument, rest2) = parse_expression(Nud, 1600, rest1) # High precedence for yield
             yield_expr = YieldExpression({ argument: argument, delegate: Bool.false })
             (yield_expr, rest2)
 
@@ -277,187 +278,192 @@ parse_primary_expression = |token_list|
 
         [tok, .. as rest] ->
             token_name = Token.ts_token_debug_display(tok)
-            (Error({ message: "parse_primary_expression: Unexpected token $(token_name)" }), rest)
+            (Error({ message: "parse_primary_expression: Unexpected token ${token_name}" }), rest)
 
 parse_expression_led : Node, U16, List Token -> (Node, List Token)
 parse_expression_led = |left_node, min_precedence, token_list|
     when token_list is
-                # Sequence operator (comma) - lowest precedence
-                [CommaToken as tok, .. as rest1] ->
-                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                    when Num.compare(expr_precedence, min_precedence) is
-                        LT -> (left_node, token_list)
-                        _ ->
-                            (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
-                            sequence_node =
-                                when left_node is
-                                    SequenceExpression(seq_data) ->
-                                        # If left is already a sequence, add to its expressions
-                                        SequenceExpression({
-                                            expressions: List.append(seq_data.expressions, right_node)
-                                        })
-                                    _ ->
-                                        # Create new sequence with left and right
-                                        SequenceExpression({
-                                            expressions: [left_node, right_node]
-                                        })
-                            parse_expression_led(sequence_node, min_precedence, rest2)
+        # Sequence operator (comma) - lowest precedence
+        [CommaToken as tok, .. as rest1] ->
+            expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+            when Num.compare(expr_precedence, min_precedence) is
+                LT -> (left_node, token_list)
+                _ ->
+                    (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
+                    sequence_node =
+                        when left_node is
+                            SequenceExpression(seq_data) ->
+                                # If left is already a sequence, add to its expressions
+                                SequenceExpression(
+                                    {
+                                        expressions: List.append(seq_data.expressions, right_node),
+                                    },
+                                )
 
-                # Logical operators
-                [AmpersandAmpersandToken as tok, .. as rest1]
-                | [BarBarToken as tok, .. as rest1] ->
-                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                    when Num.compare(expr_precedence, min_precedence) is
-                        LT -> (left_node, token_list)
-                        _ ->
-                            (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
-                            logical_node = LogicalExpression(
-                                {
-                                    left: left_node,
-                                    operator: token_to_logical_operator(tok),
-                                    right: right_node,
-                                },
-                            )
-                            parse_expression_led(logical_node, min_precedence, rest2)
+                            _ ->
+                                # Create new sequence with left and right
+                                SequenceExpression(
+                                    {
+                                        expressions: [left_node, right_node],
+                                    },
+                                )
+                    parse_expression_led(sequence_node, min_precedence, rest2)
 
-                # Binary operators (left associative)
-                # Bitwise
-                [AmpersandToken as tok, .. as rest1]
-                | [BarToken as tok, .. as rest1]
-                | [CaretToken as tok, .. as rest1]
-                | [LessThanLessThanToken as tok, .. as rest1]
-                | [GreaterThanGreaterThanToken as tok, .. as rest1]
-                | [GreaterThanGreaterThanGreaterThanToken as tok, .. as rest1]
-                # Relational
-                | [EqualsEqualsToken as tok, .. as rest1]
-                | [ExclamationEqualsToken as tok, .. as rest1]
-                | [EqualsEqualsEqualsToken as tok, .. as rest1]
-                | [ExclamationEqualsEqualsToken as tok, .. as rest1]
-                # Additive
-                | [PlusToken as tok, .. as rest1]
-                | [MinusToken as tok, .. as rest1]
-                # Multiplicative
-                | [AsteriskToken as tok, .. as rest1]
-                | [SlashToken as tok, .. as rest1]
-                | [PercentToken as tok, .. as rest1] ->
-                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                    # Check precedence - if current operator has lower precedence than min, stop
-                    when Num.compare(expr_precedence, min_precedence) is
-                        LT -> (left_node, token_list)
-                        _ ->
-                            (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
-                            binary_node = BinaryExpression(
-                                {
-                                    left: left_node,
-                                    operator: token_to_binary_operator(tok),
-                                    right: right_node,
-                                },
-                            )
-                            # Continue parsing at this level
-                            parse_expression_led(binary_node, min_precedence, rest2)
-
-                # Assignment operators
-                [EqualsToken as tok, .. as rest1]
-                | [PlusEqualsToken as tok, .. as rest1]
-                | [MinusEqualsToken as tok, .. as rest1]
-                | [AsteriskEqualsToken as tok, .. as rest1]
-                | [AsteriskAsteriskEqualsToken as tok, .. as rest1]
-                | [SlashEqualsToken as tok, .. as rest1]
-                | [PercentEqualsToken as tok, .. as rest1]
-                | [LessThanLessThanEqualsToken as tok, .. as rest1]
-                | [GreaterThanGreaterThanEqualsToken as tok, .. as rest1]
-                | [GreaterThanGreaterThanGreaterThanEqualsToken as tok, .. as rest1]
-                | [AmpersandEqualsToken as tok, .. as rest1]
-                | [BarEqualsToken as tok, .. as rest1]
-                | [BarBarEqualsToken as tok, .. as rest1]
-                | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
-                | [QuestionQuestionEqualsToken as tok, .. as rest1]
-                | [CaretEqualsToken as tok, .. as rest1] ->
-                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                    (right_node, rest2) = parse_expression(Nud, expr_precedence, rest1)
-                    assignment_node = AssignmentExpression(
+        # Logical operators
+        [AmpersandAmpersandToken as tok, .. as rest1]
+        | [BarBarToken as tok, .. as rest1] ->
+            expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+            when Num.compare(expr_precedence, min_precedence) is
+                LT -> (left_node, token_list)
+                _ ->
+                    (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
+                    logical_node = LogicalExpression(
                         {
                             left: left_node,
-                            operator: token_to_assignment_operator(tok),
+                            operator: token_to_logical_operator(tok),
                             right: right_node,
                         },
                     )
-                    (assignment_node, rest2)
+                    parse_expression_led(logical_node, min_precedence, rest2)
 
-                # Conditional operator (ternary)
-                [QuestionToken, .. as rest1] ->
-                    # Parse the consequent (true case)
-                    (consequent, rest2) = parse_expression(Nud, 0, rest1)
-                    when rest2 is
-                        [ColonToken, .. as rest3] ->
-                            # Parse the alternate (false case)
-                            expr_precedence = get_expr_precedence(Led({ left_node }), QuestionToken)
-                            (alternate, rest4) = parse_expression(Nud, expr_precedence, rest3)
-                            conditional_node = ConditionalExpression(
-                                {
-                                    test: left_node,
-                                    consequent: consequent,
-                                    alternate: alternate,
-                                },
-                            )
-                            (conditional_node, rest4)
-
-                        _ ->
-                            (Error({ message: "Expected ':' after '?' in conditional expression" }), rest2)
-
-                # Postfix (update expressions)
-                [PlusPlusToken as tok, .. as rest1]
-                | [MinusMinusToken as tok, .. as rest1] ->
-                    update_node = UpdateExpression(
-                        {
-                            operator: token_to_update_operator(tok),
-                            prefix: Bool.false,
-                            argument: left_node,
-                        },
-                    )
-                    (update_node, rest1)
-
-                # Arrow function
-                [EqualsGreaterThanToken, .. as rest1] ->
-                    parse_arrow_function_body(left_node, rest1)
-
-                # FunctionCall
-                [OpenParenToken, .. as rest1] ->
-                    (call_expr, rest2) = parse_function_call(left_node, rest1)
-                    # Continue parsing for additional operators (like sequence expressions)
-                    parse_expression_led(call_expr, min_precedence, rest2)
-
-                # Tagged template literals
-                [NoSubstitutionTemplateLiteralToken(_), .. as rest1]
-                | [TemplateHead(_), .. as rest1] ->
-                    (template, rest2) = parse_template_literal(token_list)
-                    tagged_template = TaggedTemplateExpression({ tag: left_node, quasi: template })
-                    parse_expression_led(tagged_template, min_precedence, rest2)
-
-                # MemberAccess - dot notation
-                [DotToken, .. as rest1] ->
-                    parse_member_access_dot(left_node, rest1)
-
-                # MemberAccess - bracket notation
-                [OpenBracketToken, .. as rest1] ->
-                    parse_member_access_bracket(left_node, rest1)
-
-                # Right associative
-                # Exponentiation
-                [AsteriskAsteriskToken as tok, .. as rest1] ->
-                    expr_precedence = get_expr_precedence(Led({ left_node }), tok)
-                    (right_node, rest2) = parse_expression(Led({ left_node }), expr_precedence - 1, rest1)
-                    current_node = BinaryExpression(
+        # Binary operators (left associative)
+        # Bitwise
+        [AmpersandToken as tok, .. as rest1]
+        | [BarToken as tok, .. as rest1]
+        | [CaretToken as tok, .. as rest1]
+        | [LessThanLessThanToken as tok, .. as rest1]
+        | [GreaterThanGreaterThanToken as tok, .. as rest1]
+        | [GreaterThanGreaterThanGreaterThanToken as tok, .. as rest1]
+        # Relational
+        | [EqualsEqualsToken as tok, .. as rest1]
+        | [ExclamationEqualsToken as tok, .. as rest1]
+        | [EqualsEqualsEqualsToken as tok, .. as rest1]
+        | [ExclamationEqualsEqualsToken as tok, .. as rest1]
+        # Additive
+        | [PlusToken as tok, .. as rest1]
+        | [MinusToken as tok, .. as rest1]
+        # Multiplicative
+        | [AsteriskToken as tok, .. as rest1]
+        | [SlashToken as tok, .. as rest1]
+        | [PercentToken as tok, .. as rest1] ->
+            expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+            # Check precedence - if current operator has lower precedence than min, stop
+            when Num.compare(expr_precedence, min_precedence) is
+                LT -> (left_node, token_list)
+                _ ->
+                    (right_node, rest2) = parse_expression(Nud, expr_precedence + 1, rest1)
+                    binary_node = BinaryExpression(
                         {
                             left: left_node,
                             operator: token_to_binary_operator(tok),
                             right: right_node,
                         },
                     )
-                    (current_node, rest2)
+                    # Continue parsing at this level
+                    parse_expression_led(binary_node, min_precedence, rest2)
 
-                [] -> (left_node, [])
-                _ -> (left_node, token_list)
+        # Assignment operators
+        [EqualsToken as tok, .. as rest1]
+        | [PlusEqualsToken as tok, .. as rest1]
+        | [MinusEqualsToken as tok, .. as rest1]
+        | [AsteriskEqualsToken as tok, .. as rest1]
+        | [AsteriskAsteriskEqualsToken as tok, .. as rest1]
+        | [SlashEqualsToken as tok, .. as rest1]
+        | [PercentEqualsToken as tok, .. as rest1]
+        | [LessThanLessThanEqualsToken as tok, .. as rest1]
+        | [GreaterThanGreaterThanEqualsToken as tok, .. as rest1]
+        | [GreaterThanGreaterThanGreaterThanEqualsToken as tok, .. as rest1]
+        | [AmpersandEqualsToken as tok, .. as rest1]
+        | [BarEqualsToken as tok, .. as rest1]
+        | [BarBarEqualsToken as tok, .. as rest1]
+        | [AmpersandAmpersandEqualsToken as tok, .. as rest1]
+        | [QuestionQuestionEqualsToken as tok, .. as rest1]
+        | [CaretEqualsToken as tok, .. as rest1] ->
+            expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+            (right_node, rest2) = parse_expression(Nud, expr_precedence, rest1)
+            assignment_node = AssignmentExpression(
+                {
+                    left: left_node,
+                    operator: token_to_assignment_operator(tok),
+                    right: right_node,
+                },
+            )
+            (assignment_node, rest2)
+
+        # Conditional operator (ternary)
+        [QuestionToken, .. as rest1] ->
+            # Parse the consequent (true case)
+            (consequent, rest2) = parse_expression(Nud, 0, rest1)
+            when rest2 is
+                [ColonToken, .. as rest3] ->
+                    # Parse the alternate (false case)
+                    expr_precedence = get_expr_precedence(Led({ left_node }), QuestionToken)
+                    (alternate, rest4) = parse_expression(Nud, expr_precedence, rest3)
+                    conditional_node = ConditionalExpression(
+                        {
+                            test: left_node,
+                            consequent: consequent,
+                            alternate: alternate,
+                        },
+                    )
+                    (conditional_node, rest4)
+
+                _ ->
+                    (Error({ message: "Expected ':' after '?' in conditional expression" }), rest2)
+
+        # Postfix (update expressions)
+        [PlusPlusToken as tok, .. as rest1]
+        | [MinusMinusToken as tok, .. as rest1] ->
+            update_node = UpdateExpression(
+                {
+                    operator: token_to_update_operator(tok),
+                    prefix: Bool.false,
+                    argument: left_node,
+                },
+            )
+            (update_node, rest1)
+
+        # Arrow function
+        [EqualsGreaterThanToken, .. as rest1] ->
+            parse_arrow_function_body(left_node, rest1)
+
+        # FunctionCall
+        [OpenParenToken, .. as rest1] ->
+            (call_expr, rest2) = parse_function_call(left_node, rest1)
+            # Continue parsing for additional operators (like sequence expressions)
+            parse_expression_led(call_expr, min_precedence, rest2)
+
+        # Tagged template literals
+        [NoSubstitutionTemplateLiteralToken(_), .. as rest1]
+        | [TemplateHead(_), .. as rest1] ->
+            (template, rest2) = parse_template_literal(token_list)
+            tagged_template = TaggedTemplateExpression({ tag: left_node, quasi: template })
+            parse_expression_led(tagged_template, min_precedence, rest2)
+
+        # MemberAccess - dot notation
+        [DotToken, .. as rest1] ->
+            parse_member_access_dot(left_node, rest1)
+
+        # MemberAccess - bracket notation
+        [OpenBracketToken, .. as rest1] ->
+            parse_member_access_bracket(left_node, rest1)
+
+        # Right associative
+        # Exponentiation
+        [AsteriskAsteriskToken as tok, .. as rest1] ->
+            expr_precedence = get_expr_precedence(Led({ left_node }), tok)
+            (right_node, rest2) = parse_expression(Led({ left_node }), expr_precedence - 1, rest1)
+            current_node = BinaryExpression(
+                {
+                    left: left_node,
+                    operator: token_to_binary_operator(tok),
+                    right: right_node,
+                },
+            )
+            (current_node, rest2)
+
+        [] -> (left_node, [])
+        _ -> (left_node, token_list)
 
 OperatorPosition : [
     Prefix,
@@ -672,7 +678,7 @@ token_to_assignment_operator = |token|
         PlusEqualsToken -> PlusEqual
         MinusEqualsToken -> MinusEqual
         AsteriskEqualsToken -> StarEqual
-        AsteriskAsteriskEqualsToken -> StarEqual  # Note: ** operator needs special handling
+        AsteriskAsteriskEqualsToken -> StarEqual # Note: ** operator needs special handling
         SlashEqualsToken -> SlashEqual
         PercentEqualsToken -> PercentEqual
         LessThanLessThanEqualsToken -> LeftShiftEqual
@@ -682,9 +688,9 @@ token_to_assignment_operator = |token|
         BarEqualsToken -> PipeEqual
         CaretEqualsToken -> CaretEqual
         # Note: Logical assignment operators (&&=, ||=, ??=) may need new AST nodes
-        BarBarEqualsToken -> PipeEqual  # Placeholder
-        AmpersandAmpersandEqualsToken -> AmpersandEqual  # Placeholder
-        QuestionQuestionEqualsToken -> Equal  # Placeholder
+        BarBarEqualsToken -> PipeEqual # Placeholder
+        AmpersandAmpersandEqualsToken -> AmpersandEqual # Placeholder
+        QuestionQuestionEqualsToken -> Equal # Placeholder
         _ -> crash("token_to_assignment_operator() failed -- This should never happen")
 
 token_to_logical_operator : Token -> LogicalOperator
@@ -772,7 +778,7 @@ parse_object_property = |token_list|
     when token_list is
         [DotDotDotToken, .. as rest1] ->
             # Spread element: ...expression
-            (argument, rest2) = parse_expression(Nud, 60, rest1)  # Use same precedence as destructuring defaults
+            (argument, rest2) = parse_expression(Nud, 60, rest1) # Use same precedence as destructuring defaults
             spread_element = SpreadElement({ argument: argument })
             (spread_element, rest2)
 
@@ -957,7 +963,6 @@ parse_statement = |token_list|
         [EnumKeyword, .. as rest] ->
             parse_enum_declaration(token_list)
 
-
         # Import declaration
         [ImportKeyword, .. as rest] ->
             parse_import_declaration(rest)
@@ -1031,13 +1036,15 @@ parse_variable_declarator = |token_list|
             identifier = Identifier({ name: name })
 
             # Check for type annotation: let name: type
-            (type_annotation, remaining_after_type) = when rest1 is
-                [ColonToken, .. as rest2] ->
-                    (type_node, remaining) = parse_type_annotation(rest2)
-                    (Some(type_node), remaining)
-                _ ->
-                    # No type annotation
-                    (None, rest1)
+            (type_annotation, remaining_after_type) =
+                when rest1 is
+                    [ColonToken, .. as rest2] ->
+                        (type_node, remaining) = parse_type_annotation(rest2)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No type annotation
+                        (None, rest1)
 
             when remaining_after_type is
                 [EqualsToken, .. as rest2] ->
@@ -1247,18 +1254,23 @@ parse_for_statement = |token_list|
                     when rest3 is
                         [CloseParenToken, .. as rest4] ->
                             (body, rest5) = parse_statement(rest4)
-                            for_of_stmt = ForOfStatement({
-                                left: left_side,
-                                right: right_expr,
-                                body: body,
-                            })
+                            for_of_stmt = ForOfStatement(
+                                {
+                                    left: left_side,
+                                    right: right_expr,
+                                    body: body,
+                                },
+                            )
                             (for_of_stmt, rest5)
+
                         _ ->
-                            error_stmt = ForOfStatement({
-                                left: left_side,
-                                right: Error({ message: "Expected ')' after for...of expression" }),
-                                body: Error({ message: "Missing body" }),
-                            })
+                            error_stmt = ForOfStatement(
+                                {
+                                    left: left_side,
+                                    right: Error({ message: "Expected ')' after for...of expression" }),
+                                    body: Error({ message: "Missing body" }),
+                                },
+                            )
                             (error_stmt, rest3)
 
                 # for...in loop
@@ -1267,18 +1279,23 @@ parse_for_statement = |token_list|
                     when rest3 is
                         [CloseParenToken, .. as rest4] ->
                             (body, rest5) = parse_statement(rest4)
-                            for_in_stmt = ForInStatement({
-                                left: left_side,
-                                right: right_expr,
-                                body: body,
-                            })
+                            for_in_stmt = ForInStatement(
+                                {
+                                    left: left_side,
+                                    right: right_expr,
+                                    body: body,
+                                },
+                            )
                             (for_in_stmt, rest5)
+
                         _ ->
-                            error_stmt = ForInStatement({
-                                left: left_side,
-                                right: Error({ message: "Expected ')' after for...in expression" }),
-                                body: Error({ message: "Missing body" }),
-                            })
+                            error_stmt = ForInStatement(
+                                {
+                                    left: left_side,
+                                    right: Error({ message: "Expected ')' after for...in expression" }),
+                                    body: Error({ message: "Missing body" }),
+                                },
+                            )
                             (error_stmt, rest3)
 
                 # Traditional for loop - parse semicolon-separated parts
@@ -1290,14 +1307,17 @@ parse_for_statement = |token_list|
                     when rest_after_left is
                         [SemicolonToken, .. as rest_after_semi] ->
                             parse_traditional_for_loop(Some(left_side), rest_after_semi)
+
                         _ ->
                             # Not a traditional for loop - this is an error
-                            error_stmt = ForStatement({
-                                init: Some(left_side),
-                                test: None,
-                                update: None,
-                                body: Error({ message: "Expected ';', 'in', or 'of' in for loop" }),
-                            })
+                            error_stmt = ForStatement(
+                                {
+                                    init: Some(left_side),
+                                    test: None,
+                                    update: None,
+                                    body: Error({ message: "Expected ';', 'in', or 'of' in for loop" }),
+                                },
+                            )
                             (error_stmt, rest_after_left)
 
         _ ->
@@ -1322,10 +1342,12 @@ parse_for_loop_left = |token_list|
 parse_for_variable_declaration : VariableDeclarationKind, List Token -> (Node, List Token)
 parse_for_variable_declaration = |kind, token_list|
     (declarator, rest1) = parse_variable_declarator(token_list)
-    var_decl = VariableDeclaration({
-        declarations: [declarator],
-        kind: kind,
-    })
+    var_decl = VariableDeclaration(
+        {
+            declarations: [declarator],
+            kind: kind,
+        },
+    )
     (var_decl, rest1)
 
 parse_traditional_for_loop : Option Node, List Token -> (Node, List Token)
@@ -1343,6 +1365,7 @@ parse_traditional_for_loop = |init, token_list|
                 when remaining is
                     [SemicolonToken, .. as rest] ->
                         (Some(test_expr), rest)
+
                     _ ->
                         # Error: missing semicolon
                         (Some(test_expr), remaining)
@@ -1360,18 +1383,21 @@ parse_traditional_for_loop = |init, token_list|
                 when remaining is
                     [CloseParenToken, .. as rest] ->
                         (Some(update_expr), rest)
+
                     _ ->
                         # Error: missing close paren
                         (Some(update_expr), remaining)
 
     # Parse body
     (body, rest4) = parse_statement(rest3)
-    for_stmt = ForStatement({
-        init: init,
-        test: test,
-        update: update,
-        body: body,
-    })
+    for_stmt = ForStatement(
+        {
+            init: init,
+            test: test,
+            update: update,
+            body: body,
+        },
+    )
     (for_stmt, rest4)
 
 # Parse expression until semicolon (for for-loop test condition)
@@ -1421,13 +1447,15 @@ parse_function_declaration = |token_list|
             (params, rest2) = parse_function_parameters(rest1)
 
             # Check for return type annotation: function name(): type
-            (return_type, rest3) = when rest2 is
-                [ColonToken, .. as rest_after_colon] ->
-                    (type_node, remaining) = parse_type_annotation(rest_after_colon)
-                    (Some(type_node), remaining)
-                _ ->
-                    # No return type annotation
-                    (None, rest2)
+            (return_type, rest3) =
+                when rest2 is
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
 
             (body, rest4) = parse_function_body(rest3)
             func_decl = FunctionDeclaration(
@@ -1452,13 +1480,15 @@ parse_async_function_declaration = |token_list|
             (params, rest2) = parse_function_parameters(rest1)
 
             # Check for return type annotation: async function name(): type
-            (return_type, rest3) = when rest2 is
-                [ColonToken, .. as rest_after_colon] ->
-                    (type_node, remaining) = parse_type_annotation(rest_after_colon)
-                    (Some(type_node), remaining)
-                _ ->
-                    # No return type annotation
-                    (None, rest2)
+            (return_type, rest3) =
+                when rest2 is
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
 
             (body, rest4) = parse_function_body(rest3)
             func_decl = FunctionDeclaration(
@@ -1483,13 +1513,15 @@ parse_generator_function_declaration = |token_list|
             (params, rest2) = parse_function_parameters(rest1)
 
             # Check for return type annotation: function* name(): type
-            (return_type, rest3) = when rest2 is
-                [ColonToken, .. as rest_after_colon] ->
-                    (type_node, remaining) = parse_type_annotation(rest_after_colon)
-                    (Some(type_node), remaining)
-                _ ->
-                    # No return type annotation
-                    (None, rest2)
+            (return_type, rest3) =
+                when rest2 is
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
 
             (body, rest4) = parse_function_body(rest3)
             func_decl = FunctionDeclaration(
@@ -1514,13 +1546,15 @@ parse_async_generator_function_declaration = |token_list|
             (params, rest2) = parse_function_parameters(rest1)
 
             # Check for return type annotation: async function* name(): type
-            (return_type, rest3) = when rest2 is
-                [ColonToken, .. as rest_after_colon] ->
-                    (type_node, remaining) = parse_type_annotation(rest_after_colon)
-                    (Some(type_node), remaining)
-                _ ->
-                    # No return type annotation
-                    (None, rest2)
+            (return_type, rest3) =
+                when rest2 is
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
 
             (body, rest4) = parse_function_body(rest3)
             func_decl = FunctionDeclaration(
@@ -1775,30 +1809,36 @@ parse_parameter_list = |params, token_list|
 
         [IdentifierToken(param_name), .. as rest1] ->
             # Check for type annotation: param: type
-            (param_with_type, remaining_after_type) = when rest1 is
-                [ColonToken, .. as rest2] ->
-                    (type_annotation, remaining) = parse_type_annotation(rest2)
-                    identifier_with_type = Identifier({ name: param_name })
-                    # For now, we'll create a simple identifier but in a full implementation
-                    # we'd need a TypeScript-specific parameter node with type annotation
-                    (identifier_with_type, remaining)
-                _ ->
-                    # No type annotation
-                    (Identifier({ name: param_name }), rest1)
+            (param_with_type, remaining_after_type) =
+                when rest1 is
+                    [ColonToken, .. as rest2] ->
+                        (type_annotation, remaining) = parse_type_annotation(rest2)
+                        identifier_with_type = Identifier({ name: param_name })
+                        # For now, we'll create a simple identifier but in a full implementation
+                        # we'd need a TypeScript-specific parameter node with type annotation
+                        (identifier_with_type, remaining)
+
+                    _ ->
+                        # No type annotation
+                        (Identifier({ name: param_name }), rest1)
 
             # Check for default value: param = defaultValue
-            (param, remaining_tokens) = when remaining_after_type is
-                [EqualsToken, .. as rest2] ->
-                    # Parse default value with precedence 60 to stop at comma
-                    (default_expr, remaining) = parse_expression(Nud, 60, rest2)
-                    assignment_pattern = AssignmentPattern({
-                        left: param_with_type,
-                        right: default_expr,
-                    })
-                    (assignment_pattern, remaining)
-                _ ->
-                    # No default value
-                    (param_with_type, remaining_after_type)
+            (param, remaining_tokens) =
+                when remaining_after_type is
+                    [EqualsToken, .. as rest2] ->
+                        # Parse default value with precedence 60 to stop at comma
+                        (default_expr, remaining) = parse_expression(Nud, 60, rest2)
+                        assignment_pattern = AssignmentPattern(
+                            {
+                                left: param_with_type,
+                                right: default_expr,
+                            },
+                        )
+                        (assignment_pattern, remaining)
+
+                    _ ->
+                        # No default value
+                        (param_with_type, remaining_after_type)
 
             new_params = List.append(params, param)
             when remaining_tokens is
@@ -1876,12 +1916,15 @@ parse_parameter_list = |params, token_list|
                     when rest2 is
                         [CloseParenToken, .. as rest3] ->
                             (new_params, rest3)
+
                         [CommaToken, .. as rest3] ->
                             # Continue parsing (semantically invalid but syntactically allowed)
                             parse_parameter_list(new_params, rest3)
+
                         _ ->
                             # Continue parsing remaining tokens
                             parse_parameter_list(new_params, rest2)
+
                 _ ->
                     # Error: rest parameter needs identifier
                     error_param = RestElement({ argument: Error({ message: "Expected identifier after ..." }) })
@@ -1929,6 +1972,7 @@ parse_decorated_declaration = |token_list|
     when rest is
         [ClassKeyword, .. as rest1] ->
             parse_class_declaration_with_decorators(decorators, rest1)
+
         _ ->
             # For now, only support class decorators
             (Error({ message: "Decorators are currently only supported on classes" }), rest)
@@ -1943,6 +1987,7 @@ parse_decorators = |decorators, token_list|
             new_decorators = List.append(decorators, decorator)
             # Check for more decorators
             parse_decorators(new_decorators, rest1)
+
         _ ->
             # No more decorators
             (decorators, token_list)
@@ -1974,22 +2019,26 @@ parse_class_declaration_with_decorators = |decorators, token_list|
             class_id = Identifier({ name: class_name })
 
             # Check for extends clause
-            (super_class, rest2) = when rest1 is
-                [ExtendsKeyword, IdentifierToken(super_name), .. as rest] ->
-                    super_id = Identifier({ name: super_name })
-                    (Some(super_id), rest)
-                _ ->
-                    (None, rest1)
+            (super_class, rest2) =
+                when rest1 is
+                    [ExtendsKeyword, IdentifierToken(super_name), .. as rest] ->
+                        super_id = Identifier({ name: super_name })
+                        (Some(super_id), rest)
+
+                    _ ->
+                        (None, rest1)
 
             # Parse class body
             (class_body, rest3) = parse_class_body(rest2)
 
-            class_decl = ClassDeclaration({
-                id: class_id,
-                superClass: super_class,
-                body: class_body,
-                decorators: decorators,
-            })
+            class_decl = ClassDeclaration(
+                {
+                    id: class_id,
+                    superClass: super_class,
+                    body: class_body,
+                    decorators: decorators,
+                },
+            )
             (class_decl, rest3)
 
         _ ->
@@ -2039,10 +2088,12 @@ parse_method_definition : MethodKind, List Token -> (Node, List Token)
 parse_method_definition = |kind, token_list|
     when token_list is
         [OpenParenToken, .. as rest] ->
-            method_key = when kind is
-                Constructor -> Identifier({ name: "constructor" })
-                _ -> Identifier({ name: "method" })
+            method_key =
+                when kind is
+                    Constructor -> Identifier({ name: "constructor" })
+                    _ -> Identifier({ name: "method" })
             parse_method_definition_with_key(kind, method_key, token_list)
+
         _ ->
             (Error({ message: "Expected '(' after method name" }), token_list)
 
@@ -2053,33 +2104,39 @@ parse_method_definition_with_key = |kind, key, token_list|
         [OpenParenToken, .. as rest] ->
             (params, rest2) = parse_function_parameters(token_list)
             (body, rest3) = parse_function_body(rest2)
-            func_expr = FunctionExpression({
-                id: None,
-                params: params,
-                body: body,
-                generator: Bool.false,
-                async: Bool.false,
-                typeParameters: None,
-            })
-            method_def = MethodDefinition({
-                key: key,
-                value: func_expr,
-                kind: kind,
-                computed: Bool.false,
-                static: Bool.false,
-                decorators: [],
-            })
+            func_expr = FunctionExpression(
+                {
+                    id: None,
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.false,
+                    typeParameters: None,
+                },
+            )
+            method_def = MethodDefinition(
+                {
+                    key: key,
+                    value: func_expr,
+                    kind: kind,
+                    computed: Bool.false,
+                    static: Bool.false,
+                    decorators: [],
+                },
+            )
             (method_def, rest3)
 
         _ ->
-            error_method = MethodDefinition({
-                key: key,
-                value: Error({ message: "Expected '(' for method parameters" }),
-                kind: kind,
-                computed: Bool.false,
-                static: Bool.false,
-                decorators: [],
-            })
+            error_method = MethodDefinition(
+                {
+                    key: key,
+                    value: Error({ message: "Expected '(' for method parameters" }),
+                    kind: kind,
+                    computed: Bool.false,
+                    static: Bool.false,
+                    decorators: [],
+                },
+            )
             (error_method, token_list)
 
 parse_return_statement : List Token -> (Node, List Token)
@@ -2094,9 +2151,10 @@ parse_return_statement = |token_list|
         _ ->
             (argument, rest1) = parse_expression(Nud, 0, token_list)
             # Consume optional semicolon
-            rest2 = when rest1 is
-                [SemicolonToken, .. as rest] -> rest
-                _ -> rest1
+            rest2 =
+                when rest1 is
+                    [SemicolonToken, .. as rest] -> rest
+                    _ -> rest1
             return_stmt = ReturnStatement({ argument: Some(argument) })
             (return_stmt, rest2)
 
@@ -2105,9 +2163,10 @@ parse_throw_statement = |token_list|
     # Throw always requires an argument
     (argument, rest1) = parse_expression(Nud, 0, token_list)
     # Consume optional semicolon
-    rest2 = when rest1 is
-        [SemicolonToken, .. as rest] -> rest
-        _ -> rest1
+    rest2 =
+        when rest1 is
+            [SemicolonToken, .. as rest] -> rest
+            _ -> rest1
     throw_stmt = ThrowStatement({ argument: argument })
     (throw_stmt, rest2)
 
@@ -2117,25 +2176,31 @@ parse_try_statement = |token_list|
     (try_block, rest1) = parse_block_statement(token_list)
 
     # Parse optional catch clause
-    (catch_clause, rest2) = when rest1 is
-        [CatchKeyword, .. as rest] ->
-            parse_catch_clause(rest)
-        _ ->
-            (None, rest1)
+    (catch_clause, rest2) =
+        when rest1 is
+            [CatchKeyword, .. as rest] ->
+                parse_catch_clause(rest)
+
+            _ ->
+                (None, rest1)
 
     # Parse optional finally clause
-    (finally_clause, rest3) = when rest2 is
-        [FinallyKeyword, .. as rest] ->
-            (finally_block, remaining) = parse_block_statement(rest)
-            (Some(finally_block), remaining)
-        _ ->
-            (None, rest2)
+    (finally_clause, rest3) =
+        when rest2 is
+            [FinallyKeyword, .. as rest] ->
+                (finally_block, remaining) = parse_block_statement(rest)
+                (Some(finally_block), remaining)
 
-    try_stmt = TryStatement({
-        block: try_block,
-        handler: catch_clause,
-        finalizer: finally_clause,
-    })
+            _ ->
+                (None, rest2)
+
+    try_stmt = TryStatement(
+        {
+            block: try_block,
+            handler: catch_clause,
+            finalizer: finally_clause,
+        },
+    )
     (try_stmt, rest3)
 
 parse_catch_clause : List Token -> (Option Node, List Token)
@@ -2145,19 +2210,23 @@ parse_catch_clause = |token_list|
         [OpenParenToken, IdentifierToken(param_name), CloseParenToken, .. as rest] ->
             param = Identifier({ name: param_name })
             (catch_body, remaining) = parse_block_statement(rest)
-            catch_clause = CatchClause({
-                param: Some(param),
-                body: catch_body,
-            })
+            catch_clause = CatchClause(
+                {
+                    param: Some(param),
+                    body: catch_body,
+                },
+            )
             (Some(catch_clause), remaining)
 
         # Catch without parameter: catch { ... }
         [OpenBraceToken, ..] ->
             (catch_body, remaining) = parse_block_statement(token_list)
-            catch_clause = CatchClause({
-                param: None,
-                body: catch_body,
-            })
+            catch_clause = CatchClause(
+                {
+                    param: None,
+                    body: catch_body,
+                },
+            )
             (Some(catch_clause), remaining)
 
         _ ->
@@ -2331,26 +2400,32 @@ parse_import_declaration = |token_list|
         [IdentifierToken(name), FromKeyword, StringLiteralToken(source), .. as rest] ->
             default_specifier = ImportDefaultSpecifier({ local: Identifier({ name: name }) })
             source_literal = StringLiteral({ value: source })
-            import_decl = ImportDeclaration({
-                specifiers: [default_specifier],
-                source: source_literal,
-            })
-            rest_after_semi = when rest is
-                [SemicolonToken, .. as after_semi] -> after_semi
-                _ -> rest
+            import_decl = ImportDeclaration(
+                {
+                    specifiers: [default_specifier],
+                    source: source_literal,
+                },
+            )
+            rest_after_semi =
+                when rest is
+                    [SemicolonToken, .. as after_semi] -> after_semi
+                    _ -> rest
             (import_decl, rest_after_semi)
 
         # import * as namespace from "module"
         [AsteriskToken, AsKeyword, IdentifierToken(name), FromKeyword, StringLiteralToken(source), .. as rest] ->
             namespace_specifier = ImportNamespaceSpecifier({ local: Identifier({ name: name }) })
             source_literal = StringLiteral({ value: source })
-            import_decl = ImportDeclaration({
-                specifiers: [namespace_specifier],
-                source: source_literal,
-            })
-            rest_after_semi = when rest is
-                [SemicolonToken, .. as after_semi] -> after_semi
-                _ -> rest
+            import_decl = ImportDeclaration(
+                {
+                    specifiers: [namespace_specifier],
+                    source: source_literal,
+                },
+            )
+            rest_after_semi =
+                when rest is
+                    [SemicolonToken, .. as after_semi] -> after_semi
+                    _ -> rest
             (import_decl, rest_after_semi)
 
         # import { named } from "module"
@@ -2359,38 +2434,49 @@ parse_import_declaration = |token_list|
             when rest2 is
                 [FromKeyword, StringLiteralToken(source), .. as rest3] ->
                     source_literal = StringLiteral({ value: source })
-                    import_decl = ImportDeclaration({
-                        specifiers: specifiers,
-                        source: source_literal,
-                    })
-                    rest_after_semi = when rest3 is
-                        [SemicolonToken, .. as after_semi] -> after_semi
-                        _ -> rest3
+                    import_decl = ImportDeclaration(
+                        {
+                            specifiers: specifiers,
+                            source: source_literal,
+                        },
+                    )
+                    rest_after_semi =
+                        when rest3 is
+                            [SemicolonToken, .. as after_semi] -> after_semi
+                            _ -> rest3
                     (import_decl, rest_after_semi)
+
                 _ ->
-                    error_import = ImportDeclaration({
-                        specifiers: [],
-                        source: Error({ message: "Expected 'from' clause in import" }),
-                    })
+                    error_import = ImportDeclaration(
+                        {
+                            specifiers: [],
+                            source: Error({ message: "Expected 'from' clause in import" }),
+                        },
+                    )
                     (error_import, rest2)
 
         # import "module" (side-effect import)
         [StringLiteralToken(source), .. as rest] ->
             source_literal = StringLiteral({ value: source })
-            import_decl = ImportDeclaration({
-                specifiers: [],
-                source: source_literal,
-            })
-            rest_after_semi = when rest is
-                [SemicolonToken, .. as after_semi] -> after_semi
-                _ -> rest
+            import_decl = ImportDeclaration(
+                {
+                    specifiers: [],
+                    source: source_literal,
+                },
+            )
+            rest_after_semi =
+                when rest is
+                    [SemicolonToken, .. as after_semi] -> after_semi
+                    _ -> rest
             (import_decl, rest_after_semi)
 
         _ ->
-            error_import = ImportDeclaration({
-                specifiers: [],
-                source: Error({ message: "Invalid import syntax" }),
-            })
+            error_import = ImportDeclaration(
+                {
+                    specifiers: [],
+                    source: Error({ message: "Invalid import syntax" }),
+                },
+            )
             (error_import, token_list)
 
 parse_import_specifiers : List Node, List Token -> (List Node, List Token)
@@ -2401,35 +2487,43 @@ parse_import_specifiers = |specifiers, token_list|
 
         [IdentifierToken(imported), AsKeyword, IdentifierToken(local), .. as rest1] ->
             # import { foo as bar }
-            specifier = ImportSpecifier({
-                imported: Identifier({ name: imported }),
-                local: Identifier({ name: local }),
-            })
+            specifier = ImportSpecifier(
+                {
+                    imported: Identifier({ name: imported }),
+                    local: Identifier({ name: local }),
+                },
+            )
             new_specifiers = List.append(specifiers, specifier)
             when rest1 is
                 [CommaToken, .. as rest2] ->
                     parse_import_specifiers(new_specifiers, rest2)
+
                 _ ->
                     parse_import_specifiers(new_specifiers, rest1)
 
         [IdentifierToken(name), .. as rest1] ->
             # import { foo }
-            specifier = ImportSpecifier({
-                imported: Identifier({ name: name }),
-                local: Identifier({ name: name }),
-            })
+            specifier = ImportSpecifier(
+                {
+                    imported: Identifier({ name: name }),
+                    local: Identifier({ name: name }),
+                },
+            )
             new_specifiers = List.append(specifiers, specifier)
             when rest1 is
                 [CommaToken, .. as rest2] ->
                     parse_import_specifiers(new_specifiers, rest2)
+
                 _ ->
                     parse_import_specifiers(new_specifiers, rest1)
 
         _ ->
-            error_specifier = ImportSpecifier({
-                imported: Error({ message: "Invalid import specifier" }),
-                local: Error({ message: "Invalid import specifier" }),
-            })
+            error_specifier = ImportSpecifier(
+                {
+                    imported: Error({ message: "Invalid import specifier" }),
+                    local: Error({ message: "Invalid import specifier" }),
+                },
+            )
             new_specifiers = List.append(specifiers, error_specifier)
             (new_specifiers, token_list)
 
@@ -2441,18 +2535,20 @@ parse_export_declaration = |token_list|
         [DefaultKeyword, .. as rest] ->
             (declaration, rest1) = parse_expression(Nud, 0, rest)
             export_decl = ExportDefaultDeclaration({ declaration: declaration })
-            rest_after_semi = when rest1 is
-                [SemicolonToken, .. as after_semi] -> after_semi
-                _ -> rest1
+            rest_after_semi =
+                when rest1 is
+                    [SemicolonToken, .. as after_semi] -> after_semi
+                    _ -> rest1
             (export_decl, rest_after_semi)
 
         # export * from "module"
         [AsteriskToken, FromKeyword, StringLiteralToken(source), .. as rest] ->
             source_literal = StringLiteral({ value: source })
             export_decl = ExportAllDeclaration({ source: source_literal })
-            rest_after_semi = when rest is
-                [SemicolonToken, .. as after_semi] -> after_semi
-                _ -> rest
+            rest_after_semi =
+                when rest is
+                    [SemicolonToken, .. as after_semi] -> after_semi
+                    _ -> rest
             (export_decl, rest_after_semi)
 
         # export { named } or export { named } from "module"
@@ -2462,79 +2558,98 @@ parse_export_declaration = |token_list|
                 [FromKeyword, StringLiteralToken(source), .. as rest3] ->
                     # Re-export from another module
                     source_literal = StringLiteral({ value: source })
-                    export_decl = ExportNamedDeclaration({
-                        declaration: None,
-                        specifiers: specifiers,
-                        source: Some(source_literal),
-                    })
-                    rest_after_semi = when rest3 is
-                        [SemicolonToken, .. as after_semi] -> after_semi
-                        _ -> rest3
+                    export_decl = ExportNamedDeclaration(
+                        {
+                            declaration: None,
+                            specifiers: specifiers,
+                            source: Some(source_literal),
+                        },
+                    )
+                    rest_after_semi =
+                        when rest3 is
+                            [SemicolonToken, .. as after_semi] -> after_semi
+                            _ -> rest3
                     (export_decl, rest_after_semi)
+
                 _ ->
                     # Export local bindings
-                    export_decl = ExportNamedDeclaration({
-                        declaration: None,
-                        specifiers: specifiers,
-                        source: None,
-                    })
-                    rest_after_semi = when rest2 is
-                        [SemicolonToken, .. as after_semi] -> after_semi
-                        _ -> rest2
+                    export_decl = ExportNamedDeclaration(
+                        {
+                            declaration: None,
+                            specifiers: specifiers,
+                            source: None,
+                        },
+                    )
+                    rest_after_semi =
+                        when rest2 is
+                            [SemicolonToken, .. as after_semi] -> after_semi
+                            _ -> rest2
                     (export_decl, rest_after_semi)
 
         # export var/let/const/function/class declaration
         [VarKeyword, .. as rest] ->
             (declaration, rest1) = parse_variable_declaration(Var, rest)
-            export_decl = ExportNamedDeclaration({
-                declaration: Some(declaration),
-                specifiers: [],
-                source: None,
-            })
+            export_decl = ExportNamedDeclaration(
+                {
+                    declaration: Some(declaration),
+                    specifiers: [],
+                    source: None,
+                },
+            )
             (export_decl, rest1)
 
         [LetKeyword, .. as rest] ->
             (declaration, rest1) = parse_variable_declaration(Let, rest)
-            export_decl = ExportNamedDeclaration({
-                declaration: Some(declaration),
-                specifiers: [],
-                source: None,
-            })
+            export_decl = ExportNamedDeclaration(
+                {
+                    declaration: Some(declaration),
+                    specifiers: [],
+                    source: None,
+                },
+            )
             (export_decl, rest1)
 
         [ConstKeyword, .. as rest] ->
             (declaration, rest1) = parse_variable_declaration(Const, rest)
-            export_decl = ExportNamedDeclaration({
-                declaration: Some(declaration),
-                specifiers: [],
-                source: None,
-            })
+            export_decl = ExportNamedDeclaration(
+                {
+                    declaration: Some(declaration),
+                    specifiers: [],
+                    source: None,
+                },
+            )
             (export_decl, rest1)
 
         [FunctionKeyword, .. as rest] ->
             (declaration, rest1) = parse_function_declaration(rest)
-            export_decl = ExportNamedDeclaration({
-                declaration: Some(declaration),
-                specifiers: [],
-                source: None,
-            })
+            export_decl = ExportNamedDeclaration(
+                {
+                    declaration: Some(declaration),
+                    specifiers: [],
+                    source: None,
+                },
+            )
             (export_decl, rest1)
 
         [ClassKeyword, .. as rest] ->
             (declaration, rest1) = parse_class_declaration(rest)
-            export_decl = ExportNamedDeclaration({
-                declaration: Some(declaration),
-                specifiers: [],
-                source: None,
-            })
+            export_decl = ExportNamedDeclaration(
+                {
+                    declaration: Some(declaration),
+                    specifiers: [],
+                    source: None,
+                },
+            )
             (export_decl, rest1)
 
         _ ->
-            error_export = ExportNamedDeclaration({
-                declaration: None,
-                specifiers: [],
-                source: Some(Error({ message: "Invalid export syntax" })),
-            })
+            error_export = ExportNamedDeclaration(
+                {
+                    declaration: None,
+                    specifiers: [],
+                    source: Some(Error({ message: "Invalid export syntax" })),
+                },
+            )
             (error_export, token_list)
 
 parse_export_specifiers : List Node, List Token -> (List Node, List Token)
@@ -2545,35 +2660,43 @@ parse_export_specifiers = |specifiers, token_list|
 
         [IdentifierToken(local), AsKeyword, IdentifierToken(exported), .. as rest1] ->
             # export { foo as bar }
-            specifier = ExportSpecifier({
-                local: Identifier({ name: local }),
-                exported: Identifier({ name: exported }),
-            })
+            specifier = ExportSpecifier(
+                {
+                    local: Identifier({ name: local }),
+                    exported: Identifier({ name: exported }),
+                },
+            )
             new_specifiers = List.append(specifiers, specifier)
             when rest1 is
                 [CommaToken, .. as rest2] ->
                     parse_export_specifiers(new_specifiers, rest2)
+
                 _ ->
                     parse_export_specifiers(new_specifiers, rest1)
 
         [IdentifierToken(name), .. as rest1] ->
             # export { foo }
-            specifier = ExportSpecifier({
-                local: Identifier({ name: name }),
-                exported: Identifier({ name: name }),
-            })
+            specifier = ExportSpecifier(
+                {
+                    local: Identifier({ name: name }),
+                    exported: Identifier({ name: name }),
+                },
+            )
             new_specifiers = List.append(specifiers, specifier)
             when rest1 is
                 [CommaToken, .. as rest2] ->
                     parse_export_specifiers(new_specifiers, rest2)
+
                 _ ->
                     parse_export_specifiers(new_specifiers, rest1)
 
         _ ->
-            error_specifier = ExportSpecifier({
-                local: Error({ message: "Invalid export specifier" }),
-                exported: Error({ message: "Invalid export specifier" }),
-            })
+            error_specifier = ExportSpecifier(
+                {
+                    local: Error({ message: "Invalid export specifier" }),
+                    exported: Error({ message: "Invalid export specifier" }),
+                },
+            )
             new_specifiers = List.append(specifiers, error_specifier)
             (new_specifiers, token_list)
 
@@ -2590,28 +2713,39 @@ parse_switch_statement = |token_list|
                     (cases, rest4) = parse_switch_cases([], rest3)
                     when rest4 is
                         [CloseBraceToken, .. as rest5] ->
-                            switch_stmt = SwitchStatement({
-                                discriminant: discriminant,
-                                cases: cases,
-                            })
+                            switch_stmt = SwitchStatement(
+                                {
+                                    discriminant: discriminant,
+                                    cases: cases,
+                                },
+                            )
                             (switch_stmt, rest5)
+
                         _ ->
-                            error_switch = SwitchStatement({
-                                discriminant: discriminant,
-                                cases: cases,
-                            })
+                            error_switch = SwitchStatement(
+                                {
+                                    discriminant: discriminant,
+                                    cases: cases,
+                                },
+                            )
                             (error_switch, rest4)
+
                 _ ->
-                    error_switch = SwitchStatement({
-                        discriminant: Error({ message: "Expected ')' and '{' after switch discriminant" }),
-                        cases: [],
-                    })
+                    error_switch = SwitchStatement(
+                        {
+                            discriminant: Error({ message: "Expected ')' and '{' after switch discriminant" }),
+                            cases: [],
+                        },
+                    )
                     (error_switch, rest2)
+
         _ ->
-            error_switch = SwitchStatement({
-                discriminant: Error({ message: "Expected '(' after switch keyword" }),
-                cases: [],
-            })
+            error_switch = SwitchStatement(
+                {
+                    discriminant: Error({ message: "Expected '(' after switch keyword" }),
+                    cases: [],
+                },
+            )
             (error_switch, token_list)
 
 parse_switch_cases : List Node, List Token -> (List Node, List Token)
@@ -2627,36 +2761,45 @@ parse_switch_cases = |cases, token_list|
             when rest2 is
                 [ColonToken, .. as rest3] ->
                     (consequent, rest4) = parse_case_consequent([], rest3)
-                    case_node = SwitchCase({
-                        test: Some(test_expr),
-                        consequent: consequent,
-                    })
+                    case_node = SwitchCase(
+                        {
+                            test: Some(test_expr),
+                            consequent: consequent,
+                        },
+                    )
                     new_cases = List.append(cases, case_node)
                     parse_switch_cases(new_cases, rest4)
+
                 _ ->
-                    error_case = SwitchCase({
-                        test: Some(Error({ message: "Expected ':' after case test" })),
-                        consequent: [],
-                    })
+                    error_case = SwitchCase(
+                        {
+                            test: Some(Error({ message: "Expected ':' after case test" })),
+                            consequent: [],
+                        },
+                    )
                     new_cases = List.append(cases, error_case)
                     parse_switch_cases(new_cases, rest2)
 
         # Default clause
         [DefaultKeyword, ColonToken, .. as rest1] ->
             (consequent, rest2) = parse_case_consequent([], rest1)
-            default_case = SwitchCase({
-                test: None,
-                consequent: consequent,
-            })
+            default_case = SwitchCase(
+                {
+                    test: None,
+                    consequent: consequent,
+                },
+            )
             new_cases = List.append(cases, default_case)
             parse_switch_cases(new_cases, rest2)
 
         # Error case - unexpected token
         [_, .. as rest] ->
-            error_case = SwitchCase({
-                test: Some(Error({ message: "Expected 'case' or 'default' in switch body" })),
-                consequent: [],
-            })
+            error_case = SwitchCase(
+                {
+                    test: Some(Error({ message: "Expected 'case' or 'default' in switch body" })),
+                    consequent: [],
+                },
+            )
             new_cases = List.append(cases, error_case)
             (new_cases, rest)
 
@@ -2713,12 +2856,15 @@ parse_array_pattern_elements = |elements, token_list|
                         [CloseBracketToken, .. as rest3] ->
                             array_pattern = ArrayPattern({ elements: new_elements })
                             (array_pattern, rest3)
+
                         [CommaToken, .. as rest3] ->
                             # Continue parsing more elements after rest (semantically invalid but allowed)
                             parse_array_pattern_elements(new_elements, rest3)
+
                         _ ->
                             # No comma or close bracket - continue with remaining tokens
                             parse_array_pattern_elements(new_elements, rest2)
+
                 _ ->
                     # Error: rest element needs identifier
                     error_element = RestElement({ argument: Error({ message: "Expected identifier after ..." }) })
@@ -2729,14 +2875,16 @@ parse_array_pattern_elements = |elements, token_list|
         [IdentifierToken(name), .. as rest1] ->
             # Simple identifier
             identifier = Identifier({ name: name })
-            element = when rest1 is
-                [EqualsToken, .. as rest2] ->
-                    # Default value: a = defaultValue
-                    # Use precedence 60 to stop at comma (sequence expressions have precedence 50)
-                    (default_expr, remaining) = parse_expression(Nud, 60, rest2)
-                    (AssignmentPattern({ left: identifier, right: default_expr }), remaining)
-                _ ->
-                    (identifier, rest1)
+            element =
+                when rest1 is
+                    [EqualsToken, .. as rest2] ->
+                        # Default value: a = defaultValue
+                        # Use precedence 60 to stop at comma (sequence expressions have precedence 50)
+                        (default_expr, remaining) = parse_expression(Nud, 60, rest2)
+                        (AssignmentPattern({ left: identifier, right: default_expr }), remaining)
+
+                    _ ->
+                        (identifier, rest1)
 
             (element_node, rest_after_element) = element
             new_elements = List.append(elements, element_node)
@@ -2744,6 +2892,7 @@ parse_array_pattern_elements = |elements, token_list|
             when rest_after_element is
                 [CommaToken, .. as rest2] ->
                     parse_array_pattern_elements(new_elements, rest2)
+
                 _ ->
                     parse_array_pattern_elements(new_elements, rest_after_element)
 
@@ -2754,6 +2903,7 @@ parse_array_pattern_elements = |elements, token_list|
             when rest2 is
                 [CommaToken, .. as rest3] ->
                     parse_array_pattern_elements(new_elements, rest3)
+
                 _ ->
                     parse_array_pattern_elements(new_elements, rest2)
 
@@ -2764,6 +2914,7 @@ parse_array_pattern_elements = |elements, token_list|
             when rest2 is
                 [CommaToken, .. as rest3] ->
                     parse_array_pattern_elements(new_elements, rest3)
+
                 _ ->
                     parse_array_pattern_elements(new_elements, rest2)
 
@@ -2798,12 +2949,15 @@ parse_object_pattern_properties = |properties, token_list|
                         [CloseBraceToken, .. as rest3] ->
                             object_pattern = ObjectPattern({ properties: new_properties })
                             (object_pattern, rest3)
+
                         [CommaToken, CloseBraceToken, .. as rest3] ->
                             object_pattern = ObjectPattern({ properties: new_properties })
                             (object_pattern, rest3)
+
                         _ ->
                             error_pattern = ObjectPattern({ properties: new_properties })
                             (error_pattern, rest2)
+
                 _ ->
                     # Error: rest element needs identifier
                     error_element = RestElement({ argument: Error({ message: "Expected identifier after ..." }) })
@@ -2814,43 +2968,51 @@ parse_object_pattern_properties = |properties, token_list|
         [IdentifierToken(name), .. as rest1] ->
             # Property: could be shorthand {a} or {a: b} or {a = default}
             key = Identifier({ name: name })
-            (property, rest_after_property) = when rest1 is
-                [ColonToken, .. as rest2] ->
-                    # {a: pattern}
-                    (value_pattern, rest3) = parse_destructuring_pattern(rest2)
-                    prop = Property({
-                        key: key,
-                        value: value_pattern,
-                        kind: Init,
-                    })
-                    (prop, rest3)
+            (property, rest_after_property) =
+                when rest1 is
+                    [ColonToken, .. as rest2] ->
+                        # {a: pattern}
+                        (value_pattern, rest3) = parse_destructuring_pattern(rest2)
+                        prop = Property(
+                            {
+                                key: key,
+                                value: value_pattern,
+                                kind: Init,
+                            },
+                        )
+                        (prop, rest3)
 
-                [EqualsToken, .. as rest2] ->
-                    # {a = default} - shorthand with default
-                    # Use precedence 60 to stop at comma (sequence expressions have precedence 50)
-                    (default_expr, rest3) = parse_expression(Nud, 60, rest2)
-                    assignment_pattern = AssignmentPattern({ left: key, right: default_expr })
-                    prop = Property({
-                        key: key,
-                        value: assignment_pattern,
-                        kind: Init,
-                    })
-                    (prop, rest3)
+                    [EqualsToken, .. as rest2] ->
+                        # {a = default} - shorthand with default
+                        # Use precedence 60 to stop at comma (sequence expressions have precedence 50)
+                        (default_expr, rest3) = parse_expression(Nud, 60, rest2)
+                        assignment_pattern = AssignmentPattern({ left: key, right: default_expr })
+                        prop = Property(
+                            {
+                                key: key,
+                                value: assignment_pattern,
+                                kind: Init,
+                            },
+                        )
+                        (prop, rest3)
 
-                _ ->
-                    # {a} - shorthand
-                    prop = Property({
-                        key: key,
-                        value: key,
-                        kind: Init,
-                    })
-                    (prop, rest1)
+                    _ ->
+                        # {a} - shorthand
+                        prop = Property(
+                            {
+                                key: key,
+                                value: key,
+                                kind: Init,
+                            },
+                        )
+                        (prop, rest1)
 
             new_properties = List.append(properties, property)
 
             when rest_after_property is
                 [CommaToken, .. as rest2] ->
                     parse_object_pattern_properties(new_properties, rest2)
+
                 _ ->
                     parse_object_pattern_properties(new_properties, rest_after_property)
 
@@ -2867,10 +3029,13 @@ parse_destructuring_pattern = |token_list|
     when token_list is
         [OpenBracketToken, .. as rest] ->
             parse_array_pattern(rest)
+
         [OpenBraceToken, .. as rest] ->
             parse_object_pattern(rest)
+
         [IdentifierToken(name), .. as rest] ->
             (Identifier({ name: name }), rest)
+
         _ ->
             (Error({ message: "Expected destructuring pattern" }), token_list)
 
@@ -2937,22 +3102,26 @@ parse_interface_declaration = |token_list|
             (type_params, rest2) = parse_type_parameters(rest1)
 
             # Check for extends clause
-            (extends_clause, rest3) = when rest2 is
-                [ExtendsKeyword, .. as rest] ->
-                    (extends_list, remaining) = parse_interface_extends(rest)
-                    (Some(extends_list), remaining)
-                _ ->
-                    (None, rest2)
+            (extends_clause, rest3) =
+                when rest2 is
+                    [ExtendsKeyword, .. as rest] ->
+                        (extends_list, remaining) = parse_interface_extends(rest)
+                        (Some(extends_list), remaining)
+
+                    _ ->
+                        (None, rest2)
 
             # Parse interface body
             (interface_body, rest4) = parse_interface_body(rest3)
 
-            interface_decl = TSInterfaceDeclaration({
-                id: interface_id,
-                body: interface_body,
-                extends: extends_clause,
-                typeParameters: type_params,
-            })
+            interface_decl = TSInterfaceDeclaration(
+                {
+                    id: interface_id,
+                    body: interface_body,
+                    extends: extends_clause,
+                    typeParameters: type_params,
+                },
+            )
             (interface_decl, rest4)
 
         _ ->
@@ -2969,6 +3138,7 @@ parse_interface_extends = |token_list|
                 [CommaToken, .. as rest2] ->
                     (more_extends, rest3) = parse_interface_extends(rest2)
                     (List.prepend(more_extends, type_ref), rest3)
+
                 _ ->
                     ([type_ref], rest1)
 
@@ -2995,12 +3165,14 @@ parse_interface_body_statements = |statements, token_list|
             # Optional property: name?: type
             (type_annotation, rest2) = parse_type_annotation(rest1)
             prop_key = Identifier({ name: prop_name })
-            prop_sig = TSPropertySignature({
-                key: prop_key,
-                typeAnnotation: Some(type_annotation),
-                optional: Bool.true,
-                readonly: Bool.false,
-            })
+            prop_sig = TSPropertySignature(
+                {
+                    key: prop_key,
+                    typeAnnotation: Some(type_annotation),
+                    optional: Bool.true,
+                    readonly: Bool.false,
+                },
+            )
             new_statements = List.append(statements, prop_sig)
             parse_interface_body_statements(new_statements, rest2)
 
@@ -3008,12 +3180,14 @@ parse_interface_body_statements = |statements, token_list|
             # Required property: name: type
             (type_annotation, rest2) = parse_type_annotation(rest1)
             prop_key = Identifier({ name: prop_name })
-            prop_sig = TSPropertySignature({
-                key: prop_key,
-                typeAnnotation: Some(type_annotation),
-                optional: Bool.false,
-                readonly: Bool.false,
-            })
+            prop_sig = TSPropertySignature(
+                {
+                    key: prop_key,
+                    typeAnnotation: Some(type_annotation),
+                    optional: Bool.false,
+                    readonly: Bool.false,
+                },
+            )
             new_statements = List.append(statements, prop_sig)
             parse_interface_body_statements(new_statements, rest2)
 
@@ -3021,18 +3195,22 @@ parse_interface_body_statements = |statements, token_list|
             # Method signature: name(params): returnType
             method_key = Identifier({ name: method_name })
             (params, rest2) = parse_method_signature_params([], rest1)
-            (return_type, rest3) = when rest2 is
-                [ColonToken, .. as rest] ->
-                    (type_node, remaining) = parse_type_annotation(rest)
-                    (Some(type_node), remaining)
-                _ ->
-                    (None, rest2)
+            (return_type, rest3) =
+                when rest2 is
+                    [ColonToken, .. as rest] ->
+                        (type_node, remaining) = parse_type_annotation(rest)
+                        (Some(type_node), remaining)
 
-            method_sig = TSMethodSignature({
-                key: method_key,
-                params: params,
-                returnType: return_type,
-            })
+                    _ ->
+                        (None, rest2)
+
+            method_sig = TSMethodSignature(
+                {
+                    key: method_key,
+                    params: params,
+                    returnType: return_type,
+                },
+            )
             new_statements = List.append(statements, method_sig)
             parse_interface_body_statements(new_statements, rest3)
 
@@ -3058,12 +3236,13 @@ parse_method_signature_params = |params, token_list|
         [IdentifierToken(param_name), ColonToken, .. as rest1] ->
             # Parameter with type: name: type
             (type_annotation, rest2) = parse_type_annotation(rest1)
-            param = Identifier({ name: param_name })  # Simplified - in real TS this would be a parameter with type
+            param = Identifier({ name: param_name }) # Simplified - in real TS this would be a parameter with type
             new_params = List.append(params, param)
 
             when rest2 is
                 [CommaToken, .. as rest3] ->
                     parse_method_signature_params(new_params, rest3)
+
                 _ ->
                     parse_method_signature_params(new_params, rest2)
 
@@ -3081,22 +3260,26 @@ parse_type_alias_declaration = |token_list|
             (type_params, rest2) = parse_type_parameters(rest1)
 
             # Expect equals sign
-            rest3 = when rest2 is
-                [EqualsToken, .. as rest] -> rest
-                _ -> rest2
+            rest3 =
+                when rest2 is
+                    [EqualsToken, .. as rest] -> rest
+                    _ -> rest2
 
             (type_annotation, rest4) = parse_type_annotation(rest3)
 
             # Consume optional semicolon
-            rest5 = when rest4 is
-                [SemicolonToken, .. as rest] -> rest
-                _ -> rest4
+            rest5 =
+                when rest4 is
+                    [SemicolonToken, .. as rest] -> rest
+                    _ -> rest4
 
-            type_alias = TSTypeAliasDeclaration({
-                id: type_id,
-                typeAnnotation: type_annotation,
-                typeParameters: type_params,
-            })
+            type_alias = TSTypeAliasDeclaration(
+                {
+                    id: type_id,
+                    typeAnnotation: type_annotation,
+                    typeParameters: type_params,
+                },
+            )
             (type_alias, rest5)
 
         _ ->
@@ -3132,19 +3315,24 @@ parse_conditional_type = |token_list|
                             (false_type, rest7) = parse_conditional_type(rest6)
 
                             # Create conditional type
-                            conditional = TSConditionalType({
-                                checkType: check_type,
-                                extendsType: extends_type,
-                                trueType: true_type,
-                                falseType: false_type,
-                            })
+                            conditional = TSConditionalType(
+                                {
+                                    checkType: check_type,
+                                    extendsType: extends_type,
+                                    trueType: true_type,
+                                    falseType: false_type,
+                                },
+                            )
                             (conditional, rest7)
+
                         _ ->
                             # Missing colon, return what we have
                             (check_type, rest1)
+
                 _ ->
                     # No conditional, just extends (like in type parameters)
                     (check_type, rest1)
+
         _ ->
             # No extends, return the check type
             (check_type, rest1)
@@ -3174,6 +3362,7 @@ collect_union_types = |types, token_list|
                     when List.first(types) is
                         Ok(single_type) -> (single_type, token_list)
                         Err(_) -> (Error({ message: "Failed to get single type" }), token_list)
+
                 _ ->
                     # Multiple types, create union
                     union_type = TSUnionType({ types: types })
@@ -3204,6 +3393,7 @@ collect_intersection_types = |types, token_list|
                     when List.first(types) is
                         Ok(single_type) -> (single_type, token_list)
                         Err(_) -> (Error({ message: "Failed to get single type" }), token_list)
+
                 _ ->
                     # Multiple types, create intersection
                     intersection_type = TSIntersectionType({ types: types })
@@ -3333,16 +3523,20 @@ parse_primary_type = |token_list|
         [IdentifierToken(type_name), .. as rest] ->
             # Check for type arguments
             (type_args, rest1) = parse_type_arguments(rest)
-            type_params = when type_args is
-                Some(args) ->
-                    when args is
-                        TSTypeParameterInstantiation(data) -> Some(data.params)
-                        _ -> None
-                None -> None
-            type_ref = TSTypeReference({
-                typeName: Identifier({ name: type_name }),
-                typeParameters: type_params,
-            })
+            type_params =
+                when type_args is
+                    Some(args) ->
+                        when args is
+                            TSTypeParameterInstantiation(data) -> Some(data.params)
+                            _ -> None
+
+                    None -> None
+            type_ref = TSTypeReference(
+                {
+                    typeName: Identifier({ name: type_name }),
+                    typeParameters: type_params,
+                },
+            )
             (type_ref, rest1)
 
         _ ->
@@ -3354,9 +3548,11 @@ parse_typeof_type = |token_list|
         [IdentifierToken(expr_name), .. as rest] ->
             # Create an identifier node for the expression
             expr_node = Identifier({ name: expr_name })
-            typeof_type = TSTypeofType({
-                exprName: expr_node,
-            })
+            typeof_type = TSTypeofType(
+                {
+                    exprName: expr_node,
+                },
+            )
             (typeof_type, rest)
 
         _ ->
@@ -3369,10 +3565,12 @@ parse_keyof_type = |token_list|
 
     # For now, just return keyof as a type reference
     # In a full implementation, we'd have a TSKeyofType node
-    keyof_ref = TSTypeReference({
-        typeName: Identifier({ name: "keyof" }),
-        typeParameters: Some([inner_type]),
-    })
+    keyof_ref = TSTypeReference(
+        {
+            typeName: Identifier({ name: "keyof" }),
+            typeParameters: Some([inner_type]),
+        },
+    )
     (keyof_ref, rest)
 
 parse_parenthesized_or_function_type : List Token -> (Node, List Token)
@@ -3426,9 +3624,11 @@ parse_tuple_type = |token_list|
 
     when rest1 is
         [CloseBracketToken, .. as rest2] ->
-            tuple_type = TSTupleType({
-                elementTypes: element_types,
-            })
+            tuple_type = TSTupleType(
+                {
+                    elementTypes: element_types,
+                },
+            )
             (tuple_type, rest2)
 
         _ ->
@@ -3490,40 +3690,48 @@ parse_tuple_element = |token_list|
 parse_enum_declaration : List Token -> (Node, List Token)
 parse_enum_declaration = |token_list|
     # Check for optional const modifier
-    (is_const, rest1) = when token_list is
-        [ConstKeyword, .. as rest] -> (Bool.true, rest)
-        _ -> (Bool.false, token_list)
+    (is_const, rest1) =
+        when token_list is
+            [ConstKeyword, .. as rest] -> (Bool.true, rest)
+            _ -> (Bool.false, token_list)
 
     # Expect enum keyword
-    rest2 = when rest1 is
-        [EnumKeyword, .. as rest] -> rest
-        _ -> crash("Expected enum keyword")
+    rest2 =
+        when rest1 is
+            [EnumKeyword, .. as rest] -> rest
+            _ -> crash("Expected enum keyword")
 
     # Parse the enum identifier
-    (id, rest3) = when rest2 is
-        [IdentifierToken(name), .. as rest] ->
-            (Identifier({ name }), rest)
-        _ ->
-            (Error({ message: "Expected enum identifier" }), rest2)
+    (id, rest3) =
+        when rest2 is
+            [IdentifierToken(name), .. as rest] ->
+                (Identifier({ name }), rest)
+
+            _ ->
+                (Error({ message: "Expected enum identifier" }), rest2)
 
     # Expect opening brace
-    rest4 = when rest3 is
-        [OpenBraceToken, .. as rest] -> rest
-        _ -> rest3
+    rest4 =
+        when rest3 is
+            [OpenBraceToken, .. as rest] -> rest
+            _ -> rest3
 
     # Parse enum members
     (members, rest5) = parse_enum_members([], rest4)
 
     # Expect closing brace
-    rest6 = when rest5 is
-        [CloseBraceToken, .. as rest] -> rest
-        _ -> rest5
+    rest6 =
+        when rest5 is
+            [CloseBraceToken, .. as rest] -> rest
+            _ -> rest5
 
-    enum_decl = TSEnumDeclaration({
-        id,
-        members,
-        const: is_const,
-    })
+    enum_decl = TSEnumDeclaration(
+        {
+            id,
+            members,
+            const: is_const,
+        },
+    )
     (enum_decl, rest6)
 
 parse_enum_members : List Node, List Token -> (List Node, List Token)
@@ -3538,41 +3746,50 @@ parse_enum_members = |members, token_list|
             new_members = List.append(members, member)
 
             # Check for comma and continue or end
-            rest2 = when rest1 is
-                [CommaToken, .. as rest] -> rest
-                _ -> rest1
+            rest2 =
+                when rest1 is
+                    [CommaToken, .. as rest] -> rest
+                    _ -> rest1
 
             # Continue parsing or stop at close brace
             when rest2 is
                 [CloseBraceToken, ..] ->
                     (new_members, rest2)
+
                 _ ->
                     parse_enum_members(new_members, rest2)
 
 parse_enum_member : List Token -> (Node, List Token)
 parse_enum_member = |token_list|
     # Parse the member identifier (can be identifier or string literal)
-    (id, rest1) = when token_list is
-        [IdentifierToken(name), .. as rest] ->
-            (Identifier({ name }), rest)
-        [StringLiteralToken(value), .. as rest] ->
-            (StringLiteral({ value }), rest)
-        _ ->
-            (Error({ message: "Expected enum member identifier" }), token_list)
+    (id, rest1) =
+        when token_list is
+            [IdentifierToken(name), .. as rest] ->
+                (Identifier({ name }), rest)
+
+            [StringLiteralToken(value), .. as rest] ->
+                (StringLiteral({ value }), rest)
+
+            _ ->
+                (Error({ message: "Expected enum member identifier" }), token_list)
 
     # Check for optional initializer
-    (initializer, rest2) = when rest1 is
-        [EqualsToken, .. as rest] ->
-            # Parse the initializer expression with higher precedence to stop at commas
-            (expr, remaining) = parse_expression(Nud, 60, rest)
-            (Some(expr), remaining)
-        _ ->
-            (None, rest1)
+    (initializer, rest2) =
+        when rest1 is
+            [EqualsToken, .. as rest] ->
+                # Parse the initializer expression with higher precedence to stop at commas
+                (expr, remaining) = parse_expression(Nud, 60, rest)
+                (Some(expr), remaining)
 
-    member = TSEnumMember({
-        id,
-        initializer,
-    })
+            _ ->
+                (None, rest1)
+
+    member = TSEnumMember(
+        {
+            id,
+            initializer,
+        },
+    )
     (member, rest2)
 
 parse_type_parameters : List Token -> (Option Node, List Token)
@@ -3584,8 +3801,10 @@ parse_type_parameters = |token_list|
                 [GreaterThanToken, .. as rest2] ->
                     type_params = TSTypeParameterDeclaration({ params })
                     (Some(type_params), rest2)
+
                 _ ->
                     (None, token_list)
+
         _ ->
             (None, token_list)
 
@@ -3594,6 +3813,7 @@ parse_type_parameter_list = |params, token_list|
     when token_list is
         [GreaterThanToken, ..] | [] ->
             (params, token_list)
+
         _ ->
             (param, rest1) = parse_type_parameter(token_list)
             new_params = List.append(params, param)
@@ -3601,39 +3821,48 @@ parse_type_parameter_list = |params, token_list|
             when rest1 is
                 [CommaToken, .. as rest2] ->
                     parse_type_parameter_list(new_params, rest2)
+
                 _ ->
                     (new_params, rest1)
 
 parse_type_parameter : List Token -> (Node, List Token)
 parse_type_parameter = |token_list|
     # Parse the parameter name
-    (name, rest1) = when token_list is
-        [IdentifierToken(id), .. as rest] ->
-            (Identifier({ name: id }), rest)
-        _ ->
-            (Error({ message: "Expected type parameter name" }), token_list)
+    (name, rest1) =
+        when token_list is
+            [IdentifierToken(id), .. as rest] ->
+                (Identifier({ name: id }), rest)
+
+            _ ->
+                (Error({ message: "Expected type parameter name" }), token_list)
 
     # Check for constraint
-    (constraint, rest2) = when rest1 is
-        [ExtendsKeyword, .. as rest] ->
-            (type_node, remaining) = parse_type_annotation(rest)
-            (Some(type_node), remaining)
-        _ ->
-            (None, rest1)
+    (constraint, rest2) =
+        when rest1 is
+            [ExtendsKeyword, .. as rest] ->
+                (type_node, remaining) = parse_type_annotation(rest)
+                (Some(type_node), remaining)
+
+            _ ->
+                (None, rest1)
 
     # Check for default
-    (default, rest3) = when rest2 is
-        [EqualsToken, .. as rest] ->
-            (type_node, remaining) = parse_type_annotation(rest)
-            (Some(type_node), remaining)
-        _ ->
-            (None, rest2)
+    (default, rest3) =
+        when rest2 is
+            [EqualsToken, .. as rest] ->
+                (type_node, remaining) = parse_type_annotation(rest)
+                (Some(type_node), remaining)
 
-    param = TSTypeParameter({
-        name,
-        constraint,
-        default,
-    })
+            _ ->
+                (None, rest2)
+
+    param = TSTypeParameter(
+        {
+            name,
+            constraint,
+            default,
+        },
+    )
     (param, rest3)
 
 parse_type_arguments : List Token -> (Option Node, List Token)
@@ -3645,8 +3874,10 @@ parse_type_arguments = |token_list|
                 [GreaterThanToken, .. as rest2] ->
                     type_args = TSTypeParameterInstantiation({ params: args })
                     (Some(type_args), rest2)
+
                 _ ->
                     (None, token_list)
+
         _ ->
             (None, token_list)
 
@@ -3655,6 +3886,7 @@ parse_type_argument_list = |args, token_list|
     when token_list is
         [GreaterThanToken, ..] | [] ->
             (args, token_list)
+
         _ ->
             (arg, rest1) = parse_type_annotation(token_list)
             new_args = List.append(args, arg)
@@ -3662,6 +3894,7 @@ parse_type_argument_list = |args, token_list|
             when rest1 is
                 [CommaToken, .. as rest2] ->
                     parse_type_argument_list(new_args, rest2)
+
                 _ ->
                     (new_args, rest1)
 
@@ -3680,11 +3913,13 @@ collect_function_type_tokens = |collected, token_list|
             (return_type, remaining) = parse_simple_type_annotation(rest)
 
             # Create a simple function type with empty parameters for now
-            function_type = TSFunctionType({
-                parameters: [],
-                returnType: return_type,
-                typeParameters: None,
-            })
+            function_type = TSFunctionType(
+                {
+                    parameters: [],
+                    returnType: return_type,
+                    typeParameters: None,
+                },
+            )
             (function_type, remaining)
 
         [token, .. as rest] ->
@@ -3719,10 +3954,12 @@ parse_simple_type_annotation = |token_list|
             (TSUnknownKeyword({}), rest)
 
         [IdentifierToken(type_name), .. as rest] ->
-            type_ref = TSTypeReference({
-                typeName: Identifier({ name: type_name }),
-                typeParameters: None,
-            })
+            type_ref = TSTypeReference(
+                {
+                    typeName: Identifier({ name: type_name }),
+                    typeParameters: None,
+                },
+            )
             (type_ref, rest)
 
         _ ->
@@ -3747,9 +3984,11 @@ parse_object_type_literal = |token_list|
 
             when rest1 is
                 [CloseBraceToken, .. as rest2] ->
-                    object_type = TSTypeLiteral({
-                        members: members,
-                    })
+                    object_type = TSTypeLiteral(
+                        {
+                            members: members,
+                        },
+                    )
                     (object_type, rest2)
 
                 _ ->
@@ -3770,12 +4009,14 @@ parse_mapped_type_with_modifiers = |param_name, readonly_mod, optional_mod, toke
             when rest2 is
                 [ColonToken, .. as rest3] ->
                     # Check for optional modifier before the type
-                    (final_optional, rest4) = when rest3 is
-                        [QuestionToken, ColonToken, .. as rest_q] ->
-                            # Optional modifier: [K in T]?: U
-                            (Some(Bool.true), rest_q)
-                        _ ->
-                            (optional_mod, rest3)
+                    (final_optional, rest4) =
+                        when rest3 is
+                            [QuestionToken, ColonToken, .. as rest_q] ->
+                                # Optional modifier: [K in T]?: U
+                                (Some(Bool.true), rest_q)
+
+                            _ ->
+                                (optional_mod, rest3)
 
                     # Parse the type annotation
                     (type_ann, rest5) = parse_type_annotation(rest4)
@@ -3784,25 +4025,32 @@ parse_mapped_type_with_modifiers = |param_name, readonly_mod, optional_mod, toke
                     when rest5 is
                         [CloseBraceToken, .. as rest6] ->
                             # Create type parameter
-                            type_param = TSTypeParameter({
-                                name: Identifier({ name: param_name }),
-                                constraint: None,
-                                default: None,
-                            })
+                            type_param = TSTypeParameter(
+                                {
+                                    name: Identifier({ name: param_name }),
+                                    constraint: None,
+                                    default: None,
+                                },
+                            )
 
                             # Create mapped type
-                            mapped_type = TSMappedType({
-                                typeParameter: type_param,
-                                constraint: constraint,
-                                typeAnnotation: Some(type_ann),
-                                optional: final_optional,
-                                readonly: readonly_mod,
-                            })
+                            mapped_type = TSMappedType(
+                                {
+                                    typeParameter: type_param,
+                                    constraint: constraint,
+                                    typeAnnotation: Some(type_ann),
+                                    optional: final_optional,
+                                    readonly: readonly_mod,
+                                },
+                            )
                             (mapped_type, rest6)
+
                         _ ->
                             (Error({ message: "Expected '}' after mapped type" }), rest5)
+
                 _ ->
                     (Error({ message: "Expected ':' after mapped type parameter" }), rest2)
+
         _ ->
             (Error({ message: "Expected ']' after mapped type constraint" }), rest1)
 
@@ -3831,12 +4079,14 @@ parse_object_type_members = |members, token_list|
             (prop_type, rest2) = parse_simple_type_annotation(rest1)
 
             # Create an optional property signature
-            prop_signature = TSPropertySignature({
-                key: Identifier({ name: prop_name }),
-                typeAnnotation: Some(prop_type),
-                optional: Bool.true,
-                readonly: Bool.false,
-            })
+            prop_signature = TSPropertySignature(
+                {
+                    key: Identifier({ name: prop_name }),
+                    typeAnnotation: Some(prop_type),
+                    optional: Bool.true,
+                    readonly: Bool.false,
+                },
+            )
             new_members = List.append(members, prop_signature)
             continue_parsing_members(new_members, rest2)
 
@@ -3846,12 +4096,14 @@ parse_object_type_members = |members, token_list|
             (prop_type, rest2) = parse_simple_type_annotation(rest1)
 
             # Create a property signature
-            prop_signature = TSPropertySignature({
-                key: Identifier({ name: prop_name }),
-                typeAnnotation: Some(prop_type),
-                optional: Bool.false,
-                readonly: Bool.false,
-            })
+            prop_signature = TSPropertySignature(
+                {
+                    key: Identifier({ name: prop_name }),
+                    typeAnnotation: Some(prop_type),
+                    optional: Bool.false,
+                    readonly: Bool.false,
+                },
+            )
             new_members = List.append(members, prop_signature)
 
             when rest2 is
@@ -3878,6 +4130,7 @@ continue_parsing_members = |members, token_list|
         [SemicolonToken, .. as rest] | [CommaToken, .. as rest] ->
             # More properties
             parse_object_type_members(members, rest)
+
         _ ->
             # No separator, continue or end
             parse_object_type_members(members, token_list)
@@ -3896,19 +4149,23 @@ parse_index_signature = |members, token_list|
                     (value_type, rest4) = parse_type_annotation(rest3)
 
                     # Create the index signature parameter
-                    param = TSPropertySignature({
-                        key: Identifier({ name: param_name }),
-                        typeAnnotation: Some(param_type),
-                        optional: Bool.false,
-                        readonly: Bool.false,
-                    })
+                    param = TSPropertySignature(
+                        {
+                            key: Identifier({ name: param_name }),
+                            typeAnnotation: Some(param_type),
+                            optional: Bool.false,
+                            readonly: Bool.false,
+                        },
+                    )
 
                     # Create the index signature
-                    index_sig = TSIndexSignature({
-                        parameters: [param],
-                        typeAnnotation: Some(value_type),
-                        readonly: Bool.false,
-                    })
+                    index_sig = TSIndexSignature(
+                        {
+                            parameters: [param],
+                            typeAnnotation: Some(value_type),
+                            readonly: Bool.false,
+                        },
+                    )
 
                     new_members = List.append(members, index_sig)
                     continue_parsing_members(new_members, rest4)
@@ -3937,19 +4194,23 @@ parse_readonly_member = |members, token_list|
                             (value_type, rest4) = parse_type_annotation(rest3)
 
                             # Create the index signature parameter
-                            param = TSPropertySignature({
-                                key: Identifier({ name: param_name }),
-                                typeAnnotation: Some(param_type),
-                                optional: Bool.false,
-                                readonly: Bool.false,
-                            })
+                            param = TSPropertySignature(
+                                {
+                                    key: Identifier({ name: param_name }),
+                                    typeAnnotation: Some(param_type),
+                                    optional: Bool.false,
+                                    readonly: Bool.false,
+                                },
+                            )
 
                             # Create the readonly index signature
-                            index_sig = TSIndexSignature({
-                                parameters: [param],
-                                typeAnnotation: Some(value_type),
-                                readonly: Bool.true,
-                            })
+                            index_sig = TSIndexSignature(
+                                {
+                                    parameters: [param],
+                                    typeAnnotation: Some(value_type),
+                                    readonly: Bool.true,
+                                },
+                            )
 
                             new_members = List.append(members, index_sig)
                             continue_parsing_members(new_members, rest4)
@@ -3967,12 +4228,14 @@ parse_readonly_member = |members, token_list|
                     # readonly optional property
                     (prop_type, rest2) = parse_simple_type_annotation(rest1)
 
-                    prop_signature = TSPropertySignature({
-                        key: Identifier({ name: prop_name }),
-                        typeAnnotation: Some(prop_type),
-                        optional: Bool.true,
-                        readonly: Bool.true,
-                    })
+                    prop_signature = TSPropertySignature(
+                        {
+                            key: Identifier({ name: prop_name }),
+                            typeAnnotation: Some(prop_type),
+                            optional: Bool.true,
+                            readonly: Bool.true,
+                        },
+                    )
                     new_members = List.append(members, prop_signature)
                     continue_parsing_members(new_members, rest2)
 
@@ -3980,12 +4243,14 @@ parse_readonly_member = |members, token_list|
                     # readonly property
                     (prop_type, rest2) = parse_simple_type_annotation(rest1)
 
-                    prop_signature = TSPropertySignature({
-                        key: Identifier({ name: prop_name }),
-                        typeAnnotation: Some(prop_type),
-                        optional: Bool.false,
-                        readonly: Bool.true,
-                    })
+                    prop_signature = TSPropertySignature(
+                        {
+                            key: Identifier({ name: prop_name }),
+                            typeAnnotation: Some(prop_type),
+                            optional: Bool.false,
+                            readonly: Bool.true,
+                        },
+                    )
                     new_members = List.append(members, prop_signature)
                     continue_parsing_members(new_members, rest2)
 
@@ -4007,16 +4272,20 @@ parse_generic_function_type = |token_list|
             (function_type, rest3) = parse_parenthesized_or_function_type(rest2)
 
             # Enhance the function type with type parameters
-            enhanced_type = when function_type is
-                TSFunctionType(data) ->
-                    TSFunctionType({
-                        parameters: data.parameters,
-                        returnType: data.returnType,
-                        typeParameters: type_params,
-                    })
-                _ ->
-                    # If not a function type, return as-is
-                    function_type
+            enhanced_type =
+                when function_type is
+                    TSFunctionType(data) ->
+                        TSFunctionType(
+                            {
+                                parameters: data.parameters,
+                                returnType: data.returnType,
+                                typeParameters: type_params,
+                            },
+                        )
+
+                    _ ->
+                        # If not a function type, return as-is
+                        function_type
 
             (enhanced_type, rest3)
 
@@ -4037,42 +4306,50 @@ parse_generic_function_expression = |token_list|
             identifier = Identifier({ name: name })
             (params, rest3) = parse_function_parameters(rest2)
             # Parse optional return type annotation ": Type"
-            rest4 = when rest3 is
-                [ColonToken, .. as rest_after_colon] ->
-                    # Skip the return type annotation for now
-                    (_, rest_after_type) = parse_type_annotation(rest_after_colon)
-                    rest_after_type
-                _ -> rest3
+            rest4 =
+                when rest3 is
+                    [ColonToken, .. as rest_after_colon] ->
+                        # Skip the return type annotation for now
+                        (_, rest_after_type) = parse_type_annotation(rest_after_colon)
+                        rest_after_type
+
+                    _ -> rest3
             (body, rest5) = parse_function_body(rest4)
-            func_expr = FunctionExpression({
-                id: Some(identifier),
-                params: params,
-                body: body,
-                generator: Bool.false,
-                async: Bool.false,
-                typeParameters: type_params,
-            })
+            func_expr = FunctionExpression(
+                {
+                    id: Some(identifier),
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.false,
+                    typeParameters: type_params,
+                },
+            )
             (func_expr, rest5)
 
         [OpenParenToken, .. as rest2] ->
             # Anonymous generic function expression
             (params, rest3) = parse_function_parameters(rest1)
             # Parse optional return type annotation ": Type"
-            rest4 = when rest3 is
-                [ColonToken, .. as rest_after_colon] ->
-                    # Skip the return type annotation for now
-                    (_, rest_after_type) = parse_type_annotation(rest_after_colon)
-                    rest_after_type
-                _ -> rest3
+            rest4 =
+                when rest3 is
+                    [ColonToken, .. as rest_after_colon] ->
+                        # Skip the return type annotation for now
+                        (_, rest_after_type) = parse_type_annotation(rest_after_colon)
+                        rest_after_type
+
+                    _ -> rest3
             (body, rest5) = parse_function_body(rest4)
-            func_expr = FunctionExpression({
-                id: None,
-                params: params,
-                body: body,
-                generator: Bool.false,
-                async: Bool.false,
-                typeParameters: type_params,
-            })
+            func_expr = FunctionExpression(
+                {
+                    id: None,
+                    params: params,
+                    body: body,
+                    generator: Bool.false,
+                    async: Bool.false,
+                    typeParameters: type_params,
+                },
+            )
             (func_expr, rest5)
 
         _ ->
@@ -4087,11 +4364,13 @@ parse_template_literal_type = |token_list|
     when token_list is
         [TemplateHead(value), DollarBraceToken, .. as rest] ->
             # Create first quasi (template element)
-            first_quasi = TemplateElement({
-                value: value,
-                raw: value,
-                tail: Bool.false
-            })
+            first_quasi = TemplateElement(
+                {
+                    value: value,
+                    raw: value,
+                    tail: Bool.false,
+                },
+            )
 
             # Parse the alternating pattern of types and quasis
             parse_template_literal_parts([first_quasi], [], rest)
@@ -4109,27 +4388,33 @@ parse_template_literal_parts = |quasis, types, token_list|
     when rest1 is
         [CloseBraceToken, TemplateTail(value), .. as rest2] ->
             # End of template literal - add final quasi
-            final_quasi = TemplateElement({
-                value: value,
-                raw: value,
-                tail: Bool.true
-            })
+            final_quasi = TemplateElement(
+                {
+                    value: value,
+                    raw: value,
+                    tail: Bool.true,
+                },
+            )
             final_quasis = List.append(quasis, final_quasi)
             final_types = List.append(types, type_expr)
 
-            template_literal = TSTemplateLiteralType({
-                quasis: final_quasis,
-                types: final_types,
-            })
+            template_literal = TSTemplateLiteralType(
+                {
+                    quasis: final_quasis,
+                    types: final_types,
+                },
+            )
             (template_literal, rest2)
 
         [CloseBraceToken, TemplateMiddle(value), DollarBraceToken, .. as rest2] ->
             # More expressions to parse
-            middle_quasi = TemplateElement({
-                value: value,
-                raw: value,
-                tail: Bool.false
-            })
+            middle_quasi = TemplateElement(
+                {
+                    value: value,
+                    raw: value,
+                    tail: Bool.false,
+                },
+            )
             new_quasis = List.append(quasis, middle_quasi)
             new_types = List.append(types, type_expr)
 
@@ -4157,6 +4442,7 @@ parse_type_until_close_brace = |token_list|
             when rest is
                 [CloseBraceToken, ..] ->
                     (type_node, rest)
+
                 _ ->
                     (type_node, rest)
 
