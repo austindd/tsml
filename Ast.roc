@@ -974,7 +974,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
                 when data.id is
                     Some(identifier) ->
                         " id: "
-                        |> Str.concat(node_to_str_or_truncate_inline(identifier, indent_level, max_depth))
+                        |> Str.concat(node_to_str_or_truncate_inline(identifier, indent_level + 1, max_depth))
                         |> Str.concat(",\n")
                         |> Str.concat(indent)
 
@@ -984,7 +984,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
                 when data.typeParameters is
                     Some(type_params) ->
                         "  typeParameters: "
-                        |> Str.concat(node_to_str_or_truncate_inline(type_params, indent_level, max_depth))
+                        |> Str.concat(node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth))
                         |> Str.concat(",\n")
                         |> Str.concat(indent)
 
@@ -993,7 +993,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
             async_str = Inspect.to_str(data.async)
             generator_str = Inspect.to_str(data.generator)
             params_str = node_list_to_str_or_truncate(data.params, indent_level, max_depth)
-            body_str = node_to_str_or_truncate_inline(data.body, indent_level, max_depth)
+            body_str = node_to_str_or_truncate_inline(data.body, indent_level + 1, max_depth)
 
             Str.concat(indent, "FunctionExpression {\n")
             |> Str.concat(indent)
@@ -1021,7 +1021,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
             async_str = Inspect.to_str(data.async)
             generator_str = Inspect.to_str(data.generator)
             params_str = node_list_to_str_or_truncate(data.params, indent_level, max_depth)
-            body_str = node_to_str_or_truncate_inline(data.body, indent_level, max_depth)
+            body_str = node_to_str_or_truncate_inline(data.body, indent_level + 1, max_depth)
             Str.concat(indent, "ArrowFunctionExpression {\n")
             |> Str.concat(indent)
             |> Str.concat("  params: ")
@@ -1043,7 +1043,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         BlockStatement(data) ->
-            body_str = node_list_to_str_or_truncate(data.body, indent_level + 2, max_depth)
+            body_str = node_list_to_str_or_truncate(data.body, indent_level, max_depth)
             Str.concat(indent, "BlockStatement {\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
@@ -1063,13 +1063,13 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         IfStatement(data) ->
-            test_str = node_to_str_or_truncate_inline(data.test, indent_level, max_depth)
-            consequent_str = node_to_str_or_truncate_inline(data.consequent, indent_level, max_depth)
+            test_str = node_to_str_or_truncate_inline(data.test, indent_level + 1, max_depth)
+            consequent_str = node_to_str_or_truncate_inline(data.consequent, indent_level + 1, max_depth)
             alternate_str =
                 when data.alternate is
                     Some(alt_node) ->
                         " Some("
-                        |> Str.concat(node_to_str_or_truncate_inline(alt_node, indent_level, max_depth))
+                        |> Str.concat(node_to_str_or_truncate_inline(alt_node, indent_level + 1, max_depth))
                         |> Str.concat(")")
 
                     None -> "None"
@@ -1781,12 +1781,12 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         TSMappedType(data) ->
-            param_str = node_to_str_inline(data.typeParameter, indent_level + 1)
-            constraint_str = node_to_str_inline(data.constraint, indent_level + 1)
+            param_str = node_to_str_or_truncate_inline(data.typeParameter, indent_level + 1, max_depth)
+            constraint_str = node_to_str_or_truncate_inline(data.constraint, indent_level + 1, max_depth)
             type_str =
                 when data.typeAnnotation is
                     Some(type_ann) ->
-                        ann_str = node_to_str_inline(type_ann, indent_level + 1)
+                        ann_str = node_to_str_or_truncate_inline(type_ann, indent_level + 1, max_depth)
                         ",\n${indent}  typeAnnotation: ${ann_str}"
 
                     None -> ""
@@ -1818,8 +1818,8 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         TSEnumDeclaration(data) ->
-            id_str = node_to_str_inline(data.id, indent_level + 1)
-            members_count = List.len(data.members) |> Num.to_str
+            id_str = node_to_str_or_truncate_inline(data.id, indent_level + 1, max_depth)
+            members_str = node_list_to_str_or_truncate(data.members, indent_level, max_depth)
             const_str = if data.const then "const " else ""
             Str.concat(indent, "TSEnumDeclaration {\n")
             |> Str.concat(indent)
@@ -1829,18 +1829,18 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(id_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
-            |> Str.concat("  members: [")
-            |> Str.concat(members_count)
-            |> Str.concat(" items]\n")
+            |> Str.concat("  members: ")
+            |> Str.concat(members_str)
+            |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
 
         TSEnumMember(data) ->
-            id_str = node_to_str_inline(data.id, indent_level + 1)
+            id_str = node_to_str_or_truncate_inline(data.id, indent_level + 1, max_depth)
             init_str =
                 when data.initializer is
                     Some(init) ->
-                        init_val = node_to_str_inline(init, indent_level + 1)
+                        init_val = node_to_str_or_truncate_inline(init, indent_level + 1, max_depth)
                         Str.concat(" = ", init_val)
 
                     None -> ""
@@ -1850,18 +1850,18 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(" }")
 
         TSTypeParameter(data) ->
-            name_str = node_to_str_inline(data.name, indent_level + 1)
+            name_str = node_to_str_or_truncate_inline(data.name, indent_level + 1, max_depth)
             constraint_str =
                 when data.constraint is
                     Some(constraint) ->
-                        constraint_val = node_to_str_inline(constraint, indent_level + 1)
+                        constraint_val = node_to_str_or_truncate_inline(constraint, indent_level + 1, max_depth)
                         Str.concat(" extends ", constraint_val)
 
                     None -> ""
             default_str =
                 when data.default is
                     Some(default) ->
-                        default_val = node_to_str_inline(default, indent_level + 1)
+                        default_val = node_to_str_or_truncate_inline(default, indent_level + 1, max_depth)
                         Str.concat(" = ", default_val)
 
                     None -> ""
@@ -1872,58 +1872,64 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(" }")
 
         TSTypeParameterDeclaration(data) ->
-            params_count = List.len(data.params) |> Num.to_str
-            Str.concat(indent, "TSTypeParameterDeclaration { params: [")
-            |> Str.concat(params_count)
-            |> Str.concat(" items] }")
+            params_str = node_list_to_str_or_truncate(data.params, indent_level, max_depth)
+            Str.concat(indent, "TSTypeParameterDeclaration {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  params: ")
+            |> Str.concat(params_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSTypeParameterInstantiation(data) ->
-            params_count = List.len(data.params) |> Num.to_str
-            Str.concat(indent, "TSTypeParameterInstantiation { params: [")
-            |> Str.concat(params_count)
-            |> Str.concat(" items] }")
+            params_str = node_list_to_str_or_truncate(data.params, indent_level, max_depth)
+            Str.concat(indent, "TSTypeParameterInstantiation {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  params: ")
+            |> Str.concat(params_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         Decorator(data) ->
-            expr_str = node_to_str_inline(data.expression, indent_level + 1)
-            Str.concat(indent, "Decorator { expression: ")
+            expr_str = node_to_str_or_truncate_inline(data.expression, indent_level + 1, max_depth)
+            Str.concat(indent, "Decorator {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  expression: ")
             |> Str.concat(expr_str)
-            |> Str.concat(" }")
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         ClassDeclaration(data) ->
+            id_str = node_to_str_or_truncate_inline(data.id, indent_level + 1, max_depth)
             super_class_str =
                 when data.superClass is
                     Some(super) ->
-                        "\n"
-                        |> Str.concat(indent)
-                        |> Str.concat("  superClass: ")
-                        |> Str.concat(node_to_str_inline(super, indent_level + 1))
-                        |> Str.concat(",")
+                        node_to_str_or_truncate_inline(super, indent_level + 1, max_depth)
 
-                    None -> ""
+                    None -> "None"
 
-            decorators_str =
-                if List.is_empty(data.decorators) then
-                    ""
-                else
-                    decorators_count = List.len(data.decorators) |> Num.to_str
-                    "\n"
-                    |> Str.concat(indent)
-                    |> Str.concat("  decorators: [")
-                    |> Str.concat(decorators_count)
-                    |> Str.concat(" items],")
+            decorators_str = node_list_to_str_or_truncate(data.decorators, indent_level, max_depth)
+            body_str = node_to_str_or_truncate_inline(data.body, indent_level + 1, max_depth)
 
             Str.concat(indent, "ClassDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  id: ")
-            |> Str.concat(node_to_str_inline(data.id, indent_level + 1))
-            |> Str.concat(",")
+            |> Str.concat(id_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  superClass: ")
             |> Str.concat(super_class_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  decorators: ")
             |> Str.concat(decorators_str)
-            |> Str.concat("\n")
+            |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  body: ")
-            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
-            |> Str.concat("\n")
+            |> Str.concat(body_str)
+            |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("}")
 
@@ -1931,21 +1937,24 @@ node_to_str_with_config = |node, indent_level, max_depth|
             argument_str =
                 when data.argument is
                     Some(arg) ->
-                        " "
-                        |> Str.concat(node_to_str_inline(arg, indent_level + 1))
+                        node_to_str_or_truncate_inline(arg, indent_level + 1, max_depth)
 
-                    None -> ""
+                    None -> "None"
 
-            Str.concat(indent, "ReturnStatement {")
+            Str.concat(indent, "ReturnStatement {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  argument: ")
             |> Str.concat(argument_str)
-            |> Str.concat(" }")
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         BreakStatement(data) ->
             label_str =
                 when data.label is
                     Some(label) ->
                         " label: "
-                        |> Str.concat(node_to_str_inline(label, indent_level + 1))
+                        |> Str.concat(node_to_str_or_truncate_inline(label, indent_level + 1, max_depth))
 
                     None -> ""
 
@@ -1958,7 +1967,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
                 when data.label is
                     Some(label) ->
                         " label: "
-                        |> Str.concat(node_to_str_inline(label, indent_level + 1))
+                        |> Str.concat(node_to_str_or_truncate_inline(label, indent_level + 1, max_depth))
 
                     None -> ""
 
@@ -1968,7 +1977,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
 
         ThrowStatement(data) ->
             Str.concat(indent, "ThrowStatement { ")
-            |> Str.concat(node_to_str_with_indent(data.argument, indent_level + 1))
+            |> Str.concat(node_to_str_or_truncate_inline(data.argument, indent_level + 1, max_depth))
             |> Str.concat(" }")
 
         TryStatement(data) ->
@@ -1978,7 +1987,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
                         "\n"
                         |> Str.concat(indent)
                         |> Str.concat("  handler: ")
-                        |> Str.concat(node_to_str_inline(handler, indent_level + 1))
+                        |> Str.concat(node_to_str_or_truncate_inline(handler, indent_level + 1, max_depth))
                         |> Str.concat(",")
 
                     None -> ""
@@ -2009,7 +2018,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
                 when data.param is
                     Some(param) ->
                         " param: "
-                        |> Str.concat(node_to_str_inline(param, indent_level + 1))
+                        |> Str.concat(node_to_str_or_truncate_inline(param, indent_level + 1, max_depth))
                         |> Str.concat(",")
 
                     None -> ""
@@ -2017,7 +2026,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
             Str.concat(indent, "CatchClause {")
             |> Str.concat(param_str)
             |> Str.concat(" body: ")
-            |> Str.concat(node_to_str_inline(data.body, indent_level + 1))
+            |> Str.concat(node_to_str_or_truncate_inline(data.body, indent_level + 1, max_depth))
             |> Str.concat(" }")
 
         MethodDefinition(data) ->
@@ -2034,11 +2043,11 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  key: ")
-            |> Str.concat(node_to_str_inline(data.key, indent_level + 1))
+            |> Str.concat(node_to_str_or_truncate_inline(data.key, indent_level + 1, max_depth))
             |> Str.concat(",\n")
             |> Str.concat(indent)
             |> Str.concat("  value: ")
-            |> Str.concat(node_to_str_inline(data.value, indent_level + 1))
+            |> Str.concat(node_to_str_or_truncate_inline(data.value, indent_level + 1, max_depth))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
