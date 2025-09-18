@@ -334,6 +334,27 @@ TSInterfaceDeclaration {
     ]
   }
 }
+
+FunctionDeclaration {
+  id: Identifier { name: "identity" },
+  typeParameters: TSTypeParameterDeclaration {
+    params: [
+      TSTypeParameter { name: Identifier { name: "T" } }
+    ]
+  },
+  params: [
+    Identifier { name: "value" }
+  ],
+  body: FunctionBody {
+    body: [
+      ReturnStatement {
+        argument: Identifier { name: "value" }
+      }
+    ]
+  },
+  async: Bool.false,
+  generator: Bool.false
+}
 ```
 
 ### Intersection and Literal Types
@@ -348,19 +369,87 @@ type Greeting = `Hello, ${string}!`;
 ```
 TSTypeAliasDeclaration {
   id: Identifier { name: "Person" },
-  typeAnnotation: TSIntersectionType { types: [2 items] }
+  typeAnnotation: TSIntersectionType {
+    types: [
+      TSTypeLiteral {
+        members: [
+          TSPropertySignature {
+            key: Identifier { name: "name" },
+            optional: Bool.false,
+            readonly: Bool.false,
+            typeAnnotation: TSStringKeyword
+          }
+        ]
+      },
+      TSTypeLiteral {
+        members: [
+          TSPropertySignature {
+            key: Identifier { name: "age" },
+            optional: Bool.false,
+            readonly: Bool.false,
+            typeAnnotation: TSNumberKeyword
+          }
+        ]
+      }
+    ]
+  }
 }
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Status" },
-  typeAnnotation: TSUnionType { types: [3 items] }
+  typeAnnotation: TSUnionType {
+    types: [
+      TSLiteralType {
+        literal: StringLiteral { value: ""active"" }
+      },
+      TSLiteralType {
+        literal: StringLiteral { value: ""inactive"" }
+      },
+      TSLiteralType {
+        literal: StringLiteral { value: ""pending"" }
+      }
+    ]
+  }
+}
+
+TSTypeAliasDeclaration {
+  id: Identifier { name: "Count" },
+  typeAnnotation: TSUnionType {
+    types: [
+      TSLiteralType {
+        literal: NumberLiteral { value: "0" }
+      },
+      TSLiteralType {
+        literal: NumberLiteral { value: "1" }
+      },
+      TSLiteralType {
+        literal: NumberLiteral { value: "2" }
+      },
+      TSLiteralType {
+        literal: NumberLiteral { value: "3" }
+      }
+    ]
+  }
 }
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Greeting" },
   typeAnnotation: TSTemplateLiteralType {
-    quasis: [2 items],
-    types: [1 items]
+    quasis: [
+      TemplateElement {
+        value: "Hello, ",
+        raw: "Hello, ",
+        tail: Bool.false
+      },
+      TemplateElement {
+        value: "!",
+        raw: "!",
+        tail: Bool.true
+      }
+    ],
+    types: [
+      TSStringKeyword
+    ]
   }
 }
 ```
@@ -382,13 +471,51 @@ class AppComponent {
 ```
 TSTypeAliasDeclaration {
   id: Identifier { name: "ReadonlyDict" },
-  typeAnnotation: TSTypeLiteral { members: [1 items] }
+  typeAnnotation: TSTypeLiteral {
+    members: [
+      TSIndexSignature {
+        parameters: [
+          TSPropertySignature {
+            key: Identifier { name: "index" },
+            optional: Bool.false,
+            readonly: Bool.false,
+            typeAnnotation: TSNumberKeyword
+          }
+        ],
+        typeAnnotation: TSStringKeyword,
+        readonly: Bool.true
+      }
+    ]
+  }
 }
 
 ClassDeclaration {
   id: Identifier { name: "AppComponent" },
-  decorators: [2 items],
-  body: BlockStatement { body: [] }
+  superClass: None,
+  decorators: [
+    Decorator {
+      expression: Identifier { name: "sealed" }
+    },
+    Decorator {
+      expression: NewExpression {
+        callee: Identifier { name: "component" },
+        arguments: [
+          ObjectExpression {
+            properties: [
+              Property {
+                kind: Init,
+                key: Identifier { name: "selector" },
+                value: StringLiteral { value: "'app-root'" }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  body: BlockStatement {
+    body: [...0 items]
+  },
 }
 ```
 
@@ -416,18 +543,47 @@ enum Values {
 **Generates:**
 ```
 TSEnumDeclaration {
+  id: Identifier { name: "Color" },
+  members: [
+    TSEnumMember { id: Identifier { name: "Red" } },
+    TSEnumMember { id: Identifier { name: "Green" } },
+    TSEnumMember { id: Identifier { name: "Blue" } }
+  ]
+}
+
+TSEnumDeclaration {
   id: Identifier { name: "Status" },
-  members: [2 items]
+  members: [
+    TSEnumMember { id: Identifier { name: "Active" } = NumberLiteral { value: "1" } },
+    TSEnumMember { id: Identifier { name: "Inactive" } = NumberLiteral { value: "0" } }
+  ]
 }
 
 TSEnumDeclaration {
   const id: Identifier { name: "Direction" },
-  members: [2 items]
+  members: [
+    TSEnumMember { id: Identifier { name: "Up" } = StringLiteral { value: ""UP"" } },
+    TSEnumMember { id: Identifier { name: "Down" } = StringLiteral { value: ""DOWN"" } }
+  ]
 }
 
 TSEnumDeclaration {
   id: Identifier { name: "Values" },
-  members: [3 items]
+  members: [
+    TSEnumMember { id: Identifier { name: "A" } = NumberLiteral { value: "1" } },
+    TSEnumMember { id: Identifier { name: "B" } = BinaryExpression {
+        operator: *,
+        left: Identifier { name: "A" },
+        right: NumberLiteral { value: "2" }
+      }
+    },
+    TSEnumMember { id: Identifier { name: "C" } = BinaryExpression {
+        operator: +,
+        left: Identifier { name: "B" },
+        right: NumberLiteral { value: "1" }
+      }
+    }
+  ]
 }
 ```
 
@@ -465,30 +621,6 @@ Program {
     },
   ]
 }
-```
-
-### Running Tests
-```bash
-# Test TypeScript features
-roc dev tests/test_typescript.roc
-roc dev tests/test_enum_types.roc
-roc dev tests/test_tuple_types.roc
-roc dev tests/test_variable_types.roc
-roc dev tests/test_arrays_unions.roc
-roc dev tests/test_generic_types.roc
-roc dev tests/test_generic_functions.roc
-roc dev tests/test_literal_types.roc
-roc dev tests/test_detailed_template_literals.roc
-roc dev tests/test_index_signatures.roc
-roc dev tests/test_intersection_types.roc
-roc dev tests/test_decorators.roc
-
-# Test JavaScript features
-roc dev tests/test_async_await.roc
-roc dev tests/test_classes.roc
-roc dev tests/test_template_literals.roc
-roc dev tests/test_destructuring.roc
-roc dev tests/test_for_loops.roc
 ```
 
 ## 🏛️ Architecture
