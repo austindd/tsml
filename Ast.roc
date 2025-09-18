@@ -159,6 +159,7 @@ Node : [
                 body : Node,
                 generator : Bool,
                 async : Bool,
+                typeParameters : Option Node,
             }),
     ArrowFunctionExpression (WithBaseNodeData {
                 params : List Node,
@@ -940,17 +941,28 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         FunctionDeclaration(data) ->
+            type_params_str =
+                when data.typeParameters is
+                    Some(type_params) ->
+                        "  typeParameters: "
+                        |> Str.concat(node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth))
+                        |> Str.concat(",\n")
+                        |> Str.concat(indent)
+
+                    None -> ""
+
             async_str = Inspect.to_str(data.async)
             generator_str = Inspect.to_str(data.generator)
-            id_str = node_to_str_or_truncate_inline(data.id, indent_level, max_depth)
+            id_str = node_to_str_or_truncate_inline(data.id, indent_level + 1, max_depth)
             params_str = node_list_to_str_or_truncate(data.params, indent_level, max_depth)
-            body_str = node_to_str_or_truncate_inline(data.body, indent_level, max_depth)
+            body_str = node_to_str_or_truncate_inline(data.body, indent_level + 1, max_depth)
             Str.concat(indent, "FunctionDeclaration {\n")
             |> Str.concat(indent)
             |> Str.concat("  id: ")
             |> Str.concat(id_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
+            |> Str.concat(type_params_str)
             |> Str.concat("  params: ")
             |> Str.concat(params_str)
             |> Str.concat(",\n")

@@ -1444,7 +1444,8 @@ parse_function_declaration = |token_list|
     when token_list is
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
-            (params, rest2) = parse_function_parameters(rest1)
+            (type_params, rest_after_type_params) = parse_type_parameters(rest1)
+            (params, rest2) = parse_function_parameters(rest_after_type_params)
 
             # Check for return type annotation: function name(): type
             (return_type, rest3) =
@@ -1465,6 +1466,7 @@ parse_function_declaration = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
+                    typeParameters: type_params,
                 },
             )
             (func_decl, rest4)
@@ -1477,7 +1479,8 @@ parse_async_function_declaration = |token_list|
     when token_list is
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
-            (params, rest2) = parse_function_parameters(rest1)
+            (type_params, rest_after_type_params) = parse_type_parameters(rest1)
+            (params, rest2) = parse_function_parameters(rest_after_type_params)
 
             # Check for return type annotation: async function name(): type
             (return_type, rest3) =
@@ -1498,6 +1501,7 @@ parse_async_function_declaration = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.true,
+                    typeParameters: type_params,
                 },
             )
             (func_decl, rest4)
@@ -1510,7 +1514,8 @@ parse_generator_function_declaration = |token_list|
     when token_list is
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
-            (params, rest2) = parse_function_parameters(rest1)
+            (type_params, rest_after_type_params) = parse_type_parameters(rest1)
+            (params, rest2) = parse_function_parameters(rest_after_type_params)
 
             # Check for return type annotation: function* name(): type
             (return_type, rest3) =
@@ -1531,6 +1536,7 @@ parse_generator_function_declaration = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.false,
+                    typeParameters: type_params,
                 },
             )
             (func_decl, rest4)
@@ -1543,7 +1549,8 @@ parse_async_generator_function_declaration = |token_list|
     when token_list is
         [IdentifierToken(name), .. as rest1] ->
             identifier = Identifier({ name: name })
-            (params, rest2) = parse_function_parameters(rest1)
+            (type_params, rest_after_type_params) = parse_type_parameters(rest1)
+            (params, rest2) = parse_function_parameters(rest_after_type_params)
 
             # Check for return type annotation: async function* name(): type
             (return_type, rest3) =
@@ -1564,6 +1571,7 @@ parse_async_generator_function_declaration = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.true,
+                    typeParameters: type_params,
                 },
             )
             (func_decl, rest4)
