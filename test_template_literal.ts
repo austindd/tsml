@@ -1,0 +1,1 @@
+type T = `${prefix}-${suffix}`;
