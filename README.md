@@ -49,8 +49,8 @@ tsml is a modern compiler pipeline that transforms TypeScript and JavaScript sou
 ### TypeScript Interfaces
 ```typescript
 interface User {
-  name: string;
-  age?: number;
+    name: string;
+    age?: number;
 }
 
 interface Admin extends User {
@@ -62,14 +62,44 @@ interface Admin extends User {
 ```
 TSInterfaceDeclaration {
   id: Identifier { name: "User" },
-  body: TSInterfaceBody { body: [2 items] },
-  extends: None
+  body: TSInterfaceBody {
+    body: [
+      TSPropertySignature {
+        key: Identifier { name: "name" },
+        optional: Bool.false,
+        readonly: Bool.false,
+        typeAnnotation: TSStringKeyword
+      },
+      TSPropertySignature {
+        key: Identifier { name: "age" },
+        optional: Bool.true,
+        readonly: Bool.false,
+        typeAnnotation: TSNumberKeyword
+      }
+    ]
+  }
 }
 
 TSInterfaceDeclaration {
   id: Identifier { name: "Admin" },
-  body: TSInterfaceBody { body: [1 items] },
-  extends: Some([1 items])
+  body: TSInterfaceBody {
+    body: [
+      TSPropertySignature {
+        key: Identifier { name: "permissions" },
+        optional: Bool.false,
+        readonly: Bool.false,
+        typeAnnotation: TSArrayType {
+          elementType: TSStringKeyword
+        }
+      }
+    ]
+  },
+  extends: [
+    TSTypeReference {
+      typeName: Identifier { name: "User" },
+      typeParameters: [...0 items]
+    }
+  ]
 }
 ```
 
@@ -94,19 +124,34 @@ TSTypeAliasDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "StringOrNumber" },
-  typeAnnotation: TSUnionType { types: [2 items] }
+  typeAnnotation: TSUnionType {
+    types: [
+      TSStringKeyword,
+      TSNumberKeyword
+    ]
+  }
 }
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "MixedArray" },
   typeAnnotation: TSArrayType {
-    elementType: TSUnionType { types: [2 items] }
+    elementType: TSUnionType {
+      types: [
+        TSStringKeyword,
+        TSNumberKeyword
+      ]
+    }
   }
 }
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Point" },
-  typeAnnotation: TSTupleType { elementTypes: [2 items] }
+  typeAnnotation: TSTupleType {
+    elementTypes: [
+      TSNumberKeyword,
+      TSNumberKeyword
+    ]
+  }
 }
 ```
 
@@ -219,23 +264,75 @@ interface Constrained<T extends number> {
   data: T;
 }
 
-function identity<T>(value: T): T {
-  return value;
-}
+function identity<T>(value: T): T { return value; }
 ```
 
 **Generates:**
 ```
 TSInterfaceDeclaration {
   id: Identifier { name: "Container" },
-  body: TSInterfaceBody { body: [1 items] },
-  typeParameters: TSTypeParameterDeclaration { params: [1 items] }
+  body: TSInterfaceBody {
+    body: [
+      TSPropertySignature {
+        key: Identifier { name: "value" },
+        optional: Bool.false,
+        readonly: Bool.false,
+        typeAnnotation: TSTypeReference {
+          typeName: Identifier { name: "T" },
+          typeParameters: [...0 items]
+        }
+      }
+    ]
+  },
+  typeParameters: TSTypeParameterDeclaration {
+    params: [
+      TSTypeParameter { name: Identifier { name: "T" } }
+    ]
+  }
 }
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Pair" },
-  typeParameters: TSTypeParameterDeclaration { params: [2 items] },
-  typeAnnotation: TSTupleType { elementTypes: [2 items] }
+  typeParameters: TSTypeParameterDeclaration {
+    params: [
+      TSTypeParameter { name: Identifier { name: "T" } },
+      TSTypeParameter { name: Identifier { name: "U" } = TSStringKeyword }
+    ]
+  },
+  typeAnnotation: TSTupleType {
+    elementTypes: [
+      TSTypeReference {
+        typeName: Identifier { name: "T" },
+        typeParameters: [...0 items]
+      },
+      TSTypeReference {
+        typeName: Identifier { name: "U" },
+        typeParameters: [...0 items]
+      }
+    ]
+  }
+}
+
+TSInterfaceDeclaration {
+  id: Identifier { name: "Constrained" },
+  body: TSInterfaceBody {
+    body: [
+      TSPropertySignature {
+        key: Identifier { name: "data" },
+        optional: Bool.false,
+        readonly: Bool.false,
+        typeAnnotation: TSTypeReference {
+          typeName: Identifier { name: "T" },
+          typeParameters: [...0 items]
+        }
+      }
+    ]
+  },
+  typeParameters: TSTypeParameterDeclaration {
+    params: [
+      TSTypeParameter { name: Identifier { name: "T" } extends TSNumberKeyword }
+    ]
+  }
 }
 ```
 
