@@ -1502,12 +1502,12 @@ node_to_str_with_config = |node, indent_level, max_depth|
             Str.concat(indent, "TSInterfaceBody { body: ${body_str} }")
 
         TSMethodSignature(data) ->
-            key_str = node_to_str_inline(data.key, indent_level + 1)
+            key_str = node_to_str_or_truncate_inline(data.key, indent_level, max_depth)
             params_count = List.len(data.params) |> Num.to_str
             return_type_str =
                 when data.returnType is
                     Some(ret_type) ->
-                        ret_str = node_to_str_inline(ret_type, indent_level + 1)
+                        ret_str = node_to_str_or_truncate_inline(ret_type, indent_level + 1, max_depth)
                         ",\n${indent}  returnType: ${ret_str}"
 
                     None -> ""
@@ -1517,20 +1517,19 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(key_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
-            |> Str.concat("  params: [${params_count} items]")
             |> Str.concat(return_type_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
 
         TSPropertySignature(data) ->
-            key_str = node_to_str_inline(data.key, indent_level + 1)
+            key_str = node_to_str_or_truncate_inline(data.key, indent_level + 1, max_depth)
             optional_str = if data.optional then "Bool.true" else "Bool.false"
             readonly_str = if data.readonly then "Bool.true" else "Bool.false"
             type_annotation_str =
                 when data.typeAnnotation is
                     Some(type_ann) ->
-                        ann_str = node_to_str_inline(type_ann, indent_level + 1)
+                        ann_str = node_to_str_or_truncate_inline(type_ann, indent_level + 1, max_depth)
                         ",\n${indent}  typeAnnotation: ${ann_str}"
 
                     None -> ""
@@ -1552,12 +1551,12 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         TSTypeAliasDeclaration(data) ->
-            id_str = node_to_str_inline(data.id, indent_level + 1)
-            type_annotation_str = node_to_str_inline(data.typeAnnotation, indent_level + 1)
+            id_str = node_to_str_or_truncate_inline(data.id, indent_level + 1, max_depth)
+            type_annotation_str = node_to_str_or_truncate_inline(data.typeAnnotation, indent_level + 1, max_depth)
             type_params_str =
                 when data.typeParameters is
                     Some(type_params) ->
-                        type_params_val = node_to_str_inline(type_params, indent_level + 1)
+                        type_params_val = node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth)
                         ",\n${indent}  typeParameters: ${type_params_val}"
 
                     None -> ""
@@ -1575,19 +1574,30 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         TSTypeAnnotation(data) ->
-            type_annotation_str = node_to_str_inline(data.typeAnnotation, indent_level + 1)
+            type_annotation_str = node_to_str_or_truncate_inline(data.typeAnnotation, indent_level + 1, max_depth)
             Str.concat(indent, "TSTypeAnnotation { typeAnnotation: ${type_annotation_str} }")
 
         TSTypeReference(data) ->
-            type_name_str = node_to_str_inline(data.typeName, indent_level + 1)
+            type_name_str = node_to_str_or_truncate_inline(data.typeName, indent_level + 1, max_depth)
             type_params_str =
                 when data.typeParameters is
                     Some(params) ->
-                        count = List.len(params) |> Num.to_str
-                        ", typeParameters: [${count} items]"
+                        node_list_to_str_or_truncate(params, indent_level, max_depth)
 
-                    None -> ""
-            Str.concat(indent, "TSTypeReference { typeName: ${type_name_str}${type_params_str} }")
+                    None -> node_list_to_str_or_truncate([], indent_level, max_depth)
+
+            Str.concat(indent, "TSTypeReference {")
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("  typeName: ")
+            |> Str.concat(type_name_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  typeParameters: ")
+            |> Str.concat(type_params_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSStringKeyword(_) ->
             Str.concat(indent, "TSStringKeyword")
@@ -1614,74 +1624,57 @@ node_to_str_with_config = |node, indent_level, max_depth|
             Str.concat(indent, "TSUndefinedKeyword")
 
         TSFunctionType(data) ->
-            params_str =
-                List.map(data.parameters, |param| node_to_str_inline(param, indent_level + 1))
-                |> Str.join_with(", ")
-            return_type_str = node_to_str_inline(data.returnType, indent_level + 1)
-
+            params_str = node_list_to_str_or_truncate(data.parameters, indent_level + 1, max_depth)
+            return_type_str = node_to_str_or_truncate_inline(data.returnType, indent_level + 1, max_depth)
             type_params_str =
                 when data.typeParameters is
                     Some(type_params) ->
-                        type_params_inline = node_to_str_inline(type_params, indent_level + 1)
-                        Str.concat("typeParameters: ", type_params_inline)
-                        |> Str.concat(", ")
+                        node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth)
 
-                    None -> ""
+                    None ->
+                        "None"
 
-            Str.concat(indent, "TSFunctionType { ")
-            |> Str.concat(type_params_str)
-            |> Str.concat("params: [")
+            Str.concat(indent, "TSFunctionType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  typeParameters: ${type_params_str},\n")
+            |> Str.concat(indent)
+            |> Str.concat("  params: ")
             |> Str.concat(params_str)
-            |> Str.concat("] => ")
+            |> Str.concat(" => ")
             |> Str.concat(return_type_str)
-            |> Str.concat(" }")
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSTypeofType(data) ->
-            expr_str = node_to_str_inline(data.exprName, indent_level + 1)
+            expr_str = node_to_str_or_truncate_inline(data.exprName, indent_level + 1, max_depth)
             Str.concat(indent, "TSTypeofType { typeof ")
             |> Str.concat(expr_str)
             |> Str.concat(" }")
 
         TSTypeLiteral(data) ->
-            members_str = if should_truncate then
-                members_count = List.len(data.members) |> Num.to_str
-                "[${members_count} items]"
-            else
-                list_to_str_with_config(data.members, indent_level + 2, max_depth)
+            members_str = node_list_to_str_or_truncate(data.members, indent_level + 1, max_depth)
+
             Str.concat(indent, "TSTypeLiteral {\n")
             |> Str.concat(indent)
             |> Str.concat("  members: ")
-            |> (
-                if should_truncate then
-                    |s| Str.concat(s, members_str)
-                else
-                    |s|
-                        Str.concat(s, "[\n")
-                        |> Str.concat(members_str)
-                        |> Str.concat(indent)
-                        |> Str.concat("  ]")
-            )
+            |> Str.concat(members_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
 
         TSIndexSignature(data) ->
             params_count = List.len(data.parameters) |> Num.to_str
-            type_str =
+            type_ann_str =
                 when data.typeAnnotation is
                     Some(type_ann) ->
-                        ann_str = node_to_str_inline(type_ann, indent_level + 1)
-                        Str.concat(": ", ann_str)
-
-                    None -> ""
+                        node_to_str_or_truncate_inline(type_ann, indent_level + 1, max_depth)
+                    None -> "None"
             readonly_str = if data.readonly then "readonly " else ""
 
             Str.concat(indent, "TSIndexSignature { ")
             |> Str.concat(readonly_str)
-            |> Str.concat("[")
-            |> Str.concat(params_count)
-            |> Str.concat(" params]")
-            |> Str.concat(type_str)
+            |> Str.concat(type_ann_str)
             |> Str.concat(" }")
 
         TSArrayType(data) ->
