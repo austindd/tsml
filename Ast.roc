@@ -1653,7 +1653,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(" }")
 
         TSTypeLiteral(data) ->
-            members_str = node_list_to_str_or_truncate(data.members, indent_level + 1, max_depth)
+            members_str = node_list_to_str_or_truncate(data.members, indent_level, max_depth)
 
             Str.concat(indent, "TSTypeLiteral {\n")
             |> Str.concat(indent)
@@ -1664,18 +1664,29 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         TSIndexSignature(data) ->
-            params_count = List.len(data.parameters) |> Num.to_str
+            params_str = node_list_to_str_or_truncate(data.parameters, indent_level, max_depth)
             type_ann_str =
                 when data.typeAnnotation is
                     Some(type_ann) ->
                         node_to_str_or_truncate_inline(type_ann, indent_level + 1, max_depth)
                     None -> "None"
-            readonly_str = if data.readonly then "readonly " else ""
+            readonly_str = if data.readonly then "Bool.true" else "Bool.false"
 
-            Str.concat(indent, "TSIndexSignature { ")
-            |> Str.concat(readonly_str)
+            Str.concat(indent, "TSIndexSignature {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  parameters: ")
+            |> Str.concat(params_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  typeAnnotation: ")
             |> Str.concat(type_ann_str)
-            |> Str.concat(" }")
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  readonly: ")
+            |> Str.concat(readonly_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSArrayType(data) ->
             element_str = node_to_str_inline(data.elementType, indent_level + 1)
