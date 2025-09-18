@@ -1669,6 +1669,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
                 when data.typeAnnotation is
                     Some(type_ann) ->
                         node_to_str_or_truncate_inline(type_ann, indent_level + 1, max_depth)
+
                     None -> "None"
             readonly_str = if data.readonly then "Bool.true" else "Bool.false"
 
@@ -1689,49 +1690,76 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         TSArrayType(data) ->
-            element_str = node_to_str_inline(data.elementType, indent_level + 1)
-            Str.concat(indent, "TSArrayType { elementType: ")
+            element_str = node_to_str_or_truncate_inline(data.elementType, indent_level + 1, max_depth)
+            Str.concat(indent, "TSArrayType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  elementType: ")
             |> Str.concat(element_str)
-            |> Str.concat(" }")
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSUnionType(data) ->
-            types_count = List.len(data.types) |> Num.to_str
-            Str.concat(indent, "TSUnionType { types: [")
-            |> Str.concat(types_count)
-            |> Str.concat(" items] }")
+            types_str = node_list_to_str_or_truncate(data.types, indent_level, max_depth)
+            Str.concat(indent, "TSUnionType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  types: ")
+            |> Str.concat(types_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSIntersectionType(data) ->
-            types_count = List.len(data.types) |> Num.to_str
-            Str.concat(indent, "TSIntersectionType { types: [")
-            |> Str.concat(types_count)
-            |> Str.concat(" items] }")
+            types_str = node_list_to_str_or_truncate(data.types, indent_level, max_depth)
+            Str.concat(indent, "TSIntersectionType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  types: ")
+            |> Str.concat(types_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSTupleType(data) ->
-            elements_count = List.len(data.elementTypes) |> Num.to_str
-            Str.concat(indent, "TSTupleType { elementTypes: [")
-            |> Str.concat(elements_count)
-            |> Str.concat(" items] }")
+            elements_str = node_list_to_str_or_truncate(data.elementTypes, indent_level, max_depth)
+            Str.concat(indent, "TSTupleType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  elementTypes: ")
+            |> Str.concat(elements_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSLiteralType(data) ->
-            literal_str = node_to_str_inline(data.literal, indent_level + 1)
-            Str.concat(indent, "TSLiteralType { literal: ")
+            literal_str = node_to_str_or_truncate_inline(data.literal, indent_level + 1, max_depth)
+            Str.concat(indent, "TSLiteralType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  literal: ")
             |> Str.concat(literal_str)
-            |> Str.concat(" }")
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSTemplateLiteralType(data) ->
-            quasis_count = List.len(data.quasis) |> Num.to_str
-            types_count = List.len(data.types) |> Num.to_str
-            Str.concat(indent, "TSTemplateLiteralType { quasis: [")
-            |> Str.concat(quasis_count)
-            |> Str.concat(" items], types: [")
-            |> Str.concat(types_count)
-            |> Str.concat(" items] }")
+            quasis_str = node_list_to_str_or_truncate(data.quasis, indent_level, max_depth)
+            types_str = node_list_to_str_or_truncate(data.types, indent_level, max_depth)
+            Str.concat(indent, "TSTemplateLiteralType {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  quasis: ")
+            |> Str.concat(quasis_str)
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  types: ")
+            |> Str.concat(types_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSConditionalType(data) ->
-            check_str = node_to_str_inline(data.checkType, indent_level + 1)
-            extends_str = node_to_str_inline(data.extendsType, indent_level + 1)
-            true_str = node_to_str_inline(data.trueType, indent_level + 1)
-            false_str = node_to_str_inline(data.falseType, indent_level + 1)
+            check_str = node_to_str_or_truncate_inline(data.checkType, indent_level + 1, max_depth)
+            extends_str = node_to_str_or_truncate_inline(data.extendsType, indent_level + 1, max_depth)
+            true_str = node_to_str_or_truncate_inline(data.trueType, indent_level + 1, max_depth)
+            false_str = node_to_str_or_truncate_inline(data.falseType, indent_level + 1, max_depth)
+
             Str.concat(indent, "TSConditionalType {\n")
             |> Str.concat(indent)
             |> Str.concat("  checkType: ")
