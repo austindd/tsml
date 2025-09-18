@@ -1499,7 +1499,13 @@ node_to_str_with_config = |node, indent_level, max_depth|
 
         TSInterfaceBody(data) ->
             body_str = node_list_to_str_or_truncate(data.body, indent_level, max_depth)
-            Str.concat(indent, "TSInterfaceBody { body: ${body_str} }")
+            Str.concat(indent, "TSInterfaceBody {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  body: ")
+            |> Str.concat(body_str)
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSMethodSignature(data) ->
             key_str = node_to_str_or_truncate_inline(data.key, indent_level, max_depth)
