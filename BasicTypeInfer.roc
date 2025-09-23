@@ -4,6 +4,7 @@ module [
 
 import MinimalType exposing [TType]
 import Ast exposing [Node]
+import JSTypeCoercion
 
 infer_type : Node -> TType
 infer_type = \node ->
@@ -15,23 +16,35 @@ infer_type = \node ->
         UndefinedLiteral _ -> TUnknown
 
         BinaryExpression { operator, left, right } ->
+            left_type = infer_type left
+            right_type = infer_type right
             when operator is
                 # Arithmetic
-                Plus ->
-                    # Plus can be string concatenation or numeric addition
-                    left_type = infer_type left
-                    right_type = infer_type right
-                    when (left_type, right_type) is
-                        (TStr, _) | (_, TStr) -> TStr  # String concatenation
-                        _ -> TNum  # Numeric addition
-                Minus | Star | Slash | Percent -> TNum
-                # Comparison - always returns boolean
-                EqualEqual | BangEqual | LessThan | GreaterThan | LessThanEqual | GreaterThanEqual -> TBool
-                EqualEqualEqual | BangEqualEqual -> TBool
-                # Bitwise - always returns number
-                Pipe | Caret | Ampersand | LeftShift | RightShift | UnsignedRightShift -> TNum
-                # Logical operators (in binary context)
-                In | Instanceof -> TBool
+                Plus -> JSTypeCoercion.infer_binary_op left_type right_type "+"
+                Minus -> JSTypeCoercion.infer_binary_op left_type right_type "-"
+                Star -> JSTypeCoercion.infer_binary_op left_type right_type "*"
+                Slash -> JSTypeCoercion.infer_binary_op left_type right_type "/"
+                Percent -> JSTypeCoercion.infer_binary_op left_type right_type "%"
+                # Comparison
+                LessThan -> JSTypeCoercion.infer_binary_op left_type right_type "<"
+                LessThanEqual -> JSTypeCoercion.infer_binary_op left_type right_type "<="
+                GreaterThan -> JSTypeCoercion.infer_binary_op left_type right_type ">"
+                GreaterThanEqual -> JSTypeCoercion.infer_binary_op left_type right_type ">="
+                # Equality
+                EqualEqual -> JSTypeCoercion.infer_equality left_type right_type "=="
+                BangEqual -> JSTypeCoercion.infer_equality left_type right_type "!="
+                EqualEqualEqual -> JSTypeCoercion.infer_equality left_type right_type "==="
+                BangEqualEqual -> JSTypeCoercion.infer_equality left_type right_type "!=="
+                # Bitwise
+                Pipe -> JSTypeCoercion.infer_binary_op left_type right_type "|"
+                Caret -> JSTypeCoercion.infer_binary_op left_type right_type "^"
+                Ampersand -> JSTypeCoercion.infer_binary_op left_type right_type "&"
+                LeftShift -> JSTypeCoercion.infer_binary_op left_type right_type "<<"
+                RightShift -> JSTypeCoercion.infer_binary_op left_type right_type ">>"
+                UnsignedRightShift -> JSTypeCoercion.infer_binary_op left_type right_type ">>>"
+                # Special
+                In -> JSTypeCoercion.infer_binary_op left_type right_type "in"
+                Instanceof -> JSTypeCoercion.infer_binary_op left_type right_type "instanceof"
                 _ -> TUnknown
 
         # Unary expressions
