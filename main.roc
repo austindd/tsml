@@ -7,6 +7,9 @@ import Scratch
 import TokenTest
 import Ast
 import Parser
+import TypeInfer
+import Type
+import TypeReport
 
 # Helper function to check if a token is trivia (whitespace, comments, etc.)
 is_trivia_token : Token.Token -> Bool
@@ -74,7 +77,25 @@ process_input! = |input_code|
     ast_display = Ast.node_to_str(ast)
     _ = Stdout.line!(ast_display)
 
-    _ = Stdout.line!("\n✅ Parsing completed successfully!")
+    # Step 6: Type Inference
+    _ = Stdout.line!("\n🔬 Type Inference:")
+    inference_result = TypeInfer.infer_program(ast)
+
+    _ = when inference_result is
+        Ok(result) ->
+            type_str = Type.type_to_str(result.type)
+            _ = Stdout.line!("Inferred type: $(type_str)")
+            {}
+        Err(error) ->
+            error_report = TypeReport.format_type_error({
+                error: error,
+                location: None,
+                context: None,
+            })
+            _ = Stdout.line!("Type error:\n$(error_report)")
+            {}
+
+    _ = Stdout.line!("\n✅ Analysis completed successfully!")
     {}
 
 # Main loop that continues reading from stdin
