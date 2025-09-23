@@ -13,6 +13,7 @@ module [
     combine3,
     gather,
     compact,
+    with_default,
 ]
 
 Option a : [Some a, None]
