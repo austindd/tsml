@@ -104,14 +104,14 @@ mk_negation = \inner -> Negation inner
 type_to_str : Type -> Str
 type_to_str = \type ->
     when type is
-        Var id -> "T$(Num.toStr id)"
+        Var id -> "T$(Num.to_str id)"
         Top -> "⊤"
         Bottom -> "⊥"
         Primitive name -> name
         Literal lit ->
             when lit is
                 StrLit s -> "\"$(s)\""
-                NumLit n -> Num.toStr n
+                NumLit n -> Num.to_str n
                 BoolLit b -> if b then "true" else "false"
                 NullLit -> "null"
                 UndefinedLit -> "undefined"
@@ -142,7 +142,7 @@ type_to_str = \type ->
 
         Negation inner -> "¬$(type_to_str inner)"
 
-        Recursive { var, body } -> "μT$(Num.toStr var).$(type_to_str body)"
+        Recursive { var, body } -> "μT$(Num.to_str var).$(type_to_str body)"
 
 normalize_type : Type -> Type
 normalize_type = \type ->

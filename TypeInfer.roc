@@ -12,8 +12,6 @@ import Type exposing [Type, TypeVar, TypeScheme]
 import TypeConstraint exposing [Constraint, TypeEnv, generate_constraints]
 import TypeUnify exposing [Substitution, UnificationError, solve_constraints, apply_substitution_to_type]
 import TypeAlgebra
-import Dict
-import Set
 import Result exposing [Result]
 import Option exposing [Option]
 
@@ -184,11 +182,11 @@ null_type = \{} ->
 
 true_type : {} -> Type
 true_type = \{} ->
-    Type.mk_literal (BoolLit True)
+    Type.mk_literal (BoolLit(Bool.true))
 
 false_type : {} -> Type
 false_type = \{} ->
-    Type.mk_literal (BoolLit False)
+    Type.mk_literal (BoolLit(Bool.false))
 
 parse_int_type : {} -> Type
 parse_int_type = \{} ->
