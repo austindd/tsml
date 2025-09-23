@@ -7,15 +7,8 @@ module [
     format_error,
 ]
 
-import Ast exposing [
-    Node,
-    BinaryOperator,
-    VariableDeclarationKind,
-]
+import Ast
 import SimpleComprehensiveType as Type exposing [Type]
-import TypedSymbolTable as TST
-import JSGlobals
-import MinimalType
 
 # Type error
 TypeError : {
@@ -42,22 +35,18 @@ TypeResult : {
 }
 
 # Check a complete program and return errors
-check_program : Node -> TypeResult
+check_program : Ast.Node -> TypeResult
 check_program = |node|
-    # Initialize symbol table with JS globals
-    initial_table = TST.empty_table {}
-        |> JSGlobals.add_js_globals
+    check_node_impl(node)
 
-    check_with_table node initial_table
-
-# Check with symbol table context
-check_with_table : Node, TST.SymbolTable -> TypeResult
-check_with_table = |node, table|
+# Check node implementation
+check_node_impl : Ast.Node -> TypeResult
+check_node_impl = |node|
     when node is
-        Program(data) ->
+        Program({ body, sourceType: _ }) ->
             # Check all statements
-            results = List.map(data.body, |stmt|
-                check_with_table(stmt, table))
+            results = List.map(body, |stmt|
+                check_node_impl(stmt))
 
             # Collect all errors
             all_errors = List.walk(results, [], |acc, result|
@@ -69,17 +58,17 @@ check_with_table = |node, table|
             }
 
         # Variable declaration
-        VariableDeclaration(data) ->
-            check_var_declaration(data.declarations, data.kind, table)
+        VariableDeclaration({ declarations, kind }) ->
+            check_var_declaration(declarations, kind)
 
         # Binary expression
-        BinaryExpression(data) ->
-            check_binary_expr(data.left, data.right, data.operator, table)
+        BinaryExpression({ left, right, operator }) ->
+            check_binary_expr(left, right, operator)
 
         # Logical expression
-        LogicalExpression(data) ->
-            left_result = check_with_table(data.left, table)
-            right_result = check_with_table(data.right, table)
+        LogicalExpression({ left, right, operator }) ->
+            left_result = check_node_impl(left)
+            right_result = check_node_impl(right)
             errors = List.concat(left_result.errors, right_result.errors)
             {
                 node_type: Type.mk_union([left_result.node_type, right_result.node_type]),
@@ -87,47 +76,47 @@ check_with_table = |node, table|
             }
 
         # Identifier
-        Identifier(data) ->
-            check_identifier(data.name, table)
+        Identifier({ name }) ->
+            check_identifier(name)
 
         # Literals
-        NumericLiteral _ ->
+        NumberLiteral(_) ->
             { node_type: Type.mk_number, errors: [] }
 
-        StringLiteral _ ->
+        StringLiteral(_) ->
             { node_type: Type.mk_string, errors: [] }
 
-        BooleanLiteral _ ->
+        BooleanLiteral(_) ->
             { node_type: Type.mk_boolean, errors: [] }
 
-        NullLiteral _ ->
+        NullLiteral(_) ->
             { node_type: Type.mk_null, errors: [] }
 
         # Expression statement
-        ExpressionStatement(data) ->
-            check_with_table(data.expression, table)
+        ExpressionStatement({ expression }) ->
+            check_node_impl(expression)
 
         # Default - return unknown
         _ ->
             { node_type: Type.mk_unknown, errors: [] }
 
 # Check variable declaration
-check_var_declaration : List Node, VariableDeclarationKind, TST.SymbolTable -> TypeResult
-check_var_declaration = |declarations, kind, table|
+check_var_declaration : List Ast.Node, Ast.VariableDeclarationKind -> TypeResult
+check_var_declaration = |declarations, kind|
     is_const = when kind is
-        Const -> Bool.true
+        Ast.Const -> Bool.true
         _ -> Bool.false
 
     # Process each declarator
     results = List.map(declarations, |decl|
         when decl is
-            VariableDeclarator(decl_data) ->
-                when decl_data.id is
-                    Identifier(id_data) ->
+            VariableDeclarator({ id, init }) ->
+                when id is
+                    Identifier({ name }) ->
                         # Get initializer type
-                        init_result = when decl_data.init is
+                        init_result = when init is
                             Some(init_expr) ->
-                                check_with_table(init_expr, table)
+                                check_node_impl(init_expr)
                             None ->
                                 { node_type: Type.mk_undefined, errors: [] }
 
@@ -149,34 +138,20 @@ check_var_declaration = |declarations, kind, table|
     }
 
 # Check identifier
-check_identifier : Str, TST.SymbolTable -> TypeResult
-check_identifier = |name, table|
-    when TST.lookup_symbol(table, name) is
-        Ok(symbol) ->
-            # Convert from MinimalType to SimpleComprehensiveType
-            converted_type = convert_minimal_type(symbol.sym_type)
-            {
-                node_type: converted_type,
-                errors: [],
-            }
-        Err _ ->
-            {
-                node_type: Type.mk_unknown,
-                errors: [
-                    {
-                        kind: UndefinedVariable,
-                        message: "Undefined variable: $(name)",
-                        expected_type: Type.mk_unknown,
-                        actual_type: Type.mk_unknown,
-                    }
-                ],
-            }
+check_identifier : Str -> TypeResult
+check_identifier = |name|
+    # For now, just return unknown type for all identifiers
+    # In a real implementation, we'd track variables in scope
+    {
+        node_type: Type.mk_unknown,
+        errors: [],
+    }
 
 # Check binary expression
-check_binary_expr : Node, Node, BinaryOperator, TST.SymbolTable -> TypeResult
-check_binary_expr = |left, right, operator, table|
-    left_result = check_with_table(left, table)
-    right_result = check_with_table(right, table)
+check_binary_expr : Ast.Node, Ast.Node, Ast.BinaryOperator -> TypeResult
+check_binary_expr = |left, right, operator|
+    left_result = check_node_impl(left)
+    right_result = check_node_impl(right)
 
     # Combine errors
     errors = List.concat(left_result.errors, right_result.errors)
@@ -231,11 +206,9 @@ check_binary_expr = |left, right, operator, table|
             { node_type: Type.mk_unknown, errors }
 
 # Check a standalone expression
-check_expression : Node -> TypeResult
+check_expression : Ast.Node -> TypeResult
 check_expression = |node|
-    table = TST.empty_table {}
-        |> JSGlobals.add_js_globals
-    check_with_table(node, table)
+    check_node_impl(node)
 
 # Format error for display
 format_error : TypeError -> Str
@@ -259,7 +232,7 @@ is_string_like : Type -> Bool
 is_string_like = |t|
     Type.is_assignable_to(t, Type.mk_string)
 
-operator_to_str : BinaryOperator -> Str
+operator_to_str : Ast.BinaryOperator -> Str
 operator_to_str = |op|
     when op is
         Plus -> "+"
@@ -269,14 +242,3 @@ operator_to_str = |op|
         Percent -> "%"
         _ -> "operator"
 
-# Convert MinimalType to SimpleComprehensiveType
-convert_minimal_type : MinimalType.TType -> Type
-convert_minimal_type = |minimal|
-    if MinimalType.is_num(minimal) then
-        Type.mk_number
-    else if MinimalType.is_str(minimal) then
-        Type.mk_string
-    else if MinimalType.is_bool(minimal) then
-        Type.mk_boolean
-    else
-        Type.mk_unknown

@@ -1,6 +1,7 @@
 module [
     EsVersion,
     Node,
+    WithBaseNodeData,
     # SourceLocation,
     # Position,
     ProgramKind,
