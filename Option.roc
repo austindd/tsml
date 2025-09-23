@@ -127,3 +127,10 @@ to_result = |option|
     when option is
         Some(value) -> Ok(value)
         None -> Err({})
+
+with_default : Option a, a -> a
+with_default = |option, default|
+    when option is
+        Some(value) -> value
+        None -> default
+
