@@ -335,6 +335,10 @@ parse_expression_led = |left_node, min_precedence, token_list|
         | [GreaterThanGreaterThanToken as tok, .. as rest1]
         | [GreaterThanGreaterThanGreaterThanToken as tok, .. as rest1]
         # Relational
+        | [LessThanToken as tok, .. as rest1]
+        | [LessThanEqualsToken as tok, .. as rest1]
+        | [GreaterThanToken as tok, .. as rest1]
+        | [GreaterThanEqualsToken as tok, .. as rest1]
         | [EqualsEqualsToken as tok, .. as rest1]
         | [ExclamationEqualsToken as tok, .. as rest1]
         | [EqualsEqualsEqualsToken as tok, .. as rest1]
@@ -567,11 +571,14 @@ get_expr_operator_group = |mode, token|
                 GreaterThanGreaterThanToken -> Bitwise
                 GreaterThanGreaterThanGreaterThanToken -> Bitwise
                 # Relational
+                LessThanToken -> Relational
+                LessThanEqualsToken -> Relational
+                GreaterThanToken -> Relational
+                GreaterThanEqualsToken -> Relational
                 EqualsEqualsToken -> Relational
                 ExclamationEqualsToken -> Relational
                 EqualsEqualsEqualsToken -> Relational
                 ExclamationEqualsEqualsToken -> Relational
-                EqualsGreaterThanToken -> Relational
                 # Additive
                 PlusToken -> Additive
                 MinusToken -> Additive
