@@ -154,26 +154,26 @@ check_expr : Ast.Node, TypeEnv -> Result (TypeWithRows, TypeEnv) [TypeError Str]
 check_expr = \node, env ->
     when node is
         # Literals
-        NumberLiteral(_) -> Ok (TNum, env)
-        StringLiteral(_) -> Ok (TStr, env)
-        BooleanLiteral(_) -> Ok (TBool, env)
-        NullLiteral(_) -> Ok (TNull, env)
-        UndefinedLiteral(_) -> Ok (TUndefined, env)
+        NumberLiteral _ -> Ok (TNum, env)
+        StringLiteral _ -> Ok (TStr, env)
+        BooleanLiteral _ -> Ok (TBool, env)
+        NullLiteral _ -> Ok (TNull, env)
+        UndefinedLiteral _ -> Ok (TUndefined, env)
 
         # Variable
-        Identifier({ name }) ->
+        Identifier { name } ->
             when List.find_first env.bindings \b -> b.name == name is
                 Ok binding -> Ok (binding.type, env)
                 Err _ -> Err (TypeError "Undefined variable: $(name)")
 
         # Object literal - uses row types!
-        ObjectExpression({ properties }) ->
+        ObjectExpression { properties } ->
             # Build row type from properties
             (row, env1) = List.walk properties (empty_closed_row, env) \(r, e), prop ->
                 when prop is
-                    Property({ key, value, kind, method, shorthand, computed }) ->
+                    Property { key, value, kind, method, shorthand, computed } ->
                         when key is
-                            Identifier({ name: field_name }) ->
+                            Identifier { name: field_name } ->
                                 when value is
                                     Some val ->
                                         # Generate fresh type var for field
@@ -191,11 +191,11 @@ check_expr = \node, env ->
             Ok (TRecord row, env1)
 
         # Member access - check field exists in row
-        MemberExpression({ object, property, computed, optional }) ->
+        MemberExpression { object, property, computed, optional } ->
             when check_expr object env is
                 Ok (TRecord row, env1) ->
                     when property is
-                        Identifier({ name: field_name }) ->
+                        Identifier { name: field_name } ->
                             when List.find_first row.fields \f -> f.label == field_name is
                                 Ok field ->
                                     # Found field, return its type
@@ -215,7 +215,7 @@ check_expr = \node, env ->
                 _ -> Ok (TUnknown, env)
 
         # Array literal
-        ArrayExpression({ elements }) ->
+        ArrayExpression { elements } ->
             # Get element type (simplified - just use first element)
             when List.first elements is
                 Ok (Some elem) ->
@@ -225,7 +225,7 @@ check_expr = \node, env ->
                 _ -> Ok (TArray TUnknown, env)
 
         # Binary expression
-        BinaryExpression({ left, operator, right }) ->
+        BinaryExpression { left, operator, right } ->
             when operator is
                 Plus | Minus | Star | Slash | Percent ->
                     Ok (TNum, env)
@@ -245,12 +245,12 @@ type_check_with_rows = \source ->
     # Filter trivia
     non_trivia = List.keep_if tokens \t ->
         when t is
-            Whitespace(_) | BlockComment(_) | LineComment(_) -> Bool.false
+            Whitespace _ | BlockComment _ | LineComment _ -> Bool.false
             _ -> Bool.true
 
     # Parse
     when Parser.parse_program non_trivia is
-        Ok (Program({ body, sourceType })) ->
+        Program { body, sourceType } ->
             # Type check first statement
             when List.first body is
                 Ok stmt ->
@@ -258,8 +258,7 @@ type_check_with_rows = \source ->
                         Ok (type, _) -> Ok (type_to_string type)
                         Err (TypeError msg) -> Err (TypeError msg)
                 Err _ -> Ok "Empty program"
-        Ok _ -> Err (TypeError "Not a program")
-        Err _ -> Err ParseError
+        _ -> Err ParseError
 
 # Convert type to string
 type_to_string : TypeWithRows -> Str
