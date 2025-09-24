@@ -160,15 +160,25 @@ format_type_with_depth = |type, depth|
 
 explain_type_mismatch : Type, Type -> Str
 explain_type_mismatch = |expected, actual|
+    default = "The types are incompatible."
     when (expected, actual) is
-        (Function _, _) if !is_function(actual) ->
-            "A function was expected but a non-function value was provided."
+        (Function(_), _)  ->
+            if !is_function(actual) then
+              "A function was expected but a non-function value was provided."
+            else
+              default
 
-        (_, Function _) if !is_function(expected) ->
-            "A non-function value was expected but a function was provided."
+        (_, Function(_)) ->
+            if !is_function(expected) then
+              "A non-function value was expected but a function was provided."
+            else
+              default
 
-        (Array _, _) if !is_array(actual) ->
-            "An array was expected but a different type was provided."
+        (Array(_), _) ->
+            if !is_array(actual) then
+              "An array was expected but a different type was provided."
+            else
+              default
 
         (Record expected_fields, Record actual_fields) ->
             missing = find_missing_fields expected_fields actual_fields
@@ -196,7 +206,7 @@ explain_type_mismatch = |expected, actual|
             "The value must match one specific type, not a union of types."
 
         _ ->
-            "The types are incompatible."
+            default
 
 suggest_fix : Type, Type -> Str
 suggest_fix = |expected, actual|
