@@ -1,8 +1,5 @@
 app [main] {
     pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.17.0/lZFLstMUCUvd5bjnnpYromZJXkQUrdhbva4xdBInicE.tar.br",
-    parser: "./Parser.roc",
-    tokenizer: "./Token.roc",
-    ast: "./Ast.roc",
 }
 
 import pf.Stdout
@@ -10,10 +7,9 @@ import pf.Stdin
 import pf.File
 import pf.Path
 import pf.Arg
-import pf.Task
-import parser.Parser
-import tokenizer.Token
-import ast.Ast
+import Parser
+import Token
+import Ast
 import IntegratedRowTypeChecker
 import SimpleRecursiveTypes
 import AsyncTypes
@@ -142,9 +138,9 @@ type_check_source = |source, file_name, strict|
     # Filter trivia
     clean_tokens = List.keep_if tokens |tok|
         when tok is
-            Token.Whitespace _ -> Bool.false
-            Token.LineComment _ -> Bool.false
-            Token.BlockComment _ -> Bool.false
+            Whitespace(_) -> Bool.false
+            LineComment(_) -> Bool.false
+            BlockComment(_) -> Bool.false
             _ -> Bool.true
 
     # Parse to AST
@@ -167,68 +163,72 @@ type_check_source = |source, file_name, strict|
             }
 
 # Perform actual type checking
-perform_type_checking : Ast.Program, Str, Bool -> CheckResult
+perform_type_checking : Ast.Node, Str, Bool -> CheckResult
 perform_type_checking = |program, file_name, strict|
-    # Initialize type checking context
-    context = {
-        strict_mode: strict,
-        gradual_typing: Bool.not strict,  # Allow any/unknown in non-strict mode
-        module_type: TypeScriptModuleSystem.ESModule,
-        type_env: [],
-        errors: [],
-        warnings: [],
-        inferred: [],
-    }
+    when program is
+        Program({ body }) ->
+            # Initialize type checking context
+            context = {
+                strict_mode: strict,
+                gradual_typing: Bool.not strict,  # Allow any/unknown in non-strict mode
+                module_type: TypeScriptModuleSystem.ESModule,
+                type_env: [],
+                errors: [],
+                warnings: [],
+                inferred: [],
+            }
 
-    # Check each statement in the program
-    final_context = List.walk program.body context |ctx, stmt|
-        check_statement ctx stmt
+            # Check each statement in the program
+            final_context = List.walk program.body context |ctx, stmt|
+                check_statement ctx stmt
 
-    # Build result
-    {
-        file: file_name,
-        errors: final_context.errors,
-        warnings: final_context.warnings,
-        inferred_types: final_context.inferred,
-    }
+            # Build result
+            {
+                file: file_name,
+                errors: final_context.errors,
+                warnings: final_context.warnings,
+                inferred_types: final_context.inferred,
+            }
+        _ ->
+            crash("Invalid AST node. Expected a Program node.")
 
 # Check a statement
 check_statement = |context, statement|
     when statement is
-        Ast.VariableDeclaration decl ->
+        VariableDeclaration decl ->
             check_variable_declaration context decl
 
-        Ast.FunctionDeclaration func ->
+        FunctionDeclaration func ->
             check_function_declaration context func
 
-        Ast.ClassDeclaration cls ->
+        ClassDeclaration cls ->
             check_class_declaration context cls
 
-        Ast.ExpressionStatement expr ->
+        ExpressionStatement expr ->
             check_expression context expr.expression
 
-        Ast.IfStatement if_stmt ->
+        IfStatement if_stmt ->
             check_if_statement context if_stmt
 
-        Ast.ForStatement for_stmt ->
+        ForStatement for_stmt ->
             check_for_statement context for_stmt
 
-        Ast.WhileStatement while_stmt ->
+        WhileStatement while_stmt ->
             check_while_statement context while_stmt
 
-        Ast.ReturnStatement ret ->
+        ReturnStatement ret ->
             check_return_statement context ret
 
-        Ast.ThrowStatement throw ->
+        ThrowStatement throw ->
             check_throw_statement context throw
 
-        Ast.TryStatement try_stmt ->
+        TryStatement try_stmt ->
             check_try_statement context try_stmt
 
-        Ast.ImportDeclaration import ->
-            check_import_declaration context import
+        ImportDeclaration import_ ->
+            check_import_declaration context import_
 
-        Ast.ExportNamedDeclaration export ->
+        ExportNamedDeclaration export ->
             check_export_declaration context export
 
         _ ->
@@ -245,17 +245,15 @@ check_while_statement = |context, _stmt| context
 check_return_statement = |context, _ret| context
 check_throw_statement = |context, _throw| context
 check_try_statement = |context, _try| context
-check_import_declaration = |context, _import| context
+check_import_declaration = |context, _import_| context
 check_export_declaration = |context, _export| context
 
 # Display type checking results
 display_check_result : CheckResult -> Task.Task {} []
 display_check_result = |result|
     # Display header
-    Stdout.line "Type checking: $(result.file)"
-    |> Task.await |_|
-    Stdout.line (Str.repeat "-" 50)
-    |> Task.await |_|
+    _ = Stdout.line "Type checking: $(result.file)"
+    _ = Stdout.line (Str.repeat "-" 50)
 
     # Display errors
     if List.is_empty result.errors then
@@ -263,34 +261,26 @@ display_check_result = |result|
     else
         Stdout.line "❌ $(Num.to_str (List.len result.errors)) type error(s):"
         |> Task.await |_|
-        Task.for_each result.errors |error|
-            Stdout.line "  $(error.location.file):$(Num.to_str error.location.line):$(Num.to_str error.location.column)"
-            |> Task.await |_|
-            Stdout.line "    Error: $(error.message)"
-            |> Task.await |_|
-            Stdout.line "    Expected: $(error.expected)"
-            |> Task.await |_|
-            Stdout.line "    Actual: $(error.actual)"
-    |> Task.await |_|
+            Task.for_each result.errors |error|
+                _ = Stdout.line "  ${error.location.file}:${Num.to_str error.location.line}:${Num.to_str error.location.column}"
+                _ = Stdout.line "    Error: ${error.message}"
+                _ = Stdout.line "    Expected: ${error.expected}"
+                Stdout.line "    Actual: ${error.actual}"
 
     # Display warnings
     if Bool.not (List.is_empty result.warnings) then
-        Stdout.line "\n⚠️  $(Num.to_str (List.len result.warnings)) warning(s):"
-        |> Task.await |_|
+        _ = Stdout.line "\n⚠️  ${Num.to_str (List.len result.warnings)} warning(s):"
         Task.for_each result.warnings |warning|
-            Stdout.line "  $(warning.location.file):$(Num.to_str warning.location.line):$(Num.to_str warning.location.column)"
-            |> Task.await |_|
-            Stdout.line "    Warning: $(warning.message)"
+            _ = Stdout.line "  ${warning.location.file}:${Num.to_str warning.location.line}:${Num.to_str warning.location.column}"
+            Stdout.line "    Warning: ${warning.message}"
     else
         Task.succeed {}
-    |> Task.await |_|
 
     # Display inferred types
     if Bool.not (List.is_empty result.inferred_types) then
-        Stdout.line "\nInferred types:"
-        |> Task.await |_|
+        _ = Stdout.line "\nInferred types:"
         Task.for_each result.inferred_types |inferred|
-            Stdout.line "  $(inferred.name): $(inferred.type)"
+            Stdout.line "  ${inferred.name}: ${inferred.type}"
     else
         Task.succeed {}
 
@@ -300,20 +290,18 @@ infer_types = |file_path|
     Task.attempt (File.read_utf8 file_path) |result|
         when result is
             Ok content ->
-                Stdout.line "Type inference for: $(file_path)"
-                |> Task.await |_|
+                _ = Stdout.line "Type inference for: ${file_path}"
                 Stdout.line (Str.repeat "-" 50)
-                |> Task.await |_|
 
                 # Perform type inference
                 inferred = infer_types_from_source content file_path
 
                 # Display results
                 Task.for_each inferred |inf|
-                    Stdout.line "$(inf.name): $(inf.type)"
+                    Stdout.line "${inf.name}: ${inf.type}"
 
             Err _ ->
-                Stdout.line "Error: Could not read file '$(file_path)'"
+                Stdout.line "Error: Could not read file '${file_path}'"
 
 # Infer types from source
 infer_types_from_source : Str, Str -> List InferredType
@@ -324,115 +312,79 @@ infer_types_from_source = |_source, _file|
 # Run interactive type checker
 run_interactive : {} -> Task.Task {} []
 run_interactive = |{}|
-    Stdout.line "TypeScript/JavaScript Type Checker (Interactive Mode)"
-    |> Task.await |_|
-    Stdout.line "Type 'quit' to exit, 'help' for commands"
-    |> Task.await |_|
+    _ = Stdout.line "TypeScript/JavaScript Type Checker (Interactive Mode)"
+    _ = Stdout.line "Type 'quit' to exit, 'help' for commands"
     interactive_loop {}
 
 interactive_loop : {} -> Task.Task {} []
 interactive_loop = |{}|
-    Stdout.write "> "
-    |> Task.await |_|
+    _ = Stdout.write "> "
     Stdin.line {}
     |> Task.await |input|
+        when Str.trim input is
+            "quit" | "exit" ->
+                Stdout.line "Goodbye!"
 
-    when Str.trim input is
-        "quit" | "exit" ->
-            Stdout.line "Goodbye!"
+            "help" ->
+                _ = show_interactive_help {}
+                interactive_loop {}
 
-        "help" ->
-            show_interactive_help {}
-            |> Task.await |_|
-            interactive_loop {}
+            "" ->
+                interactive_loop {}
 
-        "" ->
-            interactive_loop {}
-
-        code ->
-            # Type check the input
-            result = type_check_source code "<stdin>" Bool.false
-            display_check_result result
-            |> Task.await |_|
-            interactive_loop {}
+            code ->
+                # Type check the input
+                result = type_check_source code "<stdin>" Bool.false
+                _ = display_check_result result
+                interactive_loop {}
 
 # Show interactive help
 show_interactive_help : {} -> Task.Task {} []
 show_interactive_help = |{}|
-    Stdout.line "Interactive commands:"
-    |> Task.await |_|
-    Stdout.line "  Type any TypeScript/JavaScript code to check it"
-    |> Task.await |_|
-    Stdout.line "  'quit' or 'exit' - Exit the interactive mode"
-    |> Task.await |_|
+    _ = Stdout.line "Interactive commands:"
+    _ = Stdout.line "  Type any TypeScript/JavaScript code to check it"
+    _ = Stdout.line "  'quit' or 'exit' - Exit the interactive mode"
     Stdout.line "  'help' - Show this help message"
 
 # Run tests
 run_tests : {} -> Task.Task {} []
 run_tests = |{}|
-    Stdout.line "Running type system tests..."
-    |> Task.await |_|
+    _ = Stdout.line "Running type system tests..."
     # This would run the test suite
     Stdout.line "Tests complete!"
 
 # Show help message
 show_help : {} -> Task.Task {} []
 show_help = |{}|
-    Stdout.line "TypeScript/JavaScript Type Checker with MLstruct Row Polymorphism"
-    |> Task.await |_|
-    Stdout.line ""
-    |> Task.await |_|
-    Stdout.line "Usage:"
-    |> Task.await |_|
-    Stdout.line "  tsml check [--strict] <file>    Type check a file"
-    |> Task.await |_|
-    Stdout.line "  tsml infer <file>               Infer types for a file"
-    |> Task.await |_|
-    Stdout.line "  tsml interactive                Run interactive mode"
-    |> Task.await |_|
-    Stdout.line "  tsml test                       Run test suite"
-    |> Task.await |_|
-    Stdout.line "  tsml help                       Show this help"
-    |> Task.await |_|
-    Stdout.line "  tsml version                    Show version"
-    |> Task.await |_|
-    Stdout.line ""
-    |> Task.await |_|
-    Stdout.line "Options:"
-    |> Task.await |_|
-    Stdout.line "  --strict    Enable strict mode (no any/unknown)"
-    |> Task.await |_|
-    Stdout.line ""
-    |> Task.await |_|
-    Stdout.line "Features:"
-    |> Task.await |_|
-    Stdout.line "  • Principal type inference"
-    |> Task.await |_|
-    Stdout.line "  • MLstruct row polymorphism"
-    |> Task.await |_|
-    Stdout.line "  • TypeScript compatibility"
-    |> Task.await |_|
-    Stdout.line "  • Recursive types"
-    |> Task.await |_|
-    Stdout.line "  • Async/await support"
-    |> Task.await |_|
-    Stdout.line "  • Generic types with constraints"
-    |> Task.await |_|
-    Stdout.line "  • Union/intersection types"
-    |> Task.await |_|
-    Stdout.line "  • Control flow narrowing"
-    |> Task.await |_|
-    Stdout.line "  • Module system (ES6/CommonJS)"
-    |> Task.await |_|
-    Stdout.line "  • TypeScript utility types"
-    |> Task.await |_|
+    _ = Stdout.line "TypeScript/JavaScript Type Checker with MLstruct Row Polymorphism"
+    _ = Stdout.line ""
+    _ = Stdout.line "Usage:"
+    _ = Stdout.line "  tsml check [--strict] <file>    Type check a file"
+    _ = Stdout.line "  tsml infer <file>               Infer types for a file"
+    _ = Stdout.line "  tsml interactive                Run interactive mode"
+    _ = Stdout.line "  tsml test                       Run test suite"
+    _ = Stdout.line "  tsml help                       Show this help"
+    _ = Stdout.line "  tsml version                    Show version"
+    _ = Stdout.line ""
+    _ = Stdout.line "Options:"
+    _ = Stdout.line "  --strict    Enable strict mode (no any/unknown)"
+    _ = Stdout.line ""
+    _ = Stdout.line "Features:"
+    _ = Stdout.line "  • Principal type inference"
+    _ = Stdout.line "  • MLstruct row polymorphism"
+    _ = Stdout.line "  • TypeScript compatibility"
+    _ = Stdout.line "  • Recursive types"
+    _ = Stdout.line "  • Async/await support"
+    _ = Stdout.line "  • Generic types with constraints"
+    _ = Stdout.line "  • Union/intersection types"
+    _ = Stdout.line "  • Control flow narrowing"
+    _ = Stdout.line "  • Module system (ES6/CommonJS)"
+    _ = Stdout.line "  • TypeScript utility types"
     Stdout.line "  • Gradual typing (any/unknown)"
 
 # Show version
 show_version : {} -> Task.Task {} []
 show_version = |{}|
-    Stdout.line "tsml version 1.0.0"
-    |> Task.await |_|
-    Stdout.line "TypeScript/JavaScript Type Checker with MLstruct"
-    |> Task.await |_|
+    _ = Stdout.line "tsml version 1.0.0"
+    _ = Stdout.line "TypeScript/JavaScript Type Checker with MLstruct"
     Stdout.line "Built with Roc programming language"
