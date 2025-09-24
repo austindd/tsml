@@ -7,6 +7,8 @@ module [
     narrow_union_type,
 ]
 
+import Option exposing [Option]
+
 # Union and Intersection Type Operations for TypeScript
 
 TypeId : U32
@@ -38,7 +40,7 @@ LiteralValue : [
 # Union type representation
 UnionType : {
     members: List BaseType,
-    discriminator: Option Str,  # Field name for discriminated union
+    discriminator: Option.Option Str,  # Field name for discriminated union
 }
 
 # Intersection type representation
@@ -225,7 +227,7 @@ narrow_union_type = \union, guard ->
     when matching_members is
         [] -> Err (NarrowError "No matching union members")
         [single] -> Ok single
-        multiple -> Ok (make_union multiple).members |> List.first |> Result.with_default BNever
+        multiple -> Ok(make_union(multiple).members |> List.first |> Result.with_default(BNever))
 
 # === Type Operations ===
 
@@ -250,7 +252,7 @@ types_equal = \t1, t2 ->
 literals_equal : LiteralValue, LiteralValue -> Bool
 literals_equal = \l1, l2 ->
     when (l1, l2) is
-        (LNum n1, LNum n2) -> n1 == n2
+        (LNum n1, LNum n2) -> Num.compare(n1, n2) == EQ
         (LStr s1, LStr s2) -> s1 == s2
         (LBool b1, LBool b2) -> b1 == b2
         _ -> Bool.false
@@ -370,4 +372,3 @@ is_intersection = \_ ->
     # Would check if type is intersection
     Bool.false
 
-Option : [Some Str, None]

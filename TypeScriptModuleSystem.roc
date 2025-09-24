@@ -143,7 +143,7 @@ check_module_exports = \mod ->
     duplicates = find_duplicates export_names
     if List.is_empty duplicates then
         # Check for multiple default exports
-        default_count = List.count mod.exports \e -> e.is_default
+        default_count = List.count_if(mod.exports, |e| e.is_default)
 
         if default_count > 1 then
             Err (ExportError "Multiple default exports")

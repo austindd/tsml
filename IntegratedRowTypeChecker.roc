@@ -243,10 +243,16 @@ type_check_with_rows = \source ->
     tokens = Token.tokenize_str source
 
     # Filter trivia
-    non_trivia = List.keep_if tokens \t ->
-        when t is
-            Whitespace _ | BlockComment _ | LineComment _ -> Bool.false
-            _ -> Bool.true
+    non_trivia =
+        List.keep_if(tokens, |t_result|
+            when t_result is
+                Ok(t) ->
+                    when t is
+                        WhitespaceTrivia _ | NewLineTrivia _ | BlockCommentStart | BlockCommentEnd | LineCommentStart -> Bool.false
+                        _ ->  Bool.true
+                Err(_) -> Bool.false
+        )
+        |> List.keep_oks(|a| a)
 
     # Parse
     when Parser.parse_program non_trivia is
@@ -269,9 +275,9 @@ type_to_string = \t ->
         TBool -> "boolean"
         TNull -> "null"
         TUndefined -> "undefined"
-        TVar id -> "T$(Num.to_str id)"
+        TVar id -> "T${Num.to_str id}"
         TRecord row -> row_to_string row
-        TArray elem -> "$(type_to_string elem)[]"
+        TArray elem -> "${type_to_string elem}[]"
         TFunction params ret -> "function"
         TUnion types -> "union"
         TUnknown -> "unknown"
@@ -279,12 +285,12 @@ type_to_string = \t ->
 row_to_string : RowType -> Str
 row_to_string = \row ->
     field_strs = List.map row.fields \f ->
-        "$(f.label): T$(Num.to_str f.type_id)"
+        "${f.label}: T${Num.to_str f.type_id}"
 
     fields_str = Str.join_with field_strs ", "
 
     tail_str = when row.tail is
         Closed -> ""
-        Open var -> ", ...ρ$(Num.to_str var)"
+        Open var -> ", ...ρ${Num.to_str var}"
 
-    "{$(fields_str)$(tail_str)}"
+    "{${fields_str}${tail_str}}"

@@ -222,9 +222,9 @@ is_falsy = \typ ->
     when typ is
         NNull -> Bool.true
         NUndefined -> Bool.true
-        NLiteral (LBool Bool.false) -> Bool.true
-        NLiteral (LNum 0.0) -> Bool.true
-        NLiteral (LStr "") -> Bool.true
+        NLiteral (LBool(false)) -> Bool.true
+        NLiteral (LNum(0.0)) -> Bool.true
+        NLiteral (LStr("")) -> Bool.true
         _ -> Bool.false
 
 # Narrow by null/undefined checks
@@ -331,7 +331,7 @@ narrow_by_equality = \typ, value, strict, negated ->
 literals_equal : LiteralValue, LiteralValue -> Bool
 literals_equal = \l1, l2 ->
     when (l1, l2) is
-        (LNum n1, LNum n2) -> n1 == n2
+        (LNum n1, LNum n2) -> Num.compare(n1, n2) == EQ
         (LStr s1, LStr s2) -> s1 == s2
         (LBool b1, LBool b2) -> b1 == b2
         _ -> Bool.false
@@ -341,15 +341,15 @@ literals_loose_equal : LiteralValue, LiteralValue -> Bool
 literals_loose_equal = \l1, l2 ->
     when (l1, l2) is
         # Same type - use strict equality
-        (LNum n1, LNum n2) -> n1 == n2
+        (LNum n1, LNum n2) -> Num.compare(n1, n2) == EQ
         (LStr s1, LStr s2) -> s1 == s2
         (LBool b1, LBool b2) -> b1 == b2
 
         # Coercion cases
-        (LNum 0.0, LBool Bool.false) -> Bool.true
-        (LBool Bool.false, LNum 0.0) -> Bool.true
-        (LNum 1.0, LBool Bool.true) -> Bool.true
-        (LBool Bool.true, LNum 1.0) -> Bool.true
+        (LNum 0.0, LBool(false)) -> Bool.true
+        (LBool(false), LNum 0.0) -> Bool.true
+        (LNum 1.0, LBool(true)) -> Bool.true
+        (LBool(true), LNum 1.0) -> Bool.true
 
         _ -> Bool.false
 

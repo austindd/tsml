@@ -160,8 +160,8 @@ check_recursive_equality = \t1, t2, depth ->
             (RUnion t1s, RUnion t2s) ->
                 (List.len t1s == List.len t2s) &&
                 List.all t1s \t ->
-                    List.any t2s \t2 ->
-                        check_recursive_equality t t2 (depth + 1)
+                    List.any t2s \t2_ ->
+                        check_recursive_equality t t2_ (depth + 1)
 
             (RMu v1 b1, RMu v2 b2) ->
                 # For simplicity, assume μ-types with same structure are equal

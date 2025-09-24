@@ -18,6 +18,7 @@ import BasicTypeInfer
 
 # Type checker state
 TypeChecker : {
+    inferred : List InferredType,
     errors : List TypeError,
     warnings : List TypeError,
     symbol_table : TST.SymbolTable,
@@ -25,6 +26,7 @@ TypeChecker : {
     in_loop : Bool,
     in_function : Bool,
     strict_mode : Bool,
+    gradual_typing : Bool,
 }
 
 # Type error information
@@ -67,16 +69,19 @@ TypedNode : {
 CheckResult : Result TypedNode (List TypeError)
 
 # Create a new type checker
-create_checker : {} -> TypeChecker
-create_checker = |{}|
+create_checker : Bool -> TypeChecker
+create_checker = |strict_mode|
     {
+        module_type: ESModule,
+        strict_mode,
+        gradual_typing: Bool.not strict,  # Allow any/unknown in non-strict mode
+        inferred: [],
         errors: [],
         warnings: [],
         symbol_table: TST.empty_table({}) |> JSGlobals.add_js_globals,
         current_return_type: Err(NoReturn),
         in_loop: Bool.false,
         in_function: Bool.false,
-        strict_mode: Bool.false,
     }
 
 # Check a complete program
