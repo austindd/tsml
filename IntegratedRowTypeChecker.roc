@@ -171,7 +171,7 @@ check_expr = \node, env ->
             # Build row type from properties
             (row, env1) = List.walk properties (empty_closed_row, env) \(r, e), prop ->
                 when prop is
-                    Property { key, value, kind, method, shorthand, computed } ->
+                    Property { key, value, kind } ->
                         when key is
                             Identifier { name: field_name } ->
                                 when value is
@@ -191,7 +191,7 @@ check_expr = \node, env ->
             Ok (TRecord row, env1)
 
         # Member access - check field exists in row
-        MemberExpression { object, property, computed, optional } ->
+        MemberExpression { object, property, computed } ->
             when check_expr object env is
                 Ok (TRecord row, env1) ->
                     when property is

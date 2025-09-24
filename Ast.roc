@@ -142,7 +142,7 @@ Node : [
             }),
     Property (WithBaseNodeData {
                 key : Node,
-                value : Node,
+                value : Option Node,
                 kind : PropertyKind,
             }),
     Pattern (WithBaseNodeData {}),
@@ -770,7 +770,11 @@ node_to_str_with_config = |node, indent_level, max_depth|
         Property(data) ->
             kind_str = property_kind_to_str(data.kind)
             key_str = node_to_str_or_truncate_inline(data.key, indent_level, max_depth)
-            value_str = node_to_str_or_truncate_inline(data.value, indent_level, max_depth)
+            value_str = when data.value is
+                Some(value) ->
+                    node_to_str_or_truncate_inline(value, indent_level, max_depth)
+                None ->
+                    "None"
             Str.concat(indent, "Property {\n")
             |> Str.concat(indent)
             |> Str.concat("  kind: ")

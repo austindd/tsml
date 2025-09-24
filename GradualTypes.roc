@@ -101,17 +101,17 @@ is_consistent_with = |t1, t2|
                 params_consistent && is_consistent_with ret1 ret2
 
         # Unions are consistent if any member is consistent
-        (GUnion members1, t2) ->
+        (GUnion members1, _t2) ->
             List.any members1 |m| is_consistent_with m t2
 
-        (t1, GUnion members2) ->
+        (_t1, GUnion members2) ->
             List.any members2 |m| is_consistent_with t1 m
 
         # Intersections are consistent if all members are consistent
-        (GIntersection members1, t2) ->
+        (GIntersection members1, _t2) ->
             List.all members1 |m| is_consistent_with m t2
 
-        (t1, GIntersection members2) ->
+        (_t1, GIntersection members2) ->
             List.all members2 |m| is_consistent_with t1 m
 
         # Literals are consistent with their base types
@@ -196,17 +196,17 @@ gradual_subtype = |sub, super|
                 params_ok && gradual_subtype ret_sub ret_super
 
         # Union subtyping
-        (GUnion members_sub, super) ->
+        (GUnion members_sub, _super) ->
             List.all members_sub |m| gradual_subtype m super
 
-        (sub, GUnion members_super) ->
+        (_sub, GUnion members_super) ->
             List.any members_super |m| gradual_subtype sub m
 
         # Intersection subtyping
-        (GIntersection members_sub, super) ->
+        (GIntersection members_sub, _super) ->
             List.any members_sub |m| gradual_subtype m super
 
-        (sub, GIntersection members_super) ->
+        (_sub, GIntersection members_super) ->
             List.all members_super |m| gradual_subtype sub m
 
         _ -> Bool.false

@@ -117,7 +117,7 @@ substitute_params = \typ, substitutions ->
             GFunction({
                 return_: substitute_params(data.return_, substitutions),
                 type_params: data.type_params,
-                params: substitute_params(data.params, substitutions),
+                params: List.map(data.params, |p| substitute_params(p, substitutions)),
             })
 
         GClass data ->

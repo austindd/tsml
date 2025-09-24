@@ -13,12 +13,13 @@ import Ast exposing [Node]
 import SimpleComprehensiveType as Type exposing [Type]
 import TypedSymbolTable as TST
 import JSGlobals
-import SourceLocation exposing [Location]
+import SourceLocation exposing [SourceLocation]
 import BasicTypeInfer
+import Option exposing [Option]
 
 # Type checker state
 TypeChecker : {
-    inferred : List InferredType,
+    inferred : List Type,
     errors : List TypeError,
     warnings : List TypeError,
     symbol_table : TST.SymbolTable,
@@ -33,7 +34,7 @@ TypeChecker : {
 TypeError : {
     kind : ErrorKind,
     message : Str,
-    location : Result Location [NoLocation],
+    location : Result SourceLocation [NoLocation],
     expected : Result Type [NoExpected],
     actual : Result Type [NoActual],
     suggestion : Result Str [NoSuggestion],
@@ -58,12 +59,14 @@ ErrorKind : [
 ]
 
 # Typed AST node
-TypedNode : {
-    original : Node,
-    inferred_type : Type,
-    errors : List TypeError,
-    children : List TypedNode,
-}
+TypedNode : [
+    TypedNode {
+        original : Node,
+        inferred_type : Type,
+        errors : List TypeError,
+        children : List TypedNode,
+    }
+]
 
 # Result of checking
 CheckResult : Result TypedNode (List TypeError)
@@ -74,7 +77,7 @@ create_checker = |strict_mode|
     {
         module_type: ESModule,
         strict_mode,
-        gradual_typing: Bool.not strict,  # Allow any/unknown in non-strict mode
+        gradual_typing: !strict_mode,  # Allow any/unknown in non-strict mode
         inferred: [],
         errors: [],
         warnings: [],
@@ -85,9 +88,9 @@ create_checker = |strict_mode|
     }
 
 # Check a complete program
-check_program : Node -> Result TypedNode (List TypeError)
-check_program = |program_node|
-    checker = create_checker({})
+check_program : Node, Bool -> Result TypedNode (List TypeError)
+check_program = |program_node, strict_mode|
+    checker = create_checker(strict_mode)
     result = check_node_internal(program_node, checker)
 
     when result is
@@ -421,7 +424,7 @@ check_binary_compatibility = |left_type, right_type, operator|
         # Arithmetic (except +) requires numbers
         Minus | Times | Divide | Modulo | Power ->
             errors = []
-            errors1 = if not (is_numeric_type(left_type)) then
+            errors1 = if !(is_numeric_type(left_type)) then
                 List.append(errors, {
                     kind: TypeMismatch,
                     message: "Left operand must be a number",
@@ -433,7 +436,7 @@ check_binary_compatibility = |left_type, right_type, operator|
             else
                 errors
 
-            if not (is_numeric_type(right_type)) then
+            if !(is_numeric_type(right_type)) then
                 List.append(errors1, {
                     kind: TypeMismatch,
                     message: "Right operand must be a number",

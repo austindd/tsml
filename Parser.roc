@@ -800,7 +800,7 @@ parse_object_property = |token_list|
                     property_node = Property(
                         {
                             key: key,
-                            value: value,
+                            value: Some(value),
                             kind: Init,
                         },
                     )
@@ -2991,7 +2991,7 @@ parse_object_pattern_properties = |properties, token_list|
                         prop = Property(
                             {
                                 key: key,
-                                value: value_pattern,
+                                value: Some(value_pattern),
                                 kind: Init,
                             },
                         )
@@ -3005,7 +3005,7 @@ parse_object_pattern_properties = |properties, token_list|
                         prop = Property(
                             {
                                 key: key,
-                                value: assignment_pattern,
+                                value: Some(assignment_pattern),
                                 kind: Init,
                             },
                         )
@@ -3016,7 +3016,7 @@ parse_object_pattern_properties = |properties, token_list|
                         prop = Property(
                             {
                                 key: key,
-                                value: key,
+                                value: None,
                                 kind: Init,
                             },
                         )
