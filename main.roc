@@ -29,13 +29,16 @@ is_trivia_token = |token|
 # Helper function to separate successful tokens from errors
 extract_tokens_and_errors : List Token.TokenResult -> (List Token.Token, List Str)
 extract_tokens_and_errors = |token_results|
-    List.walk(token_results, ([], []), |state, result|
-        (tokens, errors) = state
-        when result is
-            Ok(token) -> (List.append(tokens, token), errors)
-            Err(error) -> 
-                error_str = "TokenError" # Simplified error handling
-                (tokens, List.append(errors, error_str))
+    List.walk(
+        token_results,
+        ([], []),
+        |state, result|
+            (tokens, errors) = state
+            when result is
+                Ok(token) -> (List.append(tokens, token), errors)
+                Err(error) ->
+                    error_str = "TokenError" # Simplified error handling
+                    (tokens, List.append(errors, error_str)),
     )
 
 # Process a single line of input
@@ -60,7 +63,8 @@ process_input! = |input_code|
 
     # Step 2: Display tokens (including trivia for debugging)
     _ = Stdout.line!("\n🔍 Tokens:")
-    token_display = all_tokens
+    token_display =
+        all_tokens
         |> List.map(Token.ts_token_debug_display)
         |> Str.join_with(", ")
     _ = Stdout.line!(token_display)
@@ -81,19 +85,23 @@ process_input! = |input_code|
     _ = Stdout.line!("\n🔬 Type Inference:")
     inference_result = TypeInfer.infer_program(ast)
 
-    _ = when inference_result is
-        Ok(result) ->
-            type_str = Type.type_to_str(result.type)
-            _ = Stdout.line!("Inferred type: $(type_str)")
-            {}
-        Err(error) ->
-            error_report = TypeReport.format_type_error({
-                error: error,
-                location: None,
-                context: None,
-            })
-            _ = Stdout.line!("Type error:\n$(error_report)")
-            {}
+    _ =
+        when inference_result is
+            Ok(result) ->
+                type_str = Type.type_to_str(result.type)
+                _ = Stdout.line!("Inferred type: ${type_str}")
+                {}
+
+            Err(error) ->
+                error_report = TypeReport.format_type_error(
+                    {
+                        error: error,
+                        location: None,
+                        context: None,
+                    },
+                )
+                _ = Stdout.line!("Type error:\n${error_report}")
+                {}
 
     _ = Stdout.line!("\n✅ Analysis completed successfully!")
     {}
