@@ -6,6 +6,8 @@ module [
     check_generic_constraint,
 ]
 
+import Option exposing [Option]
+
 # Generic Type Parameters and Type Arguments Implementation
 
 TypeId : U32
@@ -28,24 +30,32 @@ GenericType : [
     GBool,
     GNull,
     GUndefined,
-
     # Type variable
     GVar TypeId,
-
     # Type parameter (like T in function<T>)
     GParam TypeParamId,
-
     # Generic function type
     GFunction {
-        type_params: List TypeParam,
         params: List GenericType,
-        return: GenericType,
+        return_: GenericType,
+        type_params: List {
+            id: TypeParamId,
+            name: Str,
+            constraint: Option GenericType,  # T extends Constraint
+            default: Option GenericType,     # T = DefaultType
+            variance: [Covariant, Contravariant, Invariant],
+        }
     },
-
     # Generic class/interface
     GClass {
         name: Str,
-        type_params: List TypeParam,
+        type_params: List {
+            id: TypeParamId,
+            name: Str,
+            constraint: Option GenericType,  # T extends Constraint
+            default: Option GenericType,     # T = DefaultType
+            variance: [Covariant, Contravariant, Invariant],
+        },
         properties: List { key: Str, type: GenericType },
     },
 
@@ -92,8 +102,6 @@ GenericType : [
     GUnknown,
 ]
 
-Option : [Some GenericType, None]
-
 # === Core Generic Operations ===
 
 # Substitute type parameters with concrete types
@@ -101,22 +109,27 @@ substitute_params : GenericType, List { param: TypeParamId, replacement: Generic
 substitute_params = \typ, substitutions ->
     when typ is
         GParam id ->
-            when List.find_first substitutions \s -> s.param == id is
+            when List.find_first(substitutions, |s| s.param == id) is
                 Ok s -> s.replacement
                 Err _ -> typ
 
-        GFunction data ->
-            GFunction {
-                data &
-                params: List.map data.params \p -> substitute_params p substitutions,
-                return: substitute_params data.return substitutions,
-            }
+        GFunction(data) ->
+            GFunction({
+                return_: substitute_params(data.return_, substitutions),
+                type_params: data.type_params,
+                params: List.map(substitutions, data.params(|p| substitute_params(p))),
+            })
 
         GClass data ->
             GClass {
-                data &
-                properties: List.map data.properties \prop ->
-                    { prop & type: substitute_params prop.type substitutions },
+                name: data.name,
+                type_params: data.type_params,
+                properties: List.map(data.properties, |prop|
+                    {
+                        key: prop.key,
+                        type: substitute_params(prop.type, substitutions),
+                    }
+                ),
             }
 
         GInstantiated data ->
@@ -126,7 +139,12 @@ substitute_params = \typ, substitutions ->
             }
 
         GObject props ->
-            GObject (List.map props \p -> { p & type: substitute_params p.type substitutions })
+            GObject (List.map(props, |p|
+                {
+                    key: p.key,
+                    type: substitute_params(p.type, substitutions),
+                }
+            ))
 
         GArray elem -> GArray (substitute_params elem substitutions)
 
@@ -300,12 +318,12 @@ FunctorType : {
 MonadType : {
     constructor: TypeParamId -> GenericType,
     bind: GenericType,  # <A, B>(f: A -> M<B>) -> M<A> -> M<B>
-    return: GenericType,  # <A>(a: A) -> M<A>
+    return_: GenericType,  # <A>(a: A) -> M<A>
 }
 
 # === Examples ===
 
-# function identity<T>(x: T): T { return x; }
+# function identity<T>(x: T): T { return_ x; }
 example_identity : GenericType
 example_identity =
     GFunction {
@@ -313,7 +331,7 @@ example_identity =
             { id: 20, name: "T", constraint: None, default: None, variance: Invariant },
         ],
         params: [GParam 20],
-        return: GParam 20,
+        return_: GParam 20,
     }
 
 # function map<T, U>(arr: T[], fn: (x: T) => U): U[]
@@ -329,10 +347,10 @@ example_map =
             GFunction {  # (x: T) => U
                 type_params: [],
                 params: [GParam 21],
-                return: GParam 22,
+                return_: GParam 22,
             },
         ],
-        return: GArray (GParam 22),  # U[]
+        return_: GArray (GParam 22),  # U[]
     }
 
 # interface Container<T extends string | number> {
