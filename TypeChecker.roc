@@ -106,34 +106,34 @@ check_program = |program_node, strict_mode|
 check_node_internal : Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_node_internal = |node, checker|
     when node is
-        Program { body } ->
+        Program({ body, sourceType }) ->
             check_statement_list(body, checker)
 
         # Variable declarations
-        VariableDeclaration { declarations, kind } ->
+        VariableDeclaration({ declarations, kind }) ->
             check_variable_declaration(declarations, kind, checker)
 
         # Function declarations
-        FunctionDeclaration { id, params, body } ->
+        FunctionDeclaration({ id, params, body }) ->
             check_function_declaration(id, params, body, checker)
 
         # Expressions
-        BinaryExpression { left, right, operator } ->
+        BinaryExpression({ left, right, operator }) ->
             check_binary_expression(left, right, operator, checker)
 
-        UnaryExpression { argument, operator, prefix } ->
+        UnaryExpression({ argument, operator, prefix }) ->
             check_unary_expression(argument, operator, prefix, checker)
 
-        CallExpression { callee, arguments } ->
+        CallExpression({ callee, arguments }) ->
             check_call_expression(callee, arguments, checker)
 
-        MemberExpression { object, property, computed } ->
+        MemberExpression({ object, property, computed }) ->
             check_member_expression(object, property, computed, checker)
 
-        Identifier { name } ->
+        Identifier({ name }) ->
             check_identifier(name, checker)
 
-        NumericLiteral { value } ->
+        NumberLiteral({ value }) ->
             Ok((
                 TypedNode({
                     original: node,
@@ -144,7 +144,7 @@ check_node_internal = |node, checker|
                 checker,
             ))
 
-        StringLiteral { value } ->
+        StringLiteral({ value }) ->
             Ok((
                 TypedNode({
                     original: node,
@@ -155,7 +155,7 @@ check_node_internal = |node, checker|
                 checker,
             ))
 
-        BooleanLiteral { value } ->
+        BooleanLiteral({ value }) ->
             Ok((
                 TypedNode({
                     original: node,
@@ -166,7 +166,7 @@ check_node_internal = |node, checker|
                 checker,
             ))
 
-        NullLiteral {} ->
+        NullLiteral(_) ->
             Ok((
                 TypedNode({
                     original: node,
@@ -178,16 +178,16 @@ check_node_internal = |node, checker|
             ))
 
         # Statements
-        IfStatement { test, consequent, alternate } ->
+        IfStatement({ test, consequent, alternate }) ->
             check_if_statement(test, consequent, alternate, checker)
 
-        ReturnStatement { argument } ->
+        ReturnStatement({ argument }) ->
             check_return_statement(argument, checker)
 
-        BlockStatement { body } ->
+        BlockStatement({ body }) ->
             check_block_statement(body, checker)
 
-        ExpressionStatement { expression } ->
+        Directive({ expression }) ->
             check_node_internal(expression, checker)
 
         # Default case - return unknown type
@@ -212,11 +212,14 @@ check_node = |node, checker|
 # Check a list of statements
 check_statement_list : List Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_statement_list = |statements, checker|
+    result : Result (List TypedNode, TypeChecker) (List TypeError)
     result = List.walk(statements, Ok(([], checker)), |acc, stmt|
         when acc is
             Ok((typed_nodes, current_checker)) ->
-                when check_node_internal(stmt, current_checker) is
-                    Ok ((TypedNode(typed_node), next_checker)) ->
+                check_node_internal_result : Result (TypedNode, TypeChecker) (List TypeError)
+                check_node_internal_result = check_node_internal(stmt, current_checker)
+                when check_node_internal_result is
+                    Ok ((typed_node, next_checker)) ->
                         Ok((List.append(typed_nodes, typed_node), next_checker))
                     Err errors ->
                         Err(errors)
@@ -226,16 +229,25 @@ check_statement_list = |statements, checker|
 
     when result is
         Ok((typed_children, final_checker)) ->
+            original : Node
+            original =  Program({
+                body: statements,
+                sourceType: Module,
+            })
+
+            children : List TypedNode
+            children = typed_children
+
+            typed_node : TypedNode
+            typed_node = TypedNode({
+                original,
+                inferred_type: Type.mk_unknown,
+                errors: [],
+                children,
+            })
+
             Ok((
-                TypedNode({
-                    original: Program({
-                        body: statements,
-                        sourceType: Module,
-                    }),
-                    inferred_type: Type.mk_unknown,
-                    errors: [],
-                    children: typed_children,
-                }),
+                typed_node,
                 final_checker,
             ))
         Err(errors) ->
@@ -384,6 +396,27 @@ check_binary_expression = |left, right, operator, checker|
         Err(errors) ->
             Err(errors)
 
+infer_logical_op_type : Type, Type, Ast.LogicalOperator -> Type
+infer_logical_op_type = |left_type, right_type, operator|
+    when operator is
+        LogicalAnd | LogicalOr ->
+            Type.mk_union([left_type, right_type])
+
+check_logical_compatibility : Type, Type -> Result {} [TypeError Str]
+check_logical_compatibility = |left_type, right_type|
+    when (left_type, right_type) is
+        (TNumber, TNumber) ->
+            Ok({})
+
+        (TString, TString) ->
+            Ok({})
+
+        (TBoolean, TBoolean) ->
+            Ok({})
+
+        _ ->
+            Err(TypeError("Type mismatch for logical operator"))
+
 # Helper to infer binary operation result type
 infer_binary_op_type : Type, Type, Ast.BinaryOperator -> Type
 infer_binary_op_type = |left_type, right_type, operator|
@@ -395,15 +428,15 @@ infer_binary_op_type = |left_type, right_type, operator|
                 Type.mk_string
             else
                 Type.mk_number
-        Minus | Times | Divide | Modulo | Power ->
+        Minus | Star | Slash | Percent ->
             Type.mk_number
 
         # Comparison operators
-        LessThan | LessThanEquals | GreaterThan | GreaterThanEquals ->
+        LessThan | LessThanEqual | GreaterThan | GreaterThanEqual ->
             Type.mk_boolean
 
         # Equality operators
-        Equals | NotEquals | StrictEquals | StrictNotEquals ->
+        EqualEqual | EqualEqualEqual | BangEqual | BangEqualEqual  ->
             Type.mk_boolean
 
         # Logical operators
@@ -412,7 +445,7 @@ infer_binary_op_type = |left_type, right_type, operator|
             Type.mk_union([left_type, right_type])
 
         # Bitwise operators
-        BitwiseAnd | BitwiseOr | BitwiseXor | LeftShift | RightShift | UnsignedRightShift ->
+        Ampersand | Pipe | Caret | LeftShift | RightShift | UnsignedRightShift ->
             Type.mk_number
 
         # Assignment operators
@@ -424,7 +457,7 @@ check_binary_compatibility : Type, Type, Ast.BinaryOperator -> List TypeError
 check_binary_compatibility = |left_type, right_type, operator|
     when operator is
         # Arithmetic (except +) requires numbers
-        Minus | Times | Divide | Modulo | Power ->
+        Minus | Star | Slash | Percent ->
             errors = []
             errors1 = if !(is_numeric_type(left_type)) then
                 List.append(errors, {
@@ -459,12 +492,19 @@ is_numeric_type = |t|
     Type.is_assignable_to(t, Type.mk_number)
 
 # Stubs for other checking functions
-check_function_declaration : Option Node, List Node, Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
+check_function_declaration : Node, List Node, Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_function_declaration = |id, params, body, checker|
     # TODO: Implement function checking
     Ok((
         TypedNode({
-            original: FunctionDeclaration { id, params, body },
+            original: FunctionDeclaration({
+                id,
+                params,
+                body,
+                generator: Bool.false,
+                async: Bool.false,
+                typeParameters: None,
+            }),
             inferred_type: Type.mk_unknown,
             errors: [],
             children: [],
