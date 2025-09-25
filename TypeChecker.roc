@@ -94,7 +94,7 @@ check_program = |program_node, strict_mode|
     result = check_node_internal(program_node, checker)
 
     when result is
-        Ok (typed_node, final_checker) ->
+        Ok((typed_node, final_checker)) ->
             if List.is_empty(final_checker.errors) then
                 Ok(typed_node)
             else
@@ -134,48 +134,48 @@ check_node_internal = |node, checker|
             check_identifier(name, checker)
 
         NumericLiteral { value } ->
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: node,
                     inferred_type: Type.mk_number,
                     errors: [],
                     children: [],
-                },
+                }),
                 checker,
-            )
+            ))
 
         StringLiteral { value } ->
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: node,
                     inferred_type: Type.mk_string,
                     errors: [],
                     children: [],
-                },
+                }),
                 checker,
-            )
+            ))
 
         BooleanLiteral { value } ->
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: node,
                     inferred_type: Type.mk_boolean,
                     errors: [],
                     children: [],
-                },
+                }),
                 checker,
-            )
+            ))
 
         NullLiteral {} ->
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: node,
                     inferred_type: Type.mk_null,
                     errors: [],
                     children: [],
-                },
+                }),
                 checker,
-            )
+            ))
 
         # Statements
         IfStatement { test, consequent, alternate } ->
@@ -192,15 +192,15 @@ check_node_internal = |node, checker|
 
         # Default case - return unknown type
         _ ->
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: node,
                     inferred_type: Type.mk_unknown,
                     errors: [],
                     children: [],
-                },
+                }),
                 checker,
-            )
+            ))
 
 # Public checking function
 check_node : Node, TypeChecker -> CheckResult
@@ -217,7 +217,7 @@ check_statement_list = |statements, checker|
             Ok (typed_nodes, current_checker) ->
                 when check_node_internal(stmt, current_checker) is
                     Ok (typed_node, next_checker) ->
-                        Ok(List.append(typed_nodes, typed_node), next_checker)
+                        Ok((List.append(typed_nodes, typed_node), next_checker))
                     Err errors ->
                         Err(errors)
             Err errors ->
@@ -226,15 +226,15 @@ check_statement_list = |statements, checker|
 
     when result is
         Ok (typed_children, final_checker) ->
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: Program { body: statements },
                     inferred_type: Type.mk_unknown,
                     errors: [],
                     children: typed_children,
-                },
+                }),
                 final_checker,
-            )
+            ))
         Err errors ->
             Err(errors)
 
@@ -245,9 +245,9 @@ check_variable_declaration = |declarations, kind, checker|
         Const -> Bool.true
         _ -> Bool.false
 
-    result = List.walk(declarations, Ok([], checker), |acc, decl|
+    result = List.walk(declarations, Ok(([], checker)), |acc, decl|
         when acc is
-            Ok (typed_decls, current_checker) ->
+            Ok((typed_decls, current_checker)) ->
                 when decl is
                     VariableDeclarator { id, init } ->
                         when id is
@@ -257,18 +257,18 @@ check_variable_declaration = |declarations, kind, checker|
                                     Some init_expr ->
                                         check_node_internal(init_expr, current_checker)
                                     None ->
-                                        Ok(
-                                            {
+                                        Ok((
+                                            TypedNode({
                                                 original: UndefinedLiteral {},
                                                 inferred_type: Type.mk_undefined,
                                                 errors: [],
                                                 children: [],
-                                            },
+                                            }),
                                             current_checker,
-                                        )
+                                        ))
 
                                 when init_result is
-                                    Ok (init_typed, checker_after_init) ->
+                                    Ok (TypedNode(init_typed), checker_after_init) ->
                                         # Add to symbol table
                                         new_table = when TST.add_symbol(checker_after_init.symbol_table, name, init_typed.inferred_type, is_const) is
                                             Ok table -> table
@@ -277,35 +277,35 @@ check_variable_declaration = |declarations, kind, checker|
                                                 checker_after_init.symbol_table
 
                                         new_checker = { checker_after_init & symbol_table: new_table }
-                                        typed_decl = {
+                                        typed_decl = TypedNode({
                                             original: decl,
                                             inferred_type: init_typed.inferred_type,
                                             errors: [],
-                                            children: [init_typed],
-                                        }
-                                        Ok(List.append(typed_decls, typed_decl), new_checker)
+                                            children: [TypedNode(init_typed)],
+                                        })
+                                        Ok((List.append(typed_decls, typed_decl), new_checker))
                                     Err errors ->
                                         Err(errors)
                             _ ->
                                 # Pattern destructuring not supported yet
-                                Ok(typed_decls, current_checker)
+                                Ok((typed_decls, current_checker))
                     _ ->
-                        Ok(typed_decls, current_checker)
+                        Ok((typed_decls, current_checker))
             Err errors ->
                 Err(errors)
     )
 
     when result is
         Ok (typed_decls, final_checker) ->
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: VariableDeclaration { declarations, kind },
                     inferred_type: Type.mk_unknown,
                     errors: [],
                     children: typed_decls,
-                },
+                }),
                 final_checker,
-            )
+            ))
         Err errors ->
             Err(errors)
 
@@ -314,15 +314,15 @@ check_identifier : Str, TypeChecker -> Result (TypedNode, TypeChecker) (List Typ
 check_identifier = |name, checker|
     when TST.lookup_symbol(checker.symbol_table, name) is
         Ok symbol ->
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: Identifier { name },
                     inferred_type: symbol.sym_type,
                     errors: [],
                     children: [],
-                },
+                }),
                 checker,
-            )
+            ))
         Err _ ->
             error = {
                 kind: UnknownVariable,
@@ -332,28 +332,27 @@ check_identifier = |name, checker|
                 actual: Err(NoActual),
                 suggestion: Err(NoSuggestion),
             }
-            Ok(
-                {
+            Ok((
+                TypedNode({
                     original: Identifier { name },
                     inferred_type: Type.mk_unknown,
                     errors: [error],
                     children: [],
-                },
+                }),
                 { checker & errors: List.append(checker.errors, error) },
-            )
+            ))
 
-# Check binary expression
 check_binary_expression : Node, Node, Ast.BinaryOperator, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_binary_expression = |left, right, operator, checker|
     # Check both operands
     left_result = check_node_internal(left, checker)
 
     when left_result is
-        Ok (left_typed, checker_after_left) ->
+        Ok (TypedNode(left_typed), checker_after_left) ->
             right_result = check_node_internal(right, checker_after_left)
 
             when right_result is
-                Ok (right_typed, checker_after_right) ->
+                Ok (TypedNode(right_typed), checker_after_right) ->
                     # Determine result type based on operator
                     result_type = infer_binary_op_type(
                         left_typed.inferred_type,
@@ -368,15 +367,15 @@ check_binary_expression = |left, right, operator, checker|
                         operator
                     )
 
-                    Ok(
-                        {
+                    Ok((
+                        TypedNode({
                             original: BinaryExpression { left, right, operator },
                             inferred_type: result_type,
                             errors: compatibility_errors,
-                            children: [left_typed, right_typed],
-                        },
+                            children: [TypedNode(left_typed), TypedNode(right_typed)],
+                        }),
                         { checker_after_right & errors: List.concat(checker_after_right.errors, compatibility_errors) },
-                    )
+                    ))
                 Err errors ->
                     Err(errors)
         Err errors ->
@@ -452,7 +451,6 @@ check_binary_compatibility = |left_type, right_type, operator|
         _ ->
             []
 
-# Helper to check if type is numeric
 is_numeric_type : Type -> Bool
 is_numeric_type = |t|
     Type.is_assignable_to(t, Type.mk_number)
@@ -461,80 +459,80 @@ is_numeric_type = |t|
 check_function_declaration : Option Node, List Node, Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_function_declaration = |id, params, body, checker|
     # TODO: Implement function checking
-    Ok(
-        {
+    Ok((
+        TypedNode({
             original: FunctionDeclaration { id, params, body },
             inferred_type: Type.mk_unknown,
             errors: [],
             children: [],
-        },
+        }),
         checker,
-    )
+    ))
 
 check_unary_expression : Node, Ast.UnaryOperator, Bool, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_unary_expression = |argument, operator, prefix, checker|
     # TODO: Implement unary expression checking
-    Ok(
-        {
+    Ok((
+        TypedNode({
             original: UnaryExpression { argument, operator, prefix },
             inferred_type: Type.mk_unknown,
             errors: [],
             children: [],
-        },
+        }),
         checker,
-    )
+    ))
 
 check_call_expression : Node, List Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_call_expression = |callee, arguments, checker|
     # TODO: Implement call expression checking
-    Ok(
-        {
+    Ok((
+        TypedNode({
             original: CallExpression { callee, arguments },
             inferred_type: Type.mk_unknown,
             errors: [],
             children: [],
-        },
+        }),
         checker,
-    )
+    ))
 
 check_member_expression : Node, Node, Bool, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_member_expression = |object, property, computed, checker|
     # TODO: Implement member expression checking
-    Ok(
-        {
+    Ok((
+        TypedNode({
             original: MemberExpression { object, property, computed },
             inferred_type: Type.mk_unknown,
             errors: [],
             children: [],
-        },
+        }),
         checker,
-    )
+    ))
 
 check_if_statement : Node, Node, Option Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_if_statement = |test, consequent, alternate, checker|
     # TODO: Implement if statement checking
-    Ok(
-        {
+    Ok((
+        TypedNode({
             original: IfStatement { test, consequent, alternate },
             inferred_type: Type.mk_unknown,
             errors: [],
             children: [],
-        },
+        }),
         checker,
-    )
+    ))
 
 check_return_statement : Option Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_return_statement = |argument, checker|
     # TODO: Implement return statement checking
-    Ok(
-        {
+    Ok((
+        TypedNode({
             original: ReturnStatement { argument },
             inferred_type: Type.mk_unknown,
             errors: [],
             children: [],
-        },
+        }),
         checker,
-    )
+    ))
 
 check_block_statement : List Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_block_statement = |body, checker|
@@ -546,20 +544,23 @@ check_block_statement = |body, checker|
     result = check_statement_list(body, checker_with_scope)
 
     when result is
-        Ok (typed_block, checker_after_block) ->
+        Ok (TypedNode(typed_block), checker_after_block) ->
             # Exit block scope
             final_table = when TST.pop_scope(checker_after_block.symbol_table) is
                 Ok table -> table
                 Err _ -> checker_after_block.symbol_table
+            
+            typed_node_result : TypedNode
+            typed_node_result = TypedNode({
+                original: BlockStatement { body },
+                inferred_type: Type.mk_unknown,
+                errors: [],
+                children: [TypedNode(typed_block)],
+            })
 
-            Ok(
-                {
-                    original: BlockStatement { body },
-                    inferred_type: Type.mk_unknown,
-                    errors: [],
-                    children: [typed_block],
-                },
-                { checker_after_block & symbol_table: final_table },
-            )
+            checker_result : TypeChecker
+            checker_result = { checker_after_block & symbol_table: final_table }
+
+            Ok((typed_node_result, checker_result))
         Err errors ->
             Err(errors)

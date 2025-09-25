@@ -218,7 +218,7 @@ check_expr = \node, env ->
         ArrayExpression { elements } ->
             # Get element type (simplified - just use first element)
             when List.first elements is
-                Ok (Some elem) ->
+                Ok (elem) ->
                     when check_expr elem env is
                         Ok (elem_type, env1) -> Ok (TArray elem_type, env1)
                         Err e -> Err e
