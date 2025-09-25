@@ -5,19 +5,19 @@ module [
     TypeGuard,
 ]
 
-import MinimalType exposing [TType]
+import SimpleComprehensiveType as Type exposing [Type]
 import Ast exposing [Node, BinaryOperator]
 
 # Type refinement based on control flow
 TypeRefinement : {
     variable : Str,
-    refined_type : TType,
+    refined_type : Type,
 }
 
 # Type guards that refine types
 TypeGuard : [
     TypeofGuard { variable : Str, type_name : Str },
-    EqualityGuard { variable : Str, value_type : TType },
+    EqualityGuard { variable : Str, value_type : Type },
     TruthinessGuard { variable : Str, is_truthy : Bool },
     InstanceofGuard { variable : Str, constructor : Str },
     NoGuard,
@@ -69,7 +69,7 @@ analyze_type_guard = \node ->
             operator: EqualEqualEqual,
             left: Identifier { name: var_name },
             right: BooleanLiteral _
-        } -> EqualityGuard { variable: var_name, value_type: TBool }
+        } -> EqualityGuard { variable: var_name, value_type: TBoolean }
 
         # Truthiness check: if (x) or while (x)
         Identifier { name: var_name } ->
@@ -84,14 +84,14 @@ analyze_type_guard = \node ->
         _ -> NoGuard
 
 # Refine a variable's type based on a type guard
-refine_type : TType, TypeGuard -> TType
+refine_type : Type, TypeGuard -> Type
 refine_type = \current_type, guard ->
     when guard is
         TypeofGuard { type_name } ->
             when type_name is
-                "string" -> TStr
-                "number" -> TNum
-                "boolean" -> TBool
+                "string" -> TString
+                "number" -> TNumber
+                "boolean" -> TBoolean
                 "undefined" -> TUnknown
                 "object" ->
                     # In JS, typeof null === 'object'
@@ -114,9 +114,9 @@ refine_type = \current_type, guard ->
             # Would map to specific types based on constructor
             when constructor is
                 "Array" -> TUnknown  # Would be array type
-                "String" -> TStr
-                "Number" -> TNum
-                "Boolean" -> TBool
+                "String" -> TString
+                "Number" -> TNumber
+                "Boolean" -> TBoolean
                 _ -> current_type
 
         NoGuard -> current_type

@@ -4,7 +4,7 @@ module [
 ]
 
 import TypedSymbolTable as TST
-import MinimalType exposing [TType]
+import SimpleComprehensiveType as Type exposing [Type]
 
 # Add all JavaScript built-in globals to a symbol table
 add_js_globals : TST.SymbolTable -> TST.SymbolTable
@@ -13,8 +13,8 @@ add_js_globals = \table ->
     table
     |> add_global "undefined" TUnknown Bool.true
     |> add_global "null" TUnknown Bool.true
-    |> add_global "NaN" TNum Bool.true
-    |> add_global "Infinity" TNum Bool.true
+    |> add_global "NaN" TNumber Bool.true
+    |> add_global "Infinity" TNumber Bool.true
     |> add_global "globalThis" TUnknown Bool.false
 
     # Console object (simplified - would be object type)
@@ -106,38 +106,38 @@ add_js_globals = \table ->
     |> add_global "global" TUnknown Bool.false
     |> add_global "process" TUnknown Bool.false
     |> add_global "Buffer" TUnknown Bool.true
-    |> add_global "__dirname" TStr Bool.true
-    |> add_global "__filename" TStr Bool.true
+    |> add_global "__dirname" TString Bool.true
+    |> add_global "__filename" TString Bool.true
     |> add_global "require" TUnknown Bool.true
     |> add_global "module" TUnknown Bool.false
     |> add_global "exports" TUnknown Bool.false
 
 # Helper to add a global to the table
-add_global : TST.SymbolTable, Str, TType, Bool -> TST.SymbolTable
+add_global : TST.SymbolTable, Str, Type, Bool -> TST.SymbolTable
 add_global = \table, name, sym_type, is_const ->
     when TST.add_symbol table name sym_type is_const is
         Ok new_table -> new_table
         Err _ -> table  # Ignore duplicates
 
 # Get the type of a known global
-get_global_type : Str -> Result TType [NotAGlobal]
+get_global_type : Str -> Result Type [NotAGlobal]
 get_global_type = \name ->
     when name is
         # Values with known types
         "undefined" -> Ok TUnknown
         "null" -> Ok TUnknown
-        "NaN" -> Ok TNum
-        "Infinity" -> Ok TNum
-        "__dirname" -> Ok TStr
-        "__filename" -> Ok TStr
+        "NaN" -> Ok TNumber
+        "Infinity" -> Ok TNumber
+        "__dirname" -> Ok TString
+        "__filename" -> Ok TString
 
         # Constructors and objects
         "Object" | "Array" | "String" | "Number" | "Boolean" | "Function" -> Ok TUnknown
         "Math" | "JSON" | "console" -> Ok TUnknown
 
         # Functions that return specific types
-        "parseInt" | "parseFloat" -> Ok TNum
-        "isNaN" | "isFinite" -> Ok TBool
-        "encodeURI" | "encodeURIComponent" | "decodeURI" | "decodeURIComponent" -> Ok TStr
+        "parseInt" | "parseFloat" -> Ok TNumber
+        "isNaN" | "isFinite" -> Ok TBoolean
+        "encodeURI" | "encodeURIComponent" | "decodeURI" | "decodeURIComponent" -> Ok TString
 
         _ -> Err NotAGlobal

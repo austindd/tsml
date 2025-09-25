@@ -11,12 +11,12 @@ module [
     get_all_symbols_in_scope,
 ]
 
-import MinimalType exposing [TType]
+Import SimpleComprehensiveType as Type exposing [Type]
 
 # Symbol information
 Symbol : {
     name : Str,
-    sym_type : TType,
+    sym_type : Type,
     is_const : Bool,
     scope_level : U64,
 }
@@ -72,7 +72,7 @@ pop_scope = \table ->
         }
 
 # Add a symbol to current scope
-add_symbol : SymbolTable, Str, TType, Bool -> Result SymbolTable [DuplicateSymbol]
+add_symbol : SymbolTable, Str, Type, Bool -> Result SymbolTable [DuplicateSymbol]
 add_symbol = \table, name, sym_type, is_const ->
     # Check for duplicate in current scope only
     existing = List.find_first table.symbols \sym ->
@@ -106,7 +106,7 @@ lookup_symbol = \table, name ->
                     Ok best_sym
 
 # Update symbol type if mutable
-update_symbol_type : SymbolTable, Str, TType -> Result SymbolTable [SymbolNotFound, ConstReassignment]
+update_symbol_type : SymbolTable, Str, Type -> Result SymbolTable [SymbolNotFound, ConstReassignment]
 update_symbol_type = \table, name, new_type ->
     when lookup_symbol table name is
         Ok symbol ->

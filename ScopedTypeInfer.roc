@@ -3,7 +3,7 @@ module [
     analyze_program,
 ]
 
-import MinimalType exposing [TType]
+import SimpleComprehensiveType as Type exposing [Type]
 import Ast exposing [Node]
 import TypedSymbolTable as TST
 import BasicTypeInfer
@@ -13,7 +13,7 @@ import Option exposing [Option, Some, None]
 # Type inference with symbol table tracking
 InferState : {
     symbol_table : TST.SymbolTable,
-    current_type : TType,
+    current_type : Type,
 }
 
 # Analyze a program and build symbol table
@@ -138,7 +138,7 @@ analyze_node = \node, state ->
             { state & current_type: expr_type }
 
 # Main inference function that maintains scope
-infer_with_scope : Node, TST.SymbolTable -> (TType, TST.SymbolTable)
+infer_with_scope : Node, TST.SymbolTable -> (Type, TST.SymbolTable)
 infer_with_scope = \node, table ->
     state = analyze_node node { symbol_table: table, current_type: TUnknown }
     (state.current_type, state.symbol_table)

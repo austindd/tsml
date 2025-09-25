@@ -3,7 +3,7 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import TypedSymbolTable as TST
-import MinimalType
+import SimpleComprehensiveType as Type exposing [Type]
 
 main! = \_ ->
     _ = Stdout.line! "=== Symbol Table Integration Demo ==="
@@ -21,7 +21,7 @@ main! = \_ ->
     _ = Stdout.line! "\n1. Created global scope"
 
     # Add global variable x = 5
-    table1 = when TST.add_symbol table0 "x" TNum Bool.false is
+    table1 = when TST.add_symbol table0 "x" TNumber Bool.false is
         Ok t ->
             _ = Stdout.line! "2. Added global variable x: number"
             t
@@ -43,7 +43,7 @@ main! = \_ ->
         Err _ -> table3
 
     # Add local variable
-    table5 = when TST.add_symbol table4 "local" TNum Bool.false is
+    table5 = when TST.add_symbol table4 "local" TNumber Bool.false is
         Ok t ->
             _ = Stdout.line! "5. Added local variable local: number"
             t
@@ -56,7 +56,7 @@ main! = \_ ->
     List.for_each! test_symbols \name ->
         when TST.lookup_symbol table5 name is
             Ok symbol ->
-                type_str = MinimalType.type_str symbol.sym_type
+                type_str = Type.type_to_str symbol.sym_type
                 scope_str = if symbol.scope_level == 0 then " (global)" else " (local)"
                 _ = Stdout.line! "  ✓ $(name): $(type_str)$(scope_str)"
                 {}
@@ -72,7 +72,7 @@ main! = \_ ->
         Err _ -> table5
 
     # Update global x
-    table7 = when TST.update_symbol_type table6 "x" TNum is
+    table7 = when TST.update_symbol_type table6 "x" TNumber is
         Ok t ->
             _ = Stdout.line! "7. Updated global x (simulating x = 10)"
             t
@@ -90,7 +90,7 @@ main! = \_ ->
 
     when TST.lookup_symbol table7 "x" is
         Ok symbol ->
-            type_str = MinimalType.type_str symbol.sym_type
+            type_str = Type.type_to_str symbol.sym_type
             _ = Stdout.line! "  ✓ x: $(type_str) (global still accessible)"
             {}
         Err _ ->
@@ -100,13 +100,13 @@ main! = \_ ->
     # Demo const handling
     _ = Stdout.line! "\n=== Const Handling ==="
 
-    table8 = when TST.add_symbol table7 "PI" TNum Bool.true is
+    table8 = when TST.add_symbol table7 "PI" TNumber Bool.true is
         Ok t ->
             _ = Stdout.line! "Added const PI: number"
             t
         Err _ -> table7
 
-    when TST.update_symbol_type table8 "PI" TStr is
+    when TST.update_symbol_type table8 "PI" TString is
         Ok _ ->
             _ = Stdout.line! "  ✗ Allowed updating const (shouldn't!)"
             {}

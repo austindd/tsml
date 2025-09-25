@@ -3,7 +3,7 @@ module [
     ModuleAnalysis,
 ]
 
-import MinimalType exposing [TType]
+import SimpleComprehensiveType as Type exposing [Type]
 import Ast exposing [Node]
 import TypedSymbolTable as TST
 import ModuleSystem as MS
@@ -16,7 +16,7 @@ ModuleAnalysis : {
     module_path : Str,
     registry : MS.ModuleRegistry,
     symbol_table : TST.SymbolTable,
-    exported_types : List { name : Str, type : TType },
+    exported_types : List { name : Str, type : Type },
 }
 
 # Analyze a JavaScript/TypeScript module

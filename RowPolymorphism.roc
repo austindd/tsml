@@ -38,9 +38,9 @@ RowType : [
 # Types with row polymorphism
 Type : [
     # Primitives
-    TNum,
-    TStr,
-    TBool,
+    TNumber,
+    TString,
+    TBoolean,
     TNull,
     TUndefined,
 
@@ -226,9 +226,9 @@ unify_types = |t1_orig, t2_orig, subst|
 
     when (t1, t2) is
         # Same primitive types
-        (TNum, TNum) -> Ok(subst)
-        (TStr, TStr) -> Ok(subst)
-        (TBool, TBool) -> Ok(subst)
+        (TNumber, TNumber) -> Ok(subst)
+        (TString, TString) -> Ok(subst)
+        (TBoolean, TBoolean) -> Ok(subst)
         (TNull, TNull) -> Ok(subst)
         (TUndefined, TUndefined) -> Ok(subst)
 

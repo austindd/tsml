@@ -22,9 +22,9 @@ RowType : {
 # Extended type system with rows
 TypeWithRows : [
     # Primitives
-    TNum,
-    TStr,
-    TBool,
+    TNumber,
+    TString,
+    TBoolean,
     TNull,
     TUndefined,
 
@@ -154,9 +154,9 @@ check_expr : Ast.Node, TypeEnv -> Result (TypeWithRows, TypeEnv) [TypeError Str]
 check_expr = \node, env ->
     when node is
         # Literals
-        NumberLiteral _ -> Ok (TNum, env)
-        StringLiteral _ -> Ok (TStr, env)
-        BooleanLiteral _ -> Ok (TBool, env)
+        NumberLiteral _ -> Ok (TNumber, env)
+        StringLiteral _ -> Ok (TString, env)
+        BooleanLiteral _ -> Ok (TBoolean, env)
         NullLiteral _ -> Ok (TNull, env)
         UndefinedLiteral _ -> Ok (TUndefined, env)
 
@@ -228,10 +228,10 @@ check_expr = \node, env ->
         BinaryExpression { left, operator, right } ->
             when operator is
                 Plus | Minus | Star | Slash | Percent ->
-                    Ok (TNum, env)
+                    Ok (TNumber, env)
                 LessThan | LessThanEqual | GreaterThan | GreaterThanEqual |
                 EqualEqual | BangEqual | EqualEqualEqual | BangEqualEqual ->
-                    Ok (TBool, env)
+                    Ok (TBoolean, env)
                 _ -> Ok (TUnknown, env)
 
         _ -> Ok (TUnknown, env)
@@ -270,9 +270,9 @@ type_check_with_rows = \source ->
 type_to_string : TypeWithRows -> Str
 type_to_string = \t ->
     when t is
-        TNum -> "number"
-        TStr -> "string"
-        TBool -> "boolean"
+        TNumber -> "number"
+        TString -> "string"
+        TBoolean -> "boolean"
         TNull -> "null"
         TUndefined -> "undefined"
         TVar id -> "T${Num.to_str id}"

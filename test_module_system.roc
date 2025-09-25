@@ -3,7 +3,6 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import ModuleSystem as MS
-import MinimalType exposing [TType]
 
 main! = \_ ->
     _ = Stdout.line! "=== Module System Test ==="
@@ -116,13 +115,13 @@ main! = \_ ->
     _ = Stdout.line! "   Registered module: ./utils.js"
 
     # Simulate module.exports = { foo, bar }
-    registry10 = when MS.add_export registry9 "foo" "foo" TStr Bool.false is
+    registry10 = when MS.add_export registry9 "foo" "foo" TString Bool.false is
         Ok r ->
             _ = Stdout.line! "   - Added CommonJS export: foo"
             r
         Err _ -> registry9
 
-    registry11 = when MS.add_export registry10 "bar" "bar" TNum Bool.false is
+    registry11 = when MS.add_export registry10 "bar" "bar" TNumber Bool.false is
         Ok r ->
             _ = Stdout.line! "   - Added CommonJS export: bar"
             r

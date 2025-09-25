@@ -4,7 +4,7 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 import pf.Stdout
 import TypedSymbolTable as TST
 import JSGlobals
-import MinimalType
+import SimpleComprehensiveType as Type exposing [Type]
 
 main! = \_ ->
     _ = Stdout.line! "=== JavaScript Global Environment ==="
@@ -45,7 +45,7 @@ main! = \_ ->
     List.for_each! test_globals \(name, description) ->
         when TST.lookup_symbol global_table name is
             Ok symbol ->
-                type_str = MinimalType.type_str symbol.sym_type
+                type_str = Type.type_to_str symbol.sym_type
                 const_str = if symbol.is_const then " (const)" else " (var)"
                 _ = Stdout.line! "  ✓ $(name): $(type_str)$(const_str) - $(description)"
                 {}
@@ -57,10 +57,10 @@ main! = \_ ->
     _ = Stdout.line! "\n=== Type Information ==="
 
     typed_globals = [
-        ("NaN", TNum, "number"),
-        ("Infinity", TNum, "number"),
-        ("__dirname", TStr, "string"),
-        ("__filename", TStr, "string"),
+        ("NaN", TNumber, "number"),
+        ("Infinity", TNumber, "number"),
+        ("__dirname", TString, "string"),
+        ("__filename", TString, "string"),
         ("undefined", TUnknown, "unknown"),
         ("null", TUnknown, "unknown"),
     ]
@@ -72,7 +72,7 @@ main! = \_ ->
                     _ = Stdout.line! "  ✓ $(name) has type $(type_name)"
                     {}
                 else
-                    actual = MinimalType.type_str symbol.sym_type
+                    actual = Type.type_to_str symbol.sym_type
                     _ = Stdout.line! "  ✗ $(name) expected $(type_name), got $(actual)"
                     {}
             Err _ ->
@@ -113,15 +113,15 @@ main! = \_ ->
     func_table = TST.push_scope global_table FunctionScope
 
     # Shadow some globals
-    shadowed_table = when TST.add_symbol func_table "console" TStr Bool.false is
+    shadowed_table = when TST.add_symbol func_table "console" TString Bool.false is
         Ok t -> t
         Err _ -> func_table
 
     # Check that local shadows global
     when TST.lookup_symbol shadowed_table "console" is
         Ok symbol ->
-            type_str = MinimalType.type_str symbol.sym_type
-            if symbol.sym_type == TStr then
+            type_str = Type.type_to_str symbol.sym_type
+            if symbol.sym_type == TString then
                 _ = Stdout.line! "  ✓ Local 'console' shadows global (type: $(type_str))"
                 {}
             else

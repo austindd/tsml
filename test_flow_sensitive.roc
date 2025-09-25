@@ -1,11 +1,11 @@
 #!/usr/bin/env roc
 app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.19.0/Hj-J_zxz7V9YurCSTFcFdu6cQJie4guzsPMUi5kBYUk.tar.br" }
 
+import SimpleComprehensiveType as Type exposing [Type]
 import pf.Stdout
 import Token
 import Parser
 import FlowSensitive
-import MinimalType
 
 main! = \_ ->
     # Test type guard analysis
@@ -54,17 +54,17 @@ main! = \_ ->
     _ = Stdout.line! "\n=== Type Refinement ==="
 
     refinement_tests = [
-        (TUnknown, "string", TStr, "unknown -> string"),
-        (TUnknown, "number", TNum, "unknown -> number"),
-        (TUnknown, "boolean", TBool, "unknown -> boolean"),
-        (TNum, "string", TStr, "number -> string (override)"),
+        (TUnknown, "string", TString, "unknown -> string"),
+        (TUnknown, "number", TNumber, "unknown -> number"),
+        (TUnknown, "boolean", TBoolean, "unknown -> boolean"),
+        (TNumber, "string", TString, "number -> string (override)"),
     ]
 
     List.for_each! refinement_tests \(initial, type_name, expected, desc) ->
         guard = TypeofGuard { variable: "x", type_name }
         refined = FlowSensitive.refine_type initial guard
         result = if refined == expected then "✓" else "✗"
-        _ = Stdout.line! "  $(result) $(desc): $(MinimalType.type_str refined)"
+        _ = Stdout.line! "  $(result) $(desc): $(Type.type_to_str refined)"
         {}
 
     Ok {}

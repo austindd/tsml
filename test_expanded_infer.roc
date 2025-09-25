@@ -5,7 +5,6 @@ import pf.Stdout
 import Token
 import Parser
 import BasicTypeInfer
-import MinimalType
 
 main! = \_ ->
     test_cases = [
@@ -66,7 +65,7 @@ main! = \_ ->
         ast = Parser.parse_program filtered
 
         inferred = BasicTypeInfer.infer_type ast
-        type_str = MinimalType.type_str inferred
+        type_str = Type.type_to_str inferred
 
         result = if type_str == expected then "✓" else "✗"
         _ = Stdout.line! "$(result) $(code) : $(type_str) (expected $(expected))"

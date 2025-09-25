@@ -2,7 +2,7 @@
 app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.19.0/Hj-J_zxz7V9YurCSTFcFdu6cQJie4guzsPMUi5kBYUk.tar.br" }
 
 import pf.Stdout
-import MinimalType as MT
+import SimpleComprehensiveType as Type
 import BasicTypeInfer as TI
 import JSTypeCoercion as JSC
 import TypedSymbolTable as TST
@@ -39,17 +39,17 @@ test_basic_inference! = \{} ->
     # Test numeric literal
     num_node = NumericLiteral { value: 42.0, raw: "42" }
     num_type = TI.infer_type num_node
-    _ = Stdout.line! "  Numeric literal: $(MT.type_str num_type)"
+    _ = Stdout.line! "  Numeric literal: $(Type.type_to_str num_type)"
 
     # Test string literal
     str_node = StringLiteral { value: "hello", raw: "\"hello\"" }
     str_type = TI.infer_type str_node
-    _ = Stdout.line! "  String literal: $(MT.type_str str_type)"
+    _ = Stdout.line! "  String literal: $(Type.type_to_str str_type)"
 
     # Test boolean literal
     bool_node = BooleanLiteral { value: Bool.true }
     bool_type = TI.infer_type bool_node
-    _ = Stdout.line! "  Boolean literal: $(MT.type_str bool_type)"
+    _ = Stdout.line! "  Boolean literal: $(Type.type_to_str bool_type)"
 
     # Test binary expression
     binary_node = BinaryExpression {
@@ -58,29 +58,29 @@ test_basic_inference! = \{} ->
         right: num_node,
     }
     binary_type = TI.infer_type binary_node
-    _ = Stdout.line! "  42 + 42: $(MT.type_str binary_type)"
+    _ = Stdout.line! "  42 + 42: $(Type.type_to_str binary_type)"
 
     {}
 
 test_type_coercion! = \{} ->
     # Test string concatenation with +
-    str_num = JSC.infer_binary_op MT.mk_str MT.mk_num "+"
-    _ = Stdout.line! "  string + number: $(MT.type_str str_num)"
+    str_num = JSC.infer_binary_op Type.mk_string Type.mk_number "+"
+    _ = Stdout.line! "  string + number: $(Type.type_to_str str_num)"
 
     # Test numeric addition
-    num_num = JSC.infer_binary_op MT.mk_num MT.mk_num "+"
-    _ = Stdout.line! "  number + number: $(MT.type_str num_num)"
+    num_num = JSC.infer_binary_op Type.mk_number Type.mk_number "+"
+    _ = Stdout.line! "  number + number: $(Type.type_to_str num_num)"
 
     # Test comparison operators
-    comp_result = JSC.infer_binary_op MT.mk_str MT.mk_num ">"
-    _ = Stdout.line! "  string > number: $(MT.type_str comp_result)"
+    comp_result = JSC.infer_binary_op Type.mk_string Type.mk_number ">"
+    _ = Stdout.line! "  string > number: $(Type.type_to_str comp_result)"
 
     # Test unary operators
-    not_bool = JSC.infer_unary_op MT.mk_bool "!"
-    _ = Stdout.line! "  !boolean: $(MT.type_str not_bool)"
+    not_bool = JSC.infer_unary_op Type.mk_boolean "!"
+    _ = Stdout.line! "  !boolean: $(Type.type_to_str not_bool)"
 
-    typeof_num = JSC.infer_unary_op MT.mk_num "typeof"
-    _ = Stdout.line! "  typeof number: $(MT.type_str typeof_num)"
+    typeof_num = JSC.infer_unary_op Type.mk_number "typeof"
+    _ = Stdout.line! "  typeof number: $(Type.type_to_str typeof_num)"
 
     {}
 
@@ -89,7 +89,7 @@ test_symbol_table! = \{} ->
     table1 = TST.empty_table {}
 
     # Add a variable
-    table2 = when TST.add_symbol table1 "myVar" MT.mk_num Bool.false is
+    table2 = when TST.add_symbol table1 "myVar" Type.mk_number Bool.false is
         Ok t ->
             _ = Stdout.line! "  Added myVar: number"
             t
@@ -98,7 +98,7 @@ test_symbol_table! = \{} ->
             table1
 
     # Add a const
-    table3 = when TST.add_symbol table2 "PI" MT.mk_num Bool.true is
+    table3 = when TST.add_symbol table2 "PI" Type.mk_number Bool.true is
         Ok t ->
             _ = Stdout.line! "  Added const PI: number"
             t
@@ -107,7 +107,7 @@ test_symbol_table! = \{} ->
             table2
 
     # Try to update const (should fail)
-    when TST.update_symbol_type table3 "PI" MT.mk_str is
+    when TST.update_symbol_type table3 "PI" Type.mk_string is
         Ok _ ->
             _ = Stdout.line! "  ERROR: Allowed const reassignment"
             {}
@@ -119,7 +119,7 @@ test_symbol_table! = \{} ->
             {}
 
     # Update mutable variable
-    table4 = when TST.update_symbol_type table3 "myVar" MT.mk_str is
+    table4 = when TST.update_symbol_type table3 "myVar" Type.mk_string is
         Ok t ->
             _ = Stdout.line! "  Updated myVar to string"
             t
@@ -130,7 +130,7 @@ test_symbol_table! = \{} ->
     # Lookup variable
     when TST.lookup_symbol table4 "myVar" is
         Ok sym ->
-            _ = Stdout.line! "  Found myVar: $(MT.type_str sym.sym_type)"
+            _ = Stdout.line! "  Found myVar: $(Type.type_to_str sym.sym_type)"
             {}
         Err _ ->
             _ = Stdout.line! "  Failed to find myVar"
@@ -148,7 +148,7 @@ test_js_globals! = \{} ->
         when TST.lookup_symbol table name is
             Ok sym ->
                 const_str = if sym.is_const then "const" else "var"
-                _ = Stdout.line! "  $(name): $(MT.type_str sym.sym_type) ($(const_str))"
+                _ = Stdout.line! "  $(name): $(Type.type_to_str sym.sym_type) ($(const_str))"
                 {}
             Err _ ->
                 _ = Stdout.line! "  $(name): not found"
@@ -167,7 +167,7 @@ test_scope_management! = \{} ->
     table1 = TST.empty_table {}
 
     # Add global variable
-    table2 = when TST.add_symbol table1 "globalVar" MT.mk_num Bool.false is
+    table2 = when TST.add_symbol table1 "globalVar" Type.mk_number Bool.false is
         Ok t ->
             _ = Stdout.line! "  Added globalVar in global scope"
             t
@@ -178,7 +178,7 @@ test_scope_management! = \{} ->
     _ = Stdout.line! "  Entered function scope"
 
     # Add function parameter
-    table4 = when TST.add_symbol table3 "param" MT.mk_str Bool.false is
+    table4 = when TST.add_symbol table3 "param" Type.mk_string Bool.false is
         Ok t ->
             _ = Stdout.line! "  Added param in function scope"
             t
@@ -189,7 +189,7 @@ test_scope_management! = \{} ->
     _ = Stdout.line! "  Entered block scope"
 
     # Add local variable
-    table6 = when TST.add_symbol table5 "localVar" MT.mk_bool Bool.false is
+    table6 = when TST.add_symbol table5 "localVar" Type.mk_boolean Bool.false is
         Ok t ->
             _ = Stdout.line! "  Added localVar in block scope"
             t

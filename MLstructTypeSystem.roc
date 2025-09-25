@@ -15,9 +15,9 @@ module [
 # Type with row polymorphism and type variables
 Type : [
     # Primitives
-    TNum,
-    TStr,
-    TBool,
+    TNumber,
+    TString,
+    TBoolean,
     TNull,
     TUndefined,
 

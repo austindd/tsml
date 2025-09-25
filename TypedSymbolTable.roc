@@ -12,12 +12,12 @@ module [
     get_all_symbols_in_scope,
 ]
 
-import MinimalType exposing [TType]
+import SimpleComprehensiveType as Type exposing [Type]
 
 # Symbol represents a variable or function in a scope
 Symbol : {
     name : Str,
-    sym_type : TType,
+    sym_type : Type,
     is_const : Bool,  # const vs let/var
     is_function : Bool,
     scope_level : U32,
@@ -92,7 +92,7 @@ pop_scope = \table ->
                 Err AlreadyAtGlobalScope
 
 # Add a new symbol to the current scope
-add_symbol : SymbolTable, Str, TType, Bool -> Result SymbolTable [DuplicateSymbol]
+add_symbol : SymbolTable, Str, Type, Bool -> Result SymbolTable [DuplicateSymbol]
 add_symbol = \table, name, sym_type, is_const ->
     current_idx = Num.to_u64 table.current_scope_index
     when List.get table.scopes current_idx is
@@ -140,7 +140,7 @@ lookup_in_scope = \table, name, scope_index ->
             Err SymbolNotFound
 
 # Update the type of an existing symbol
-update_symbol_type : SymbolTable, Str, TType -> Result SymbolTable [SymbolNotFound, ConstReassignment]
+update_symbol_type : SymbolTable, Str, Type -> Result SymbolTable [SymbolNotFound, ConstReassignment]
 update_symbol_type = \table, name, new_type ->
     when lookup_symbol table name is
         Ok symbol ->
@@ -151,7 +151,7 @@ update_symbol_type = \table, name, new_type ->
         Err _ ->
             Err SymbolNotFound
 
-update_symbol_in_scope : SymbolTable, Str, TType, U32 -> Result SymbolTable [SymbolNotFound]
+update_symbol_in_scope : SymbolTable, Str, Type, U32 -> Result SymbolTable [SymbolNotFound]
 update_symbol_in_scope = \table, name, new_type, scope_level ->
     scope_idx = Num.to_u64 scope_level
     when List.get table.scopes scope_idx is

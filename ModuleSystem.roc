@@ -13,14 +13,14 @@ module [
     analyze_module_node,
 ]
 
-import MinimalType exposing [TType]
+import SimpleComprehensiveType as Type exposing [Type]
 import TypedSymbolTable as TST
 
 # Information about a single export
 ModuleExport : {
     name : Str,           # Export name (could be "default")
     local_name : Str,     # Local variable name
-    export_type : TType,  # Type of the exported value
+    export_type : Type,  # Type of the exported value
     is_default : Bool,    # True for default exports
 }
 
@@ -74,7 +74,7 @@ register_module = \registry, path ->
     }
 
 # Add an export to the current module
-add_export : ModuleRegistry, Str, Str, TType, Bool -> Result ModuleRegistry [NoCurrentModule, DuplicateExport]
+add_export : ModuleRegistry, Str, Str, Type, Bool -> Result ModuleRegistry [NoCurrentModule, DuplicateExport]
 add_export = \registry, name, local_name, export_type, is_default ->
     when registry.current_module is
         Ok module_path ->
@@ -206,14 +206,14 @@ analyze_module_node = \registry, node ->
 
 # Module node types (simplified for demonstration)
 ModuleNode : [
-    ExportDefault { expression : Str, type_hint : Result TType [NoHint] },
+    ExportDefault { expression : Str, type_hint : Result Type [NoHint] },
     ExportNamed { specifiers : List ExportSpec },
     ExportAll { source : Str },
     ImportDefault { local : Str, source : Str },
     ImportNamed { specifiers : List ImportSpecNode, source : Str },
     ImportNamespace { local : Str, source : Str },
     CommonJSRequire { local : Str, source : Str },
-    CommonJSExport { name : Result Str [DefaultExport], value_type : TType },
+    CommonJSExport { name : Result Str [DefaultExport], value_type : Type },
 ]
 
 ExportSpec : [

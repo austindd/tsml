@@ -3,7 +3,6 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import ModuleSystem as MS
-import MinimalType exposing [TType]
 
 # Helper functions for creating imports
 make_default_import : Str -> MS.ImportKind
@@ -31,7 +30,7 @@ main! = \_ ->
     _ = Stdout.line! "1. Registered ./math.js"
 
     # Add exports
-    registry2 = when MS.add_export registry1 "add" "addFunc" TNum Bool.false is
+    registry2 = when MS.add_export registry1 "add" "addFunc" TNumber Bool.false is
         Ok r ->
             _ = Stdout.line! "2. Added export 'add'"
             r

@@ -6,7 +6,7 @@ import Token
 import Parser
 import ScopedTypeInfer
 import TypedSymbolTable as TST
-import MinimalType
+import SimpleComprehensiveType as Type exposing [Type]
 
 main! = \_ ->
     _ = Stdout.line! "=== Scoped Type Inference ==="
@@ -55,7 +55,7 @@ main! = \_ ->
         global_symbols = TST.get_all_symbols_in_scope result.symbol_table
         _ = Stdout.line! "Global symbols:"
         List.for_each! global_symbols \symbol ->
-            type_str = MinimalType.type_str symbol.sym_type
+            type_str = Type.type_to_str symbol.sym_type
             const_str = if symbol.is_const then " (const)" else ""
             _ = Stdout.line! "  - $(symbol.name): $(type_str)$(const_str)"
             {}
@@ -81,7 +81,7 @@ main! = \_ ->
     _ = Stdout.line! "\nFinal symbol table:"
     global_symbols = TST.get_all_symbols_in_scope result.symbol_table
     List.for_each! global_symbols \symbol ->
-        type_str = MinimalType.type_str symbol.sym_type
+        type_str = Type.type_to_str symbol.sym_type
         _ = Stdout.line! "  $(symbol.name): $(type_str)"
         {}
 

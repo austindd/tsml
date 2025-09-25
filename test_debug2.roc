@@ -5,7 +5,7 @@ import pf.Stdout
 import Token
 import Parser
 import BasicTypeInfer
-import MinimalType
+import SimpleComprehensiveType as Type
 import Ast
 
 main! = \_ ->
@@ -25,7 +25,7 @@ main! = \_ ->
         Program { body } ->
             List.for_each! body \node ->
                 inferred = BasicTypeInfer.infer_type node
-                type_str = MinimalType.type_str inferred
+                type_str = Type.type_to_str inferred
                 Stdout.line! "Node type: $(type_str)"
         _ ->
             Stdout.line! "Not a program"

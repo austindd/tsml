@@ -28,9 +28,9 @@ RowType : List RowTag
 # ML types with row polymorphism
 MLType : [
     # Primitives
-    MTNum,
-    MTStr,
-    MTBool,
+    MTNumber,
+    MTString,
+    MTBoolean,
     MTNull,
     MTUndefined,
 

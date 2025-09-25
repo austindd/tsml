@@ -15,9 +15,9 @@ TypeId : U32
 
 # Types with row polymorphism
 TypeWithRows : [
-    TNum,
-    TStr,
-    TBool,
+    TNumber,
+    TString,
+    TBoolean,
     TNull,
     TUndefined,
     TRecord RowType,

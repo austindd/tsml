@@ -19,9 +19,9 @@ TypeId : U32
 
 # Base type representation
 BaseType : [
-    TNum,
-    TStr,
-    TBool,
+    TNumber,
+    TString,
+    TBoolean,
     TNull,
     TUndefined,
     TObject (List { key: Str, type: TypeId, optional: Bool, readonly: Bool }),
@@ -404,9 +404,9 @@ is_assignable_to = \from, to ->
     when (from, to) is
         (_, TAny) -> Bool.true
         (TNever, _) -> Bool.true
-        (TNum, TNum) -> Bool.true
-        (TStr, TStr) -> Bool.true
-        (TBool, TBool) -> Bool.true
+        (TNumber, TNumber) -> Bool.true
+        (TString, TString) -> Bool.true
+        (TBoolean, TBoolean) -> Bool.true
         (TNull, TNull) -> Bool.true
         (TUndefined, TUndefined) -> Bool.true
         _ -> Bool.false
@@ -473,7 +473,7 @@ example_omit = \user_type ->
 # type StringRecord = Record<string, string>
 example_record : BaseType
 example_record =
-    make_record ["key1", "key2", "key3"] TStr
+    make_record ["key1", "key2", "key3"] TString
 
 # type NotNull<T> = Exclude<T, null | undefined>
 example_nonnullable : BaseType -> BaseType

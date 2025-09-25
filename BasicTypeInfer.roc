@@ -2,16 +2,16 @@ module [
     infer_type,
 ]
 
-import MinimalType exposing [TType]
+import SimpleComprehensiveType as Type exposing [Type]
 import Ast exposing [Node]
 import JSTypeCoercion
 
-infer_type : Node -> TType
+infer_type : Node -> Type
 infer_type = \node ->
     when node is
-        NumberLiteral _ -> TNum
-        StringLiteral _ -> TStr
-        BooleanLiteral _ -> TBool
+        NumberLiteral _ -> TNumber
+        StringLiteral _ -> TString
+        BooleanLiteral _ -> TBoolean
         NullLiteral _ -> TUnknown
         UndefinedLiteral _ -> TUnknown
 
@@ -50,15 +50,15 @@ infer_type = \node ->
         # Unary expressions
         UnaryExpression { operator, argument } ->
             when operator is
-                Bang -> TBool  # !expr always returns boolean
-                Plus | Minus | Tilde -> TNum  # Numeric operators
-                Typeof -> TStr  # typeof always returns string
+                Bang -> TBoolean  # !expr always returns boolean
+                Plus | Minus | Tilde -> TNumber  # Numeric operators
+                Typeof -> TString  # typeof always returns string
                 Void -> TUnknown  # void always returns undefined
-                Delete -> TBool  # delete returns boolean
+                Delete -> TBoolean  # delete returns boolean
                 _ -> TUnknown
 
         # Update expressions
-        UpdateExpression _ -> TNum  # ++ and -- always work with numbers
+        UpdateExpression _ -> TNumber  # ++ and -- always work with numbers
 
         # Logical expressions
         LogicalExpression { operator, left, right } ->
@@ -68,17 +68,17 @@ infer_type = \node ->
                     left_type = infer_type left
                     right_type = infer_type right
                     when (left_type, right_type) is
-                        (TBool, TBool) -> TBool
-                        (TBool, other) | (_, other) -> other
+                        (TBoolean, TBoolean) -> TBoolean
+                        (TBoolean, other) | (_, other) -> other
                 LogicalOr ->
                     # || returns left if truthy, else right
                     # Since we can't determine truthiness statically, return right type for non-booleans
                     left_type = infer_type left
                     right_type = infer_type right
                     when (left_type, right_type) is
-                        (TBool, TBool) -> TBool
-                        (TNum, other) -> other  # Numbers might be falsy (0, NaN)
-                        (TStr, _) -> TStr  # Non-empty strings are truthy
+                        (TBoolean, TBoolean) -> TBoolean
+                        (TNumber, other) -> other  # Numbers might be falsy (0, NaN)
+                        (TString, _) -> TString  # Non-empty strings are truthy
                         _ -> right_type  # Conservative: assume might be falsy
                 _ -> TUnknown
 
@@ -95,7 +95,7 @@ infer_type = \node ->
             # Some well-known global identifiers
             when name is
                 "undefined" -> TUnknown
-                "NaN" | "Infinity" -> TNum
+                "NaN" | "Infinity" -> TNumber
                 _ -> TUnknown  # Would need symbol table
         ThisExpression _ -> TUnknown  # Would be object type
         ArrayExpression _ -> TUnknown  # Would be array type
@@ -111,7 +111,7 @@ infer_type = \node ->
         MemberExpression { object, property, computed } ->
             # Special case for array.length and string.length
             when property is
-                Identifier { name: "length" } -> TNum
+                Identifier { name: "length" } -> TNumber
                 _ -> TUnknown  # Would need object property types
 
         # Assignment
@@ -126,7 +126,7 @@ infer_type = \node ->
                 Err _ -> TUnknown
 
         # Template literals
-        TemplateLiteral _ -> TStr
+        TemplateLiteral _ -> TString
         TaggedTemplateExpression _ -> TUnknown  # Depends on tag function
 
         Program { body } ->
@@ -179,7 +179,7 @@ infer_type = \node ->
 
         # Other literals
         RegExpLiteral _ -> TUnknown  # Would be RegExp type
-        BigIntLiteral _ -> TNum  # Simplified - would be bigint type
+        BigIntLiteral _ -> TNumber  # Simplified - would be bigint type
 
         # Import/Export
         ExportDefaultDeclaration _ -> TUnknown

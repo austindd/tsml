@@ -26,9 +26,9 @@ RecType : {
 # Extended type system with recursive types
 TypeWithRec : [
     # Primitives
-    TNum,
-    TStr,
-    TBool,
+    TNumber,
+    TString,
+    TBoolean,
     TNull,
     TUndefined,
 
@@ -214,9 +214,9 @@ check_type_equality = \t1, t2, depth ->
         Bool.true
     else
         when (t1, t2) is
-            (TNum, TNum) -> Bool.true
-            (TStr, TStr) -> Bool.true
-            (TBool, TBool) -> Bool.true
+            (TNumber, TNumber) -> Bool.true
+            (TString, TString) -> Bool.true
+            (TBoolean, TBoolean) -> Bool.true
             (TNull, TNull) -> Bool.true
             (TUndefined, TUndefined) -> Bool.true
 
@@ -271,7 +271,7 @@ example_node_class =
         name: "Node",
         self_var: 10,  # Variable for 'this' type
         properties: [
-            { label: "value", type: TNum },
+            { label: "value", type: TNumber },
             { label: "next", type: TUnion([TRecVar(10), TNull]) },  # Self-reference!
         ],
         methods: [
@@ -315,9 +315,9 @@ make_json_type = \{} ->
         var: 30,  # α for JSON
         body: TUnion([
             TNull,
-            TBool,
-            TNum,
-            TStr,
+            TBoolean,
+            TNumber,
+            TString,
             TArray(TRecVar(30)),  # JSON[]
             TRecord([  # Simplified: just one field for demo
                 { label: "_", type: TRecVar(30) },  # {[key: string]: JSON}

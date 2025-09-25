@@ -3,7 +3,7 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import TypedSymbolTable as TST
-import MinimalType
+import SimpleComprehensiveType as Type exposing [Type]
 
 main! = \_ ->
     _ = Stdout.line! "=== Symbol Table Management ==="
@@ -13,12 +13,12 @@ main! = \_ ->
     _ = Stdout.line! "Created empty symbol table with global scope"
 
     # Add global variables
-    table1 = when TST.add_symbol table0 "globalVar" TNum Bool.false is
+    table1 = when TST.add_symbol table0 "globalVar" TNumber Bool.false is
         Ok t -> t
         Err _ -> table0
     _ = Stdout.line! "Added globalVar: number to global scope"
 
-    table2 = when TST.add_symbol table1 "globalConst" TStr Bool.true is
+    table2 = when TST.add_symbol table1 "globalConst" TString Bool.true is
         Ok t -> t
         Err _ -> table1
     _ = Stdout.line! "Added globalConst: string (const) to global scope"
@@ -28,12 +28,12 @@ main! = \_ ->
     _ = Stdout.line! "\nEntered function scope"
 
     # Add function parameters and local variables
-    table4 = when TST.add_symbol table3 "param1" TStr Bool.false is
+    table4 = when TST.add_symbol table3 "param1" TString Bool.false is
         Ok t -> t
         Err _ -> table3
     _ = Stdout.line! "Added param1: string to function scope"
 
-    table5 = when TST.add_symbol table4 "localVar" TBool Bool.false is
+    table5 = when TST.add_symbol table4 "localVar" TBoolean Bool.false is
         Ok t -> t
         Err _ -> table4
     _ = Stdout.line! "Added localVar: boolean to function scope"
@@ -43,7 +43,7 @@ main! = \_ ->
     _ = Stdout.line! "\nEntered block scope"
 
     # Add block-scoped variable
-    table7 = when TST.add_symbol table6 "blockVar" TNum Bool.false is
+    table7 = when TST.add_symbol table6 "blockVar" TNumber Bool.false is
         Ok t -> t
         Err _ -> table6
     _ = Stdout.line! "Added blockVar: number to block scope"
@@ -63,7 +63,7 @@ main! = \_ ->
     List.for_each! test_lookups \(name, description) ->
         when TST.lookup_symbol table7 name is
             Ok symbol ->
-                type_str = MinimalType.type_str symbol.sym_type
+                type_str = Type.type_to_str symbol.sym_type
                 const_str = if symbol.is_const then " (const)" else ""
                 _ = Stdout.line! "  ✓ $(name): $(type_str)$(const_str) - $(description)"
                 {}
@@ -105,7 +105,7 @@ main! = \_ ->
     _ = Stdout.line! "\n=== Type Updates ==="
 
     # Try to update a regular variable
-    table9 = when TST.update_symbol_type table8 "localVar" TNum is
+    table9 = when TST.update_symbol_type table8 "localVar" TNumber is
         Ok t ->
             _ = Stdout.line! "  ✓ Updated localVar from boolean to number"
             t
@@ -114,7 +114,7 @@ main! = \_ ->
             table8
 
     # Try to update a const (should fail)
-    when TST.update_symbol_type table9 "globalConst" TNum is
+    when TST.update_symbol_type table9 "globalConst" TNumber is
         Ok _ ->
             _ = Stdout.line! "  ✗ Incorrectly allowed updating const"
             {}
@@ -128,7 +128,7 @@ main! = \_ ->
     # Test duplicate detection
     _ = Stdout.line! "\n=== Duplicate Detection ==="
 
-    when TST.add_symbol table9 "param1" TNum Bool.false is
+    when TST.add_symbol table9 "param1" TNumber Bool.false is
         Ok _ ->
             _ = Stdout.line! "  ✗ Incorrectly allowed duplicate symbol"
             {}
@@ -141,7 +141,7 @@ main! = \_ ->
 
     # But shadowing in nested scope should work
     table10 = TST.push_scope table9 BlockScope
-    when TST.add_symbol table10 "param1" TNum Bool.false is
+    when TST.add_symbol table10 "param1" TNumber Bool.false is
         Ok _ ->
             _ = Stdout.line! "  ✓ Allowed shadowing in nested scope"
             {}

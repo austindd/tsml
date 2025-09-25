@@ -228,7 +228,10 @@ check_statement_list = |statements, checker|
         Ok (typed_children, final_checker) ->
             Ok((
                 TypedNode({
-                    original: Program { body: statements },
+                    original: Program({
+                        body: statements,
+                        sourceType: Module,
+                    }),
                     inferred_type: Type.mk_unknown,
                     errors: [],
                     children: typed_children,

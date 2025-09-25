@@ -2,11 +2,11 @@
 app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.19.0/Hj-J_zxz7V9YurCSTFcFdu6cQJie4guzsPMUi5kBYUk.tar.br" }
 
 import pf.Stdout
-import MinimalType as MT
 import JSTypeCoercion as JSC
 import TypedSymbolTable as TST
 import JSGlobals
 import ModuleSystem as MS
+import SimpleComprehensiveType as Type exposing [Type]
 
 main! = \_ ->
     _ = Stdout.line! "=== TypeScript/JavaScript Type Checker Demo ==="
@@ -14,20 +14,20 @@ main! = \_ ->
 
     # 1. Basic type system
     _ = Stdout.line! "\n1. Basic Types:"
-    _ = Stdout.line! "  number: $(MT.type_str MT.mk_num)"
-    _ = Stdout.line! "  string: $(MT.type_str MT.mk_str)"
-    _ = Stdout.line! "  boolean: $(MT.type_str MT.mk_bool)"
+    _ = Stdout.line! "  number: $(Type.type_to_str Type.mk_number)"
+    _ = Stdout.line! "  string: $(Type.type_to_str Type.mk_string)"
+    _ = Stdout.line! "  boolean: $(Type.type_to_str Type.mk_boolean)"
 
     # 2. Type coercion
     _ = Stdout.line! "\n2. JavaScript Type Coercion:"
-    str_plus_num = JSC.infer_binary_op MT.mk_str MT.mk_num "+"
-    _ = Stdout.line! "  'hello' + 42 = $(MT.type_str str_plus_num)"
+    str_plus_num = JSC.infer_binary_op Type.mk_string Type.mk_number "+"
+    _ = Stdout.line! "  'hello' + 42 = $(Type.type_to_str str_plus_num)"
 
-    num_plus_num = JSC.infer_binary_op MT.mk_num MT.mk_num "+"
-    _ = Stdout.line! "  5 + 3 = $(MT.type_str num_plus_num)"
+    num_plus_num = JSC.infer_binary_op Type.mk_number Type.mk_number "+"
+    _ = Stdout.line! "  5 + 3 = $(Type.type_to_str num_plus_num)"
 
-    comparison = JSC.infer_binary_op MT.mk_str MT.mk_num ">"
-    _ = Stdout.line! "  'abc' > 123 = $(MT.type_str comparison)"
+    comparison = JSC.infer_binary_op Type.mk_string Type.mk_number ">"
+    _ = Stdout.line! "  'abc' > 123 = $(Type.type_to_str comparison)"
 
     # 3. Symbol table with scopes
     _ = Stdout.line! "\n3. Symbol Table & Scopes:"
@@ -37,7 +37,7 @@ main! = \_ ->
         |> JSGlobals.add_js_globals
 
     # Add a global variable
-    table1 = when TST.add_symbol table "appVersion" MT.mk_str Bool.false is
+    table1 = when TST.add_symbol table "appVersion" Type.mk_string Bool.false is
         Ok t ->
             _ = Stdout.line! "  Added global: appVersion (string)"
             t
@@ -48,14 +48,14 @@ main! = \_ ->
     _ = Stdout.line! "  Entered function scope"
 
     # Add function parameter
-    table3 = when TST.add_symbol table2 "userId" MT.mk_num Bool.false is
+    table3 = when TST.add_symbol table2 "userId" Type.mk_number Bool.false is
         Ok t ->
             _ = Stdout.line! "  Added parameter: userId (number)"
             t
         Err _ -> table2
 
     # Shadow a global
-    table4 = when TST.add_symbol table3 "console" MT.mk_str Bool.false is
+    table4 = when TST.add_symbol table3 "console" Type.mk_string Bool.false is
         Ok t ->
             _ = Stdout.line! "  Shadowed global: console (now string)"
             t
@@ -66,7 +66,7 @@ main! = \_ ->
         when TST.lookup_symbol t name is
             Ok sym ->
                 const_str = if sym.is_const then "const" else "var"
-                _ = Stdout.line! "    $(name): $(MT.type_str sym.sym_type) ($(const_str), level $(Num.to_str sym.scope_level))"
+                _ = Stdout.line! "    $(name): $(Type.type_to_str sym.sym_type) ($(const_str), level $(Num.to_str sym.scope_level))"
                 {}
             Err _ ->
                 _ = Stdout.line! "    $(name): not found"
@@ -98,13 +98,13 @@ main! = \_ ->
         |> MS.register_module "./utils.js"
 
     # Add exports to utils module
-    registry1 = when MS.add_export registry "formatDate" "formatDate" MT.mk_str Bool.false is
+    registry1 = when MS.add_export registry "formatDate" "formatDate" Type.mk_string Bool.false is
         Ok r ->
             _ = Stdout.line! "  Added export: formatDate (string)"
             r
         Err _ -> registry
 
-    registry2 = when MS.add_export registry1 "calculateTax" "calculateTax" MT.mk_num Bool.false is
+    registry2 = when MS.add_export registry1 "calculateTax" "calculateTax" Type.mk_number Bool.false is
         Ok r ->
             _ = Stdout.line! "  Added export: calculateTax (number)"
             r
@@ -132,8 +132,8 @@ main! = \_ ->
 
     # 5. Type equality
     _ = Stdout.line! "\n5. Type Equality Checks:"
-    _ = Stdout.line! "  TNum == TNum: $(bool_str (MT.mk_num == MT.mk_num))"
-    _ = Stdout.line! "  TStr == TNum: $(bool_str (MT.mk_str == MT.mk_num))"
+    _ = Stdout.line! "  TNumber == TNumber: $(bool_str (Type.mk_number == Type.mk_number))"
+    _ = Stdout.line! "  TString == TNumber: $(bool_str (Type.mk_string == Type.mk_number))"
 
     # 6. JavaScript globals sample
     _ = Stdout.line! "\n6. Sample JavaScript Globals:"
