@@ -94,9 +94,9 @@ check_program = |program_node, strict_mode|
     result = check_node_internal(program_node, checker)
 
     when result is
-        Ok((typed_node, final_checker)) ->
+        Ok((TypedNode(typed_node), final_checker)) ->
             if List.is_empty(final_checker.errors) then
-                Ok(typed_node)
+                Ok(TypedNode(typed_node))
             else
                 Err(final_checker.errors)
         Err errors ->
