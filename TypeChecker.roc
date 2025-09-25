@@ -99,7 +99,7 @@ check_program = |program_node, strict_mode|
                 Ok(TypedNode(typed_node))
             else
                 Err(final_checker.errors)
-        Err errors ->
+        Err(errors) ->
             Err(errors)
 
 # Main checking function (internal)
@@ -206,26 +206,26 @@ check_node_internal = |node, checker|
 check_node : Node, TypeChecker -> CheckResult
 check_node = |node, checker|
     when check_node_internal(node, checker) is
-        Ok (typed_node, _) -> Ok(typed_node)
-        Err errors -> Err(errors)
+        Ok((typed_node, _)) -> Ok(typed_node)
+        Err(errors) -> Err(errors)
 
 # Check a list of statements
 check_statement_list : List Node, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_statement_list = |statements, checker|
-    result = List.walk(statements, Ok([], checker), |acc, stmt|
+    result = List.walk(statements, Ok(([], checker)), |acc, stmt|
         when acc is
-            Ok (typed_nodes, current_checker) ->
+            Ok((typed_nodes, current_checker)) ->
                 when check_node_internal(stmt, current_checker) is
-                    Ok (typed_node, next_checker) ->
+                    Ok ((TypedNode(typed_node), next_checker)) ->
                         Ok((List.append(typed_nodes, typed_node), next_checker))
                     Err errors ->
                         Err(errors)
-            Err errors ->
+            Err(errors) ->
                 Err(errors)
     )
 
     when result is
-        Ok (typed_children, final_checker) ->
+        Ok((typed_children, final_checker)) ->
             Ok((
                 TypedNode({
                     original: Program({
@@ -238,7 +238,7 @@ check_statement_list = |statements, checker|
                 }),
                 final_checker,
             ))
-        Err errors ->
+        Err(errors) ->
             Err(errors)
 
 # Check variable declaration
@@ -271,10 +271,10 @@ check_variable_declaration = |declarations, kind, checker|
                                         ))
 
                                 when init_result is
-                                    Ok (TypedNode(init_typed), checker_after_init) ->
+                                    Ok((TypedNode(init_typed), checker_after_init)) ->
                                         # Add to symbol table
                                         new_table = when TST.add_symbol(checker_after_init.symbol_table, name, init_typed.inferred_type, is_const) is
-                                            Ok table -> table
+                                            Ok(table) -> table
                                             Err DuplicateSymbol ->
                                                 # Add error but continue
                                                 checker_after_init.symbol_table
@@ -294,12 +294,12 @@ check_variable_declaration = |declarations, kind, checker|
                                 Ok((typed_decls, current_checker))
                     _ ->
                         Ok((typed_decls, current_checker))
-            Err errors ->
+            Err(errors) ->
                 Err(errors)
     )
 
     when result is
-        Ok (typed_decls, final_checker) ->
+        Ok((typed_decls, final_checker)) ->
             Ok((
                 TypedNode({
                     original: VariableDeclaration { declarations, kind },
@@ -316,7 +316,7 @@ check_variable_declaration = |declarations, kind, checker|
 check_identifier : Str, TypeChecker -> Result (TypedNode, TypeChecker) (List TypeError)
 check_identifier = |name, checker|
     when TST.lookup_symbol(checker.symbol_table, name) is
-        Ok symbol ->
+        Ok(symbol) ->
             Ok((
                 TypedNode({
                     original: Identifier { name },
@@ -326,7 +326,7 @@ check_identifier = |name, checker|
                 }),
                 checker,
             ))
-        Err _ ->
+        Err(_) ->
             error = {
                 kind: UnknownVariable,
                 message: "Variable '$(name)' is not defined",
@@ -351,11 +351,11 @@ check_binary_expression = |left, right, operator, checker|
     left_result = check_node_internal(left, checker)
 
     when left_result is
-        Ok (TypedNode(left_typed), checker_after_left) ->
+        Ok((TypedNode(left_typed), checker_after_left)) ->
             right_result = check_node_internal(right, checker_after_left)
 
             when right_result is
-                Ok (TypedNode(right_typed), checker_after_right) ->
+                Ok((TypedNode(right_typed), checker_after_right)) ->
                     # Determine result type based on operator
                     result_type = infer_binary_op_type(
                         left_typed.inferred_type,
@@ -381,7 +381,7 @@ check_binary_expression = |left, right, operator, checker|
                     ))
                 Err errors ->
                     Err(errors)
-        Err errors ->
+        Err(errors) ->
             Err(errors)
 
 # Helper to infer binary operation result type
@@ -547,7 +547,7 @@ check_block_statement = |body, checker|
     result = check_statement_list(body, checker_with_scope)
 
     when result is
-        Ok (TypedNode(typed_block), checker_after_block) ->
+        Ok((TypedNode(typed_block), checker_after_block)) ->
             # Exit block scope
             final_table = when TST.pop_scope(checker_after_block.symbol_table) is
                 Ok table -> table
@@ -565,5 +565,5 @@ check_block_statement = |body, checker|
             checker_result = { checker_after_block & symbol_table: final_table }
 
             Ok((typed_node_result, checker_result))
-        Err errors ->
+        Err(errors) ->
             Err(errors)
