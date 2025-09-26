@@ -459,6 +459,33 @@ parse_expression_led = |left_node, min_precedence, token_list|
         [OpenBracketToken, .. as rest1] ->
             parse_member_access_bracket(left_node, rest1)
 
+        # TypeScript type assertion: expression as Type
+        [AsKeyword, .. as rest1] ->
+            # Handle 'as const' assertion
+            when rest1 is
+                [ConstKeyword, .. as rest2] ->
+                    # Create a TSAsExpression node with const assertion
+                    as_expr = TSAsExpression({
+                        expression: left_node,
+                        typeAnnotation: TSTypeReference({
+                            typeName: Identifier({ name: "const" }),
+                            typeArguments: None
+                        })
+                    })
+                    parse_expression_led(as_expr, min_precedence, rest2)
+
+                # Handle other type assertions (simplified - just skip the type)
+                _ ->
+                    # For now, we'll just parse the next token as a type and ignore it
+                    # In a full implementation, we'd parse the full type annotation
+                    (_, rest2) = parse_primary_expression(rest1)
+                    # Create a TSAsExpression node
+                    as_expr = TSAsExpression({
+                        expression: left_node,
+                        typeAnnotation: TSAnyKeyword({})  # Placeholder
+                    })
+                    parse_expression_led(as_expr, min_precedence, rest2)
+
         # Right associative
         # Exponentiation
         [AsteriskAsteriskToken as tok, .. as rest1] ->
@@ -3153,7 +3180,7 @@ parse_interface_extends : List Token -> (List Node, List Token)
 parse_interface_extends = |token_list|
     when token_list is
         [IdentifierToken(type_name), .. as rest1] ->
-            type_ref = TSTypeReference({ typeName: Identifier({ name: type_name }), typeParameters: None })
+            type_ref = TSTypeReference({ typeName: Identifier({ name: type_name }), typeArguments: None })
 
             # Check for more extends (comma-separated)
             when rest1 is
@@ -3556,7 +3583,7 @@ parse_primary_type = |token_list|
             type_ref = TSTypeReference(
                 {
                     typeName: Identifier({ name: type_name }),
-                    typeParameters: type_params,
+                    typeArguments: type_params,
                 },
             )
             (type_ref, rest1)
@@ -3590,7 +3617,7 @@ parse_keyof_type = |token_list|
     keyof_ref = TSTypeReference(
         {
             typeName: Identifier({ name: "keyof" }),
-            typeParameters: Some([inner_type]),
+            typeArguments: Some([inner_type]),
         },
     )
     (keyof_ref, rest)
@@ -3979,7 +4006,7 @@ parse_simple_type_annotation = |token_list|
             type_ref = TSTypeReference(
                 {
                     typeName: Identifier({ name: type_name }),
-                    typeParameters: None,
+                    typeArguments: None,
                 },
             )
             (type_ref, rest)

@@ -262,6 +262,27 @@ generate_constraints_helper = |node, env, next_var|
                     all_constraints = List.concat test_cs cons_cs
                     (Type.mk_literal UndefinedLit, all_constraints, var_after_cons)
 
+        # TypeScript type assertions
+        TSAsExpression { expression, typeAnnotation } ->
+            # Check if this is "as const" assertion
+            is_const_assertion = when typeAnnotation is
+                TSTypeReference { typeName } ->
+                    when typeName is
+                        Identifier { name } -> name == "const"
+                        _ -> Bool.false
+                _ -> Bool.false
+
+            (expr_type, expr_cs, var_after_expr) = generate_constraints_helper expression env next_var
+
+            # If it's "as const", preserve the literal type (don't widen)
+            # Otherwise, for now just return the expression type
+            if is_const_assertion then
+                (expr_type, expr_cs, var_after_expr)
+            else
+                # For other type assertions, we'd need to generate appropriate constraints
+                # For now, just return the expression type
+                (expr_type, expr_cs, var_after_expr)
+
         # TypeScript type annotations
         TSNumberKeyword _ -> (Type.mk_primitive "number", [], next_var)
         TSStringKeyword _ -> (Type.mk_primitive "string", [], next_var)

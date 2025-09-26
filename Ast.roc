@@ -382,7 +382,7 @@ Node : [
             }),
     TSTypeReference (WithBaseNodeData {
                 typeName : Node,
-                typeParameters : Option (List Node),
+                typeArguments : Option (List Node),
             }),
     TSStringKeyword (WithBaseNodeData {}),
     TSNumberKeyword (WithBaseNodeData {}),
@@ -392,6 +392,10 @@ Node : [
     TSUnknownKeyword (WithBaseNodeData {}),
     TSNullKeyword (WithBaseNodeData {}),
     TSUndefinedKeyword (WithBaseNodeData {}),
+    TSAsExpression (WithBaseNodeData {
+                expression : Node,
+                typeAnnotation : Node,
+            }),
     TSFunctionType (WithBaseNodeData {
                 parameters : List Node,
                 returnType : Node,
@@ -1603,7 +1607,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
         TSTypeReference(data) ->
             type_name_str = node_to_str_or_truncate_inline(data.typeName, indent_level + 1, max_depth)
             type_params_str =
-                when data.typeParameters is
+                when data.typeArguments is
                     Some(params) ->
                         node_list_to_str_or_truncate(params, indent_level, max_depth)
 
@@ -1616,7 +1620,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(type_name_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
-            |> Str.concat("  typeParameters: ")
+            |> Str.concat("  typeArguments: ")
             |> Str.concat(type_params_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
@@ -1645,6 +1649,19 @@ node_to_str_with_config = |node, indent_level, max_depth|
 
         TSUndefinedKeyword(_) ->
             Str.concat(indent, "TSUndefinedKeyword")
+
+        TSAsExpression(data) ->
+            Str.concat(indent, "TSAsExpression {\n")
+            |> Str.concat(indent)
+            |> Str.concat("  expression: ")
+            |> Str.concat(node_to_str_inline(data.expression, indent_level + 1))
+            |> Str.concat(",\n")
+            |> Str.concat(indent)
+            |> Str.concat("  typeAnnotation: ")
+            |> Str.concat(node_to_str_inline(data.typeAnnotation, indent_level + 1))
+            |> Str.concat("\n")
+            |> Str.concat(indent)
+            |> Str.concat("}")
 
         TSFunctionType(data) ->
             params_str = node_list_to_str_or_truncate(data.parameters, indent_level + 1, max_depth)
