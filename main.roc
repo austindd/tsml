@@ -3,7 +3,6 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 import pf.Stdout
 import pf.Stdin
 # import Token
-# import Scratch
 # import TokenTest
 # import Ast
 # import Parser
@@ -47,7 +46,6 @@ import RowPolymorphicType
 
 import RowSystem
 import ScopedTypeInfer
-import Scratch
 import SimpleAstTypeChecker
 import SimpleComprehensiveType
 import SimpleConstraint
