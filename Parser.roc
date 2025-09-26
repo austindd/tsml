@@ -124,6 +124,13 @@ parse_primary_expression = |token_list|
         [FalseKeyword, .. as rest] ->
             (BooleanLiteral({ value: Bool.false }), rest)
 
+        # Null and undefined literals
+        [NullKeyword, .. as rest] ->
+            (NullLiteral({}), rest)
+
+        [UndefinedKeyword, .. as rest] ->
+            (Identifier({ name: "undefined" }), rest)  # undefined is treated as an identifier in JS/TS
+
         # Template literals
         [NoSubstitutionTemplateLiteralToken(content), .. as rest] ->
             parse_template_literal(token_list)
