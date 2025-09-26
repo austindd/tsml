@@ -17,7 +17,8 @@ import ControlFlowNarrowing
 import TypeScriptModuleSystem
 import UtilityTypes
 import GradualTypes
-import TypeChecker exposing [TypeChecker]
+import TypeChecker exposing [TypeChecker, TypeError, TypeWarning, InferredType]
+import SimpleComprehensiveType as Type exposing [Type]
 
 # CLI Commands
 Command : [
@@ -37,51 +38,42 @@ CheckResult : {
     inferred_types: List InferredType,
 }
 
-TypeError : {
-    location: SourceLocation,
-    message: Str,
-    expected: Str,
-    actual: Str,
-}
-
-TypeWarning : {
-    location: SourceLocation,
-    message: Str,
-}
-
-InferredType : {
-    name: Str,
-    type: Str,
-    location: SourceLocation,
-}
-
 SourceLocation : {
     line: U32,
     column: U32,
     file: Str,
 }
 
+main! : List Arg.Arg -> Result {} [Exit I32 Str]
 main! = |args|
-    command = parse_args args
+    args_str_list = List.map(args, Arg.display)
+    command = parse_args(args_str_list)
 
     when command is
         Check(config) ->
             check_file(config.file, config.strict)
+            |> Result.map_err(|err| Exit(1i32, "Failed to check file"))
 
         Infer(config) ->
             infer_types(config.file)
+            |> Result.map_err(|err| Exit(1i32, "Failed to infer types"))
+                    
 
         Interactive ->
-            run_interactive {}
+            run_interactive({})
+            |> Result.map_err(|err| Exit(1i32, "Failed to run interactive mode"))
 
         Test ->
-            run_tests {}
+            run_tests({})
+            |> Result.map_err(|err| Exit(1i32, "Failed to run tests"))
 
         Help ->
-            show_help {}
+            show_help({})
+            |> Result.map_err(|err| Exit(1i32, "Failed to show help"))
 
         Version ->
-            show_version {}
+            show_version({})
+            |> Result.map_err(|err| Exit(1i32, "Failed to show version"))
 
 # Parse command line arguments
 parse_args : List Str -> Command
@@ -145,38 +137,10 @@ type_check_source = |source, file_name, strict|
                 Err(_) -> Bool.false
         )
         |> List.keep_oks(|a| a)
-  # List.keep_oks(tokens, |tok_result|
-  #       when tok_result is
-  #           Ok(tok) ->
-  #               when tok is
-  #                   WhitespaceTrivia(_) | NewLineTrivia(_) -> Err({})
-  #                   BlockCommentStart | BlockCommentEnd -> Err({})
-  #                   _ -> tok_result
-  #           Err(_) -> Err({})
-  #   )
 
-    ## Parse to AST
-    # when Parser.parse_program clean_tokens is
-    #     Ok ast ->
-    #         # Type check the AST
-    #         perform_type_checking ast file_name strict
-    #
-    #     Err parse_error ->
-    #         {
-    #             file: file_name,
-    #             errors: [{
-    #                 location: { line: 1, column: 1, file: file_name },
-    #                 message: "Parse error: $(parse_error)",
-    #                 expected: "valid TypeScript/JavaScript",
-    #                 actual: "parse error",
-    #             }],
-    #             warnings: [],
-    #             inferred_types: [],
-    #         }
-
-    ast = Parser.parse_program clean_tokens
+    ast = Parser.parse_program(clean_tokens)
     # Type check the AST
-    perform_type_checking ast file_name strict
+    perform_type_checking(ast, file_name, strict)
 
 
 # Perform actual type checking
@@ -188,17 +152,27 @@ perform_type_checking = |program, file_name, strict_mode|
             context = TypeChecker.create_checker(strict_mode)
 
             # Check each statement in the program
+            final_context : TypeChecker
             final_context = List.walk(body, context, |ctx, stmt|
                 check_statement(ctx, stmt)
             )
+            inferred_types = List.map(final_context.inferred, |typ|
+                {
+                    name: Type.type_to_string(typ),
+                    type: typ,
+                    location: Err(NoLocation),
+                }
+            )
 
             # Build result
-            {
+            result : CheckResult
+            result = {
                 file: file_name,
                 errors: final_context.errors,
                 warnings: final_context.warnings,
-                inferred_types: final_context.inferred,
+                inferred_types,
             }
+            result
         _ ->
             crash("Invalid AST node. Expected a Program node.")
 
@@ -271,12 +245,33 @@ display_check_result = |result|
         _ = Stdout.line! "✅ No type errors found"
         {}
     else
+
         _ = Stdout.line! "❌ $(Num.to_str (List.len result.errors)) type error(s):"
-        _ = List.for_each!(result.errors, |error|
-            _ = Stdout.line! "  ${error.location.file}:${Num.to_str error.location.line}:${Num.to_str error.location.column}"
-            _ = Stdout.line! "    Error: ${error.message}"
-            _ = Stdout.line! "    Expected: ${error.expected}"
-            _ = Stdout.line! "    Actual: ${error.actual}"
+        _ = List.for_each!(result.errors, |error_|
+            error : TypeError
+            error = error_
+
+            message_str = error.message
+            actual_str = when error.actual is
+                Ok(actual) -> Inspect.to_str(actual)
+                Err(err) -> Inspect.to_str(err)
+            expected_str = when error.expected is
+                Ok(expected) -> Inspect.to_str(expected)
+                Err(err) -> Inspect.to_str(err)
+            file_str = when error.location is
+                Ok({source}) -> source
+                Err(err) -> Inspect.to_str(err)
+            line_str = when error.location is
+                Ok({start}) -> Inspect.to_str(start.line)
+                Err(err) -> Inspect.to_str(err)
+            column_str = when error.location is
+                Ok({start}) -> Inspect.to_str(start.column)
+                Err(err) -> Inspect.to_str(err)
+
+            _ = Stdout.line! "  ${file_str}:${line_str}:${column_str}"
+            _ = Stdout.line! "    Error: ${message_str}"
+            _ = Stdout.line! "    Expected: ${expected_str}"
+            _ = Stdout.line! "    Actual: ${actual_str}"
             {}
         )
         {}
@@ -284,9 +279,23 @@ display_check_result = |result|
     # Display warnings
     _ = if Bool.not (List.is_empty result.warnings) then
         _ = Stdout.line! "\n⚠️  ${Num.to_str (List.len result.warnings)} warning(s):"
-        _ = List.for_each! result.warnings |warning|
-            _ = Stdout.line! "  ${warning.location.file}:${Num.to_str warning.location.line}:${Num.to_str warning.location.column}"
-            _ = Stdout.line! "    Warning: ${warning.message}"
+        _ = List.for_each! result.warnings |warning_|
+            warning : TypeWarning
+            warning = warning_
+
+            message_str = warning.message
+            file_str = when warning.location is
+                Ok({source}) -> source
+                Err(err) -> Inspect.to_str(err)
+            line_str = when warning.location is
+                Ok({start}) -> Num.to_str(start.line)
+                Err(err) -> Inspect.to_str(err)
+            column_str = when warning.location is
+                Ok({start}) -> Num.to_str(start.column)
+                Err(err) -> Inspect.to_str(err)
+
+            _ = Stdout.line! "  ${file_str}:${line_str}:${column_str}"
+            _ = Stdout.line! "    Warning: ${message_str}"
             {}
         {}
     else
@@ -296,7 +305,9 @@ display_check_result = |result|
     if Bool.not (List.is_empty result.inferred_types) then
         _ = Stdout.line! "\nInferred types:"
         _ = List.for_each! result.inferred_types |inferred|
-            _ = Stdout.line! "  ${inferred.name}: ${inferred.type}"
+            name_str = inferred.name
+            type_str = Type.type_to_string(inferred.type)
+            _ = Stdout.line! "  ${name_str}: ${type_str}"
             {}
         Ok({})
     else
@@ -313,7 +324,9 @@ infer_types = |file_path|
             _ = Stdout.line! (Str.repeat "-" 50)
             inferred = infer_types_from_source content file_path
             _ = List.for_each!(inferred, |inf|
-                _ = Stdout.line! "${inf.name}: ${inf.type}"
+                name_str = inf.name
+                type_str = Type.type_to_string(inf.type)
+                _ = Stdout.line! "${name_str}: ${type_str}"
                 {}
             )
             Ok({})

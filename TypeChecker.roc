@@ -1,6 +1,8 @@
 module [
     TypeChecker,
     TypeError,
+    TypeWarning,
+    InferredType,
     ErrorKind,
     TypedNode,
     CheckResult,
@@ -21,7 +23,7 @@ import Option exposing [Option]
 TypeChecker : {
     inferred : List Type,
     errors : List TypeError,
-    warnings : List TypeError,
+    warnings : List TypeWarning,
     symbol_table : TST.SymbolTable,
     current_return_type : Result Type [NoReturn],
     in_loop : Bool,
@@ -38,6 +40,17 @@ TypeError : {
     expected : Result Type [NoExpected],
     actual : Result Type [NoActual],
     suggestion : Result Str [NoSuggestion],
+}
+
+TypeWarning : {
+    location : Result SourceLocation [NoLocation],
+    message : Str,
+}
+
+InferredType : {
+    name : Str,
+    type : Type,
+    location : Result SourceLocation [NoLocation],
 }
 
 # Error kinds
@@ -62,7 +75,7 @@ ErrorKind : [
 TypedNode : [
     TypedNode {
         original : Node,
-        inferred_type : Type,
+        inferred_type : InferredType,
         errors : List TypeError,
         children : List TypedNode,
     }
@@ -74,8 +87,8 @@ CheckResult : Result TypedNode (List TypeError)
 # Create a new type checker
 create_checker : Bool -> TypeChecker
 create_checker = |strict_mode|
-    {
-        module_type: ESModule,
+    checker : TypeChecker
+    checker = {
         strict_mode,
         gradual_typing: !strict_mode,  # Allow any/unknown in non-strict mode
         inferred: [],
@@ -86,6 +99,7 @@ create_checker = |strict_mode|
         in_loop: Bool.false,
         in_function: Bool.false,
     }
+    checker
 
 # Check a complete program
 check_program : Node, Bool -> Result TypedNode (List TypeError)
@@ -137,7 +151,11 @@ check_node_internal = |node, checker|
             Ok((
                 TypedNode({
                     original: node,
-                    inferred_type: Type.mk_number,
+                    inferred_type: {
+                        name: "number",
+                        type: Type.mk_number,
+                        location: Err(NoLocation),
+                    },
                     errors: [],
                     children: [],
                 }),
@@ -148,7 +166,11 @@ check_node_internal = |node, checker|
             Ok((
                 TypedNode({
                     original: node,
-                    inferred_type: Type.mk_string,
+                    inferred_type: {
+                        name: "string",
+                        type: Type.mk_string,
+                        location: Err(NoLocation),
+                    },
                     errors: [],
                     children: [],
                 }),
@@ -159,7 +181,11 @@ check_node_internal = |node, checker|
             Ok((
                 TypedNode({
                     original: node,
-                    inferred_type: Type.mk_boolean,
+                    inferred_type: {
+                        name: "boolean",
+                        type: Type.mk_boolean,
+                        location: Err(NoLocation),
+                    },
                     errors: [],
                     children: [],
                 }),
@@ -170,7 +196,11 @@ check_node_internal = |node, checker|
             Ok((
                 TypedNode({
                     original: node,
-                    inferred_type: Type.mk_null,
+                    inferred_type: {
+                        name: "null",
+                        type: Type.mk_null,
+                        location: Err(NoLocation),
+                    },
                     errors: [],
                     children: [],
                 }),
@@ -195,7 +225,11 @@ check_node_internal = |node, checker|
             Ok((
                 TypedNode({
                     original: node,
-                    inferred_type: Type.mk_unknown,
+                    inferred_type: {
+                        name: "unknown",
+                        type: Type.mk_unknown,
+                        location: Err(NoLocation),
+                    },
                     errors: [],
                     children: [],
                 }),
@@ -241,7 +275,11 @@ check_statement_list = |statements, checker|
             typed_node : TypedNode
             typed_node = TypedNode({
                 original,
-                inferred_type: Type.mk_unknown,
+                inferred_type: {
+                    name: "unknown",
+                    type: Type.mk_unknown,
+                    location: Err(NoLocation),
+                },
                 errors: [],
                 children,
             })
@@ -260,11 +298,12 @@ check_variable_declaration = |declarations, kind, checker|
         Const -> Bool.true
         _ -> Bool.false
 
+    result : Result (List TypedNode, TypeChecker) (List TypeError)
     result = List.walk(declarations, Ok(([], checker)), |acc, decl|
         when acc is
             Ok((typed_decls, current_checker)) ->
                 when decl is
-                    VariableDeclarator { id, init } ->
+                    VariableDeclarator({ id, init }) ->
                         when id is
                             Identifier { name } ->
                                 # Check initializer
@@ -275,7 +314,11 @@ check_variable_declaration = |declarations, kind, checker|
                                         Ok((
                                             TypedNode({
                                                 original: UndefinedLiteral {},
-                                                inferred_type: Type.mk_undefined,
+                                                inferred_type: {
+                                                  name: "undefined",
+                                                  type: Type.mk_undefined,
+                                                  location: Err(NoLocation),
+                                                },
                                                 errors: [],
                                                 children: [],
                                             }),
@@ -285,15 +328,25 @@ check_variable_declaration = |declarations, kind, checker|
                                 when init_result is
                                     Ok((TypedNode(init_typed), checker_after_init)) ->
                                         # Add to symbol table
-                                        new_table = when TST.add_symbol(checker_after_init.symbol_table, name, init_typed.inferred_type, is_const) is
+                                        new_table = when TST.add_symbol(
+                                            checker_after_init.symbol_table,
+                                            name,
+                                            init_typed.inferred_type.type,
+                                            is_const
+                                        ) is
                                             Ok(table) -> table
                                             Err DuplicateSymbol ->
                                                 # Add error but continue
                                                 checker_after_init.symbol_table
 
+                                        original : Node
+                                        original = decl
+
                                         new_checker = { checker_after_init & symbol_table: new_table }
+
+                                        typed_decl : TypedNode
                                         typed_decl = TypedNode({
-                                            original: decl,
+                                            original,
                                             inferred_type: init_typed.inferred_type,
                                             errors: [],
                                             children: [TypedNode(init_typed)],
@@ -312,13 +365,21 @@ check_variable_declaration = |declarations, kind, checker|
 
     when result is
         Ok((typed_decls, final_checker)) ->
+            
+            typed_node : TypedNode
+            typed_node = TypedNode({
+                original: VariableDeclaration { declarations, kind },
+                inferred_type: {
+                    name: "unknown",
+                    type: Type.mk_unknown,
+                    location: Err(NoLocation),
+                },
+                errors: [],
+                children: typed_decls,
+            })
+
             Ok((
-                TypedNode({
-                    original: VariableDeclaration { declarations, kind },
-                    inferred_type: Type.mk_unknown,
-                    errors: [],
-                    children: typed_decls,
-                }),
+                typed_node,
                 final_checker,
             ))
         Err errors ->
@@ -332,7 +393,11 @@ check_identifier = |name, checker|
             Ok((
                 TypedNode({
                     original: Identifier { name },
-                    inferred_type: symbol.sym_type,
+                    inferred_type: {
+                        name: symbol.name,
+                        type: symbol.sym_type,
+                        location: Err(NoLocation),
+                    },
                     errors: [],
                     children: [],
                 }),
@@ -350,7 +415,11 @@ check_identifier = |name, checker|
             Ok((
                 TypedNode({
                     original: Identifier { name },
-                    inferred_type: Type.mk_unknown,
+                    inferred_type: {
+                        name: "unknown",
+                        type: Type.mk_unknown,
+                        location: Err(NoLocation),
+                    },
                     errors: [error],
                     children: [],
                 }),
@@ -370,22 +439,26 @@ check_binary_expression = |left, right, operator, checker|
                 Ok((TypedNode(right_typed), checker_after_right)) ->
                     # Determine result type based on operator
                     result_type = infer_binary_op_type(
-                        left_typed.inferred_type,
-                        right_typed.inferred_type,
+                        left_typed.inferred_type.type,
+                        right_typed.inferred_type.type,
                         operator
                     )
 
                     # Check if types are compatible for this operator
                     compatibility_errors = check_binary_compatibility(
-                        left_typed.inferred_type,
-                        right_typed.inferred_type,
+                        left_typed.inferred_type.type,
+                        right_typed.inferred_type.type,
                         operator
                     )
 
                     Ok((
                         TypedNode({
                             original: BinaryExpression { left, right, operator },
-                            inferred_type: result_type,
+                            inferred_type: {
+                                name: Type.type_to_string(result_type),
+                                type: result_type,
+                                location: Err(NoLocation),
+                            },
                             errors: compatibility_errors,
                             children: [TypedNode(left_typed), TypedNode(right_typed)],
                         }),
@@ -438,11 +511,6 @@ infer_binary_op_type = |left_type, right_type, operator|
         # Equality operators
         EqualEqual | EqualEqualEqual | BangEqual | BangEqualEqual  ->
             Type.mk_boolean
-
-        # Logical operators
-        LogicalAnd | LogicalOr ->
-            # These return the actual value, not boolean
-            Type.mk_union([left_type, right_type])
 
         # Bitwise operators
         Ampersand | Pipe | Caret | LeftShift | RightShift | UnsignedRightShift ->
@@ -505,7 +573,11 @@ check_function_declaration = |id, params, body, checker|
                 async: Bool.false,
                 typeParameters: None,
             }),
-            inferred_type: Type.mk_unknown,
+            inferred_type: {
+                name: "unknown",
+                type: Type.mk_unknown,
+                location: Err(NoLocation),
+            },
             errors: [],
             children: [],
         }),
@@ -518,7 +590,11 @@ check_unary_expression = |argument, operator, prefix, checker|
     Ok((
         TypedNode({
             original: UnaryExpression { argument, operator, prefix },
-            inferred_type: Type.mk_unknown,
+            inferred_type: {
+                name: "unknown",
+                type: Type.mk_unknown,
+                location: Err(NoLocation),
+            },
             errors: [],
             children: [],
         }),
@@ -531,7 +607,11 @@ check_call_expression = |callee, arguments, checker|
     Ok((
         TypedNode({
             original: CallExpression { callee, arguments },
-            inferred_type: Type.mk_unknown,
+            inferred_type: {
+                name: "unknown",
+                type: Type.mk_unknown,
+                location: Err(NoLocation),
+            },
             errors: [],
             children: [],
         }),
@@ -544,7 +624,11 @@ check_member_expression = |object, property, computed, checker|
     Ok((
         TypedNode({
             original: MemberExpression { object, property, computed },
-            inferred_type: Type.mk_unknown,
+            inferred_type: {
+                name: "unknown",
+                type: Type.mk_unknown,
+                location: Err(NoLocation),
+            },
             errors: [],
             children: [],
         }),
@@ -557,7 +641,11 @@ check_if_statement = |test, consequent, alternate, checker|
     Ok((
         TypedNode({
             original: IfStatement { test, consequent, alternate },
-            inferred_type: Type.mk_unknown,
+            inferred_type: {
+                name: "unknown",
+                type: Type.mk_unknown,
+                location: Err(NoLocation),
+            },
             errors: [],
             children: [],
         }),
@@ -570,7 +658,11 @@ check_return_statement = |argument, checker|
     Ok((
         TypedNode({
             original: ReturnStatement { argument },
-            inferred_type: Type.mk_unknown,
+            inferred_type: {
+                name: "unknown",
+                type: Type.mk_unknown,
+                location: Err(NoLocation),
+            },
             errors: [],
             children: [],
         }),
@@ -596,7 +688,11 @@ check_block_statement = |body, checker|
             typed_node_result : TypedNode
             typed_node_result = TypedNode({
                 original: BlockStatement { body },
-                inferred_type: Type.mk_unknown,
+                inferred_type: {
+                    name: "unknown",
+                    type: Type.mk_unknown,
+                    location: Err(NoLocation),
+                },
                 errors: [],
                 children: [TypedNode(typed_block)],
             })
