@@ -51,7 +51,14 @@ TypeWithRec : [
     TUnion (List TypeWithRec),
 
     # Recursive type (μ-type)
-    TMu RecType,
+    TMu {
+
+        # The bound variable (α in μα.T)
+        var: RecVar,
+        # The body where var can appear
+        body: TypeWithRec,
+    },
+        # RecType,
 
     # Class type (nominal with recursive self)
     TClass {

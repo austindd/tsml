@@ -104,7 +104,7 @@ check_node_impl = |node|
 check_var_declaration : List Ast.Node, Ast.VariableDeclarationKind -> TypeResult
 check_var_declaration = |declarations, kind|
     is_const = when kind is
-        Ast.Const -> Bool.true
+        Const -> Bool.true
         _ -> Bool.false
 
     # Process each declarator
