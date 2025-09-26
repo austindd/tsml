@@ -242,6 +242,17 @@ generate_constraints_helper = |node, env, next_var|
         _ ->
             (Type.mk_type_var next_var, [], next_var + 1)
 
+widen_type : Type -> Type
+widen_type = \type ->
+    # Widen literal types to their base types (TypeScript's default behavior)
+    when type is
+        Literal (NumLit _) -> Type.mk_primitive "number"
+        Literal (StrLit _) -> Type.mk_primitive "string"
+        Literal (BoolLit _) -> Type.mk_primitive "boolean"
+        Literal NullLit -> type  # null stays as null
+        Literal UndefinedLit -> type  # undefined stays as undefined
+        _ -> type  # Other types remain unchanged
+
 extract_property_key : Node -> Str
 extract_property_key = |node|
     when node is
@@ -368,19 +379,23 @@ process_statements_with_env = |stmts, env, next_var|
                                     when init is
                                         Some init_expr ->
                                             (init_type, init_cs, new_var) = generate_constraints_helper init_expr env_acc var_after_annotation
-                                            # Add variable to environment with annotated type (or type var if no annotation)
-                                            new_scheme = { forall: Set.empty {}, body: var_type }
-                                            new_env = extend_env env_acc var_name new_scheme
-                                            # Create constraint: init_type must be assignable to var_type
-                                            # If there's a type annotation, the variable gets that type
-                                            # Otherwise, it gets the type of the initializer
-                                            type_constraint = when typeAnnotation is
+
+                                            # Determine the variable's type based on annotation and widening rules
+                                            actual_var_type = when typeAnnotation is
                                                 Some _ ->
-                                                    # With annotation: init must be assignable to annotation
-                                                    Subtype init_type var_type
+                                                    # Use the annotated type
+                                                    var_type
                                                 None ->
-                                                    # Without annotation: variable type equals init type
-                                                    Equal var_type init_type
+                                                    # No annotation: widen literal types to their base types
+                                                    # This is TypeScript's default behavior for const declarations
+                                                    widen_type init_type
+
+                                            # Add variable to environment with the determined type
+                                            new_scheme = { forall: Set.empty {}, body: actual_var_type }
+                                            new_env = extend_env env_acc var_name new_scheme
+
+                                            # Create constraint between init and variable type
+                                            type_constraint = Subtype init_type actual_var_type
                                             all_cs = List.concat cs_acc annotation_cs |> List.concat init_cs |> List.append type_constraint
                                             (Type.mk_literal UndefinedLit, all_cs, new_var, new_env)
                                         None ->
