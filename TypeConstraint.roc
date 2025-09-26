@@ -96,7 +96,9 @@ generate_constraints_helper = |node, env, next_var|
                                 Some(v) -> generate_constraints_helper(v, env, var)
                                 None -> (Type.mk_literal(UndefinedLit), [], var)
 
-                            field = { key: key_name, value: val_type, optional: Bool.false }
+                            # Widen literal types for object properties
+                            widened_val_type = widen_type val_type
+                            field = { key: key_name, value: widened_val_type, optional: Bool.false }
                             (
                                 List.append flds field,
                                 List.concat cs val_cs,
