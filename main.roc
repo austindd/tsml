@@ -89,7 +89,7 @@ import RecursiveTypes
 
 ## This import causes issues. RowPolymorphism.roc has a mutually recursive type, which causes the compiler to crash. We need to implement it in a different way.
 import RowPolymorphism
-# import ComprehensiveType
+import ComprehensiveTypeIndexed
 # import FullType
 # import MLstructTypeSystem
 
