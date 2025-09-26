@@ -1,4 +1,10 @@
 module [
+    Constraint,
+    Kind,
+    get_type_from_scope,
+    get_type_from_ctx,
+    push_empty_scope_to_ctx,
+    pop_scope_from_ctx,
 ]
 
 import Stack exposing [Stack]
