@@ -7,7 +7,7 @@ module [
     clear_cache,
 ]
 
-import MinimalType exposing [TType]
+import SimpleComprehensiveType as Type exposing [Type]
 import Ast exposing [Node]
 
 # Cache for type inference results
@@ -20,7 +20,7 @@ TypeCache : {
 
 CacheEntry : {
     node_hash : U64,  # Hash of the AST node
-    inferred_type : TType,
+    inferred_type : Type,
     access_count : U64,
 }
 
@@ -35,7 +35,7 @@ empty_cache = \max_size ->
     }
 
 # Look up a type in the cache
-cache_lookup : TypeCache, Node -> Result (TType, TypeCache) [NotCached]
+cache_lookup : TypeCache, Node -> Result (Type, TypeCache) [NotCached]
 cache_lookup = \cache, node ->
     hash = hash_node node
 
@@ -58,7 +58,7 @@ cache_lookup = \cache, node ->
             Err NotCached
 
 # Insert a type into the cache
-cache_insert : TypeCache, Node, TType -> TypeCache
+cache_insert : TypeCache, Node, Type -> TypeCache
 cache_insert = \cache, node, inferred_type ->
     hash = hash_node node
 

@@ -85,11 +85,17 @@ generate_constraints_helper = |node, env, next_var|
 
         ObjectExpression { properties } ->
             (fields, all_constraints, final_var) =
-                List.walk properties ([], [], next_var) |(flds, cs, var), prop|
+                List.walk(properties, ([], [], next_var), |(flds, cs, var), prop|
                     when prop is
-                        Property { key, value } ->
+                        Property { key, kind, value } ->
                             key_name = extract_property_key key
-                            (val_type, val_cs, new_var) = generate_constraints_helper value env var
+                            
+                            # (val_type, val_cs, new_var) = generate_constraints_helper(value, env, var)
+
+                            (val_type, val_cs, new_var) = when value is
+                                Some(v) -> generate_constraints_helper(v, env, var)
+                                None -> (Type.mk_literal(UndefinedLit), [], var)
+
                             field = { key: key_name, value: val_type, optional: Bool.false }
                             (
                                 List.append flds field,
@@ -98,6 +104,7 @@ generate_constraints_helper = |node, env, next_var|
                             )
 
                         _ -> (flds, cs, var)
+                )
 
             (Type.mk_record(fields), all_constraints, final_var)
 

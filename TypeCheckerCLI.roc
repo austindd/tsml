@@ -57,7 +57,6 @@ main! = |args|
         Infer(config) ->
             infer_types(config.file)
             |> Result.map_err(|err| Exit(1i32, "Failed to infer types"))
-                    
 
         Interactive ->
             run_interactive({})
