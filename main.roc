@@ -2,14 +2,97 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import pf.Stdin
-import Token
-import Scratch
-import TokenTest
+# import Token
+# import Scratch
+# import TokenTest
+# import Ast
+# import Parser
+# import TypeInfer
+# import Type
+# import TypeReport
+
 import Ast
+import AsyncTypes
+import BasicTypeInfer
+import BidirectionalTypeChecker
+import CompleteTypeChecker
+import ComprehensiveType
+import ConstraintBasedInference
+import ControlFlowAnalysis
+import ControlFlowNarrowing
+import EndToEndTypeChecker
+import FinalTypeChecker
+import FlowSensitive
+import FocusedRowChecker
+import FullType
+import GenericsTypes
+import GradualTypes
+import IntegratedRowTypeChecker
+import IntegratedTypeChecker
+import IntegratedTypeSystem
+import JavaScriptFeatures
+import JSGlobals
+import JSTypeCoercion
+import LetPolymorphicConstraintSolver
+import ListMap
+import ListUtils
+import MLstructTypeSystem
+import ModuleSystem
+import NonRecursiveRowChecker
+import NumUtils
+import OptimizedSymbolTable
+import OptimizedTypes
+import Option
 import Parser
-import TypeInfer
+import ResultUtils
+import RowPoly
+import RowPolymorphicType
+
+import RowSystem
+import ScopedTypeInfer
+import Scratch
+import SimpleAstTypeChecker
+import SimpleComprehensiveType
+import SimpleConstraint
+import SimpleIntegrated
+import SimpleRecursiveTypes
+import SimpleRowChecker
+import SimpleRowPoly
+import SimpleTypeChecker
+import SimpleUnify
+import SourceLocation
+import Stack
+import StackMap
+import StrUtils
+import SymTbl
+import SymTblStack
+import TestRowSystem
+import Token
+import TokenTest
 import Type
+import TypeAlgebra
+import TypeCache
+import TypeChecker
+import TypeConstraint
+import TypeCore
+import TypedModuleAnalyzer
+import TypedSymbolTable
+import TypeInfer
 import TypeReport
+import TypeScriptModuleSystem
+import TypeUnification
+import TypeUnify
+import UnionIntersectionTypes
+import Utf8Char
+import UtilityTypes
+import WorkingRowPoly
+import WorkingTypeChecker
+import RecursiveTypes
+
+
+## This import causes issues. RowPolymorphism.roc has a mutually recursive type, which causes the compiler to crash. We need to implement it in a different way.
+# import RowPolymorphism
+
 
 # Helper function to check if a token is trivia (whitespace, comments, etc.)
 is_trivia_token : Token.Token -> Bool
