@@ -32,7 +32,7 @@ Utf8Char : [Utf8One U8, Utf8Two U8 U8, Utf8Three U8 U8 U8, Utf8Four U8 U8 U8 U8]
 Utf8CharDecodeResponse : [Utf8One U8, Utf8Two U8 U8, Utf8Three U8 U8 U8, Utf8Four U8 U8 U8 U8, End, Error]
 Utf8CharDecodeState : [Start, Continue, End, Error]
 
-to_str : Utf8Char -> Result Str [BadUtf8 _ U64]
+to_str : Utf8Char -> (Result Str _)
 to_str = |utf8_char|
     when utf8_char is
         Utf8One(u8) -> [u8] |> Str.from_utf8
