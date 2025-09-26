@@ -7,6 +7,7 @@ import Token
 import Parser
 import SimpleComprehensiveType as Type
 import LetPolymorphicConstraintSolver as Solver
+import Ast
 
 # Type checking result
 TypeCheckResult : {
@@ -30,16 +31,21 @@ type_check_source = |source|
             _ -> Bool.true
 
     # Step 3: Parse
-    when Parser.parse_program(non_trivia) is
-        Ok(ast) ->
-            # Step 4: Type check
-            type_check_ast(ast)
-        Err(_) ->
-            {
-                success: Bool.false,
-                type_str: "Parse error",
-                errors: ["Failed to parse input"],
-            }
+    ast = Parser.parse_program(non_trivia)
+
+    # Step 4: Type check
+    type_check_ast(ast)
+    
+    # when Parser.parse_program(non_trivia) is
+    #     Ok(ast) ->
+    #         # Step 4: Type check
+    #         type_check_ast(ast)
+    #     Err(_) ->
+    #         {
+    #             success: Bool.false,
+    #             type_str: "Parse error",
+    #             errors: ["Failed to parse input"],
+    #         }
 
 # Type check an AST
 type_check_ast : Ast.Node -> TypeCheckResult
