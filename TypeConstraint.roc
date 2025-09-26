@@ -325,12 +325,46 @@ infer_unary_op_type = |op, arg|
 
 process_statements : List Node, TypeEnv, U32 -> (Type, List Constraint, U32)
 process_statements = |stmts, env, next_var|
+    process_statements_with_env stmts env next_var
+
+process_statements_with_env : List Node, TypeEnv, U32 -> (Type, List Constraint, U32)
+process_statements_with_env = |stmts, env, next_var|
     when stmts is
         [] -> (Type.mk_literal UndefinedLit, [], next_var)
         [single] -> generate_constraints_helper single env next_var
         [first, .. as rest] ->
-            (first_type, first_cs, var_after_first) = generate_constraints_helper first env next_var
-            (rest_type, rest_cs, final_var) = process_statements rest env var_after_first
+            # Special handling for variable declarations to update environment
+            (first_type, first_cs, var_after_first, env_after_first) =
+                when first is
+                    VariableDeclaration { declarations } ->
+                        # Process declarations and update environment
+                        result = List.walk declarations (Type.mk_literal UndefinedLit, [], next_var, env) |(_, cs_acc, v_acc, env_acc), decl|
+                            when decl is
+                                VariableDeclarator { id, init } ->
+                                    var_name = extract_param_name id
+                                    when init is
+                                        Some init_expr ->
+                                            (init_type, init_cs, new_var) = generate_constraints_helper init_expr env_acc v_acc
+                                            # Add variable to environment with its type
+                                            var_type = Type.mk_type_var new_var
+                                            new_scheme = { forall: Set.empty {}, body: var_type }
+                                            new_env = extend_env env_acc var_name new_scheme
+                                            # Also create an equality constraint between the var and init
+                                            eq_constraint = Equal var_type init_type
+                                            (Type.mk_literal UndefinedLit, List.concat cs_acc (List.append init_cs eq_constraint), new_var + 1, new_env)
+                                        None ->
+                                            undefined_type = Type.mk_literal UndefinedLit
+                                            new_scheme = { forall: Set.empty {}, body: undefined_type }
+                                            new_env = extend_env env_acc var_name new_scheme
+                                            (Type.mk_literal UndefinedLit, cs_acc, v_acc, new_env)
+                                _ ->
+                                    (Type.mk_literal UndefinedLit, cs_acc, v_acc, env_acc)
+                        result
+                    _ ->
+                        (t, cs, v) = generate_constraints_helper first env next_var
+                        (t, cs, v, env)
+
+            (rest_type, rest_cs, final_var) = process_statements_with_env rest env_after_first var_after_first
             (rest_type, List.concat first_cs rest_cs, final_var)
 
 process_var_declarations : List Node, TypeEnv, U32 -> (Type, List Constraint, U32)
