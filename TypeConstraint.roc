@@ -471,9 +471,19 @@ process_statements_with_env = |stmts, env, next_var|
                                                     # Use the annotated type
                                                     var_type
                                                 None ->
-                                                    # No annotation: widen literal types to their base types
-                                                    # This is TypeScript's default behavior for const declarations
-                                                    widen_type init_type
+                                                    # Check if init is "as const" expression
+                                                    is_as_const = when init_expr is
+                                                        TSAsExpression { typeAnnotation: TSTypeReference { typeName: Identifier { name: "const" } } } ->
+                                                            Bool.true
+                                                        _ -> Bool.false
+
+                                                    if is_as_const then
+                                                        # Preserve literal type with "as const"
+                                                        init_type
+                                                    else
+                                                        # No annotation and no "as const": widen literal types to their base types
+                                                        # This is TypeScript's default behavior for const declarations
+                                                        widen_type init_type
 
                                             # Add variable to environment with the determined type
                                             new_scheme = { forall: Set.empty {}, body: actual_var_type }
