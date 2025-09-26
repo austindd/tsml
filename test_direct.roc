@@ -1,8 +1,4 @@
-#!/usr/bin/env roc dev
-
-app [main!] {
-    pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.35.0/USs3qiGI7seh89pfJDt_5J-JiBQ0YnQGJe7nWpLbAJw.tar.br"
-}
+app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.19.0/Hj-J_zxz7V9YurCSTFcFdu6cQJie4guzsPMUi5kBYUk.tar.br" }
 
 import pf.Stdout
 import Token
