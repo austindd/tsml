@@ -16,7 +16,6 @@ import AsyncTypes
 import BasicTypeInfer
 import BidirectionalTypeChecker
 import CompleteTypeChecker
-import ComprehensiveType
 import ConstraintBasedInference
 import ControlFlowAnalysis
 import ControlFlowNarrowing
@@ -24,7 +23,6 @@ import EndToEndTypeChecker
 import FinalTypeChecker
 import FlowSensitive
 import FocusedRowChecker
-import FullType
 import GenericsTypes
 import GradualTypes
 import IntegratedRowTypeChecker
@@ -36,7 +34,6 @@ import JSTypeCoercion
 import LetPolymorphicConstraintSolver
 import ListMap
 import ListUtils
-import MLstructTypeSystem
 import ModuleSystem
 import NonRecursiveRowChecker
 import NumUtils
@@ -91,8 +88,10 @@ import RecursiveTypes
 
 
 ## This import causes issues. RowPolymorphism.roc has a mutually recursive type, which causes the compiler to crash. We need to implement it in a different way.
-# import RowPolymorphism
-
+import RowPolymorphismFixed2
+# import ComprehensiveType
+# import FullType
+# import MLstructTypeSystem
 
 # Helper function to check if a token is trivia (whitespace, comments, etc.)
 is_trivia_token : Token.Token -> Bool
