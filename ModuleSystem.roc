@@ -11,6 +11,10 @@ module [
     resolve_import,
     get_module_exports,
     analyze_module_node,
+    make_default_import,
+    make_named_import,
+    make_namespace_import,
+    make_side_effect,
 ]
 
 import SimpleComprehensiveType as Type exposing [Type]
@@ -50,6 +54,22 @@ ModuleRegistry : {
     modules : List ModuleInfo,
     current_module : Result Str [NoModule],
 }
+
+make_default_import : Str -> ModuleKind
+make_default_import = \name ->
+    DefaultImport name
+    
+make_named_import : List { imported : Str, local : Str } -> ModuleKind
+make_named_import = \imports ->
+    NamedImport imports
+
+make_namespace_import : Str -> ModuleKind
+make_namespace_import = \name ->
+    NamespaceImport name
+
+make_side_effect : {} -> ModuleKind
+make_side_effect = \{} ->
+    SideEffect
 
 # Create an empty module registry
 empty_registry : {} -> ModuleRegistry

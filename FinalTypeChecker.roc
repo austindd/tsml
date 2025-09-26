@@ -103,7 +103,7 @@ check = |node|
         UndefinedLiteral({}) ->
             { node_type: Type.mk_undefined, errors: [] }
 
-        ExpressionStatement({ expression }) ->
+        Directive({ expression }) ->
             check(expression)
 
         CallExpression({ callee, arguments }) ->
@@ -126,10 +126,7 @@ check = |node|
 
         ArrayExpression({ elements }) ->
             # Check all elements
-            elem_results = List.map(elements, |elem|
-                when elem is
-                    Some(e) -> check(e)
-                    None -> { node_type: Type.mk_undefined, errors: [] })
+            elem_results = List.map(elements, |elem| check(elem))
 
             all_errors = List.walk(elem_results, [], |acc, result|
                 List.concat(acc, result.errors))

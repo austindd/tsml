@@ -85,7 +85,7 @@ cache_insert = \cache, node, inferred_type ->
             }
 
             # Check if we need to evict
-            if List.len cache.entries >= Num.to_nat cache.max_size then
+            if List.len cache.entries >= cache.max_size then
                 # Evict least recently used
                 sorted = List.sort_with cache.entries \a, b ->
                     when Num.compare a.access_count b.access_count is
@@ -109,7 +109,7 @@ cache_insert = \cache, node, inferred_type ->
                 }
 
 # Get cache statistics
-cache_stats : TypeCache -> { hits : U64, misses : U64, size : Nat, hit_rate : F64 }
+cache_stats : TypeCache -> { hits : U64, misses : U64, size : U64, hit_rate : F64 }
 cache_stats = \cache ->
     total = cache.hits + cache.misses
     hit_rate = if total == 0 then
@@ -138,7 +138,7 @@ hash_node : Node -> U64
 hash_node = \node ->
     when node is
         Identifier { name } -> hash_string name
-        NumericLiteral { value } ->
+        NumberLiteral { value } ->
             # Convert float to U64 for hashing
             when Num.to_u64_checked (Num.round value) is
                 Ok n -> n * 1000007
