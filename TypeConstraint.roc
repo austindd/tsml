@@ -229,6 +229,16 @@ generate_constraints_helper = |node, env, next_var|
                     all_constraints = List.concat test_cs cons_cs
                     (Type.mk_literal UndefinedLit, all_constraints, var_after_cons)
 
+        # TypeScript type annotations
+        TSNumberKeyword _ -> (Type.mk_primitive "number", [], next_var)
+        TSStringKeyword _ -> (Type.mk_primitive "string", [], next_var)
+        TSBooleanKeyword _ -> (Type.mk_primitive "boolean", [], next_var)
+        TSAnyKeyword _ -> (Type.mk_primitive "any", [], next_var)
+        TSUnknownKeyword _ -> (Type.mk_primitive "unknown", [], next_var)
+        TSNullKeyword _ -> (Type.mk_literal NullLit, [], next_var)
+        TSUndefinedKeyword _ -> (Type.mk_literal UndefinedLit, [], next_var)
+        TSVoidKeyword _ -> (Type.mk_literal UndefinedLit, [], next_var)
+
         _ ->
             (Type.mk_type_var next_var, [], next_var + 1)
 
@@ -340,23 +350,44 @@ process_statements_with_env = |stmts, env, next_var|
                         # Process declarations and update environment
                         result = List.walk declarations (Type.mk_literal UndefinedLit, [], next_var, env) |(_, cs_acc, v_acc, env_acc), decl|
                             when decl is
-                                VariableDeclarator { id, init } ->
+                                VariableDeclarator { id, init, typeAnnotation } ->
                                     var_name = extract_param_name id
+
+                                    # Process type annotation if present
+                                    (var_type, annotation_cs, var_after_annotation) =
+                                        when typeAnnotation is
+                                            Some annotation_node ->
+                                                # Process the type annotation to get its type
+                                                (ann_type, ann_cs, next_v) = generate_constraints_helper annotation_node env_acc v_acc
+                                                # The annotation node is already processed, just use its type
+                                                (ann_type, ann_cs, next_v)
+                                            None ->
+                                                # No annotation, create a fresh type variable
+                                                (Type.mk_type_var v_acc, [], v_acc + 1)
+
                                     when init is
                                         Some init_expr ->
-                                            (init_type, init_cs, new_var) = generate_constraints_helper init_expr env_acc v_acc
-                                            # Add variable to environment with its type
-                                            var_type = Type.mk_type_var new_var
+                                            (init_type, init_cs, new_var) = generate_constraints_helper init_expr env_acc var_after_annotation
+                                            # Add variable to environment with annotated type (or type var if no annotation)
                                             new_scheme = { forall: Set.empty {}, body: var_type }
                                             new_env = extend_env env_acc var_name new_scheme
-                                            # Also create an equality constraint between the var and init
-                                            eq_constraint = Equal var_type init_type
-                                            (Type.mk_literal UndefinedLit, List.concat cs_acc (List.append init_cs eq_constraint), new_var + 1, new_env)
+                                            # Create constraint: init_type must be assignable to var_type
+                                            # If there's a type annotation, the variable gets that type
+                                            # Otherwise, it gets the type of the initializer
+                                            type_constraint = when typeAnnotation is
+                                                Some _ ->
+                                                    # With annotation: init must be assignable to annotation
+                                                    Subtype init_type var_type
+                                                None ->
+                                                    # Without annotation: variable type equals init type
+                                                    Equal var_type init_type
+                                            all_cs = List.concat cs_acc annotation_cs |> List.concat init_cs |> List.append type_constraint
+                                            (Type.mk_literal UndefinedLit, all_cs, new_var, new_env)
                                         None ->
-                                            undefined_type = Type.mk_literal UndefinedLit
-                                            new_scheme = { forall: Set.empty {}, body: undefined_type }
+                                            # Variable declared without initialization gets the annotated type or undefined
+                                            new_scheme = { forall: Set.empty {}, body: var_type }
                                             new_env = extend_env env_acc var_name new_scheme
-                                            (Type.mk_literal UndefinedLit, cs_acc, v_acc, new_env)
+                                            (Type.mk_literal UndefinedLit, List.concat cs_acc annotation_cs, var_after_annotation, new_env)
                                 _ ->
                                     (Type.mk_literal UndefinedLit, cs_acc, v_acc, env_acc)
                         result
@@ -371,7 +402,7 @@ process_var_declarations : List Node, TypeEnv, U32 -> (Type, List Constraint, U3
 process_var_declarations = |decls, env, next_var|
     List.walk decls (Type.mk_literal UndefinedLit, [], next_var) |(_, cs, v), decl|
         when decl is
-            VariableDeclarator { id, init } ->
+            VariableDeclarator { id, init, typeAnnotation } ->
                 var_name = extract_param_name id
                 when init is
                     Some init_expr ->
