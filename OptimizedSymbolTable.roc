@@ -11,7 +11,7 @@ module [
     get_all_symbols_in_scope,
 ]
 
-Import SimpleComprehensiveType as Type exposing [Type]
+import SimpleComprehensiveType as Type exposing [Type]
 
 # Symbol information
 Symbol : {

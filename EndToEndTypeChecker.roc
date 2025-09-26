@@ -87,11 +87,17 @@ check_ast = |ast|
                         # Apply substitution to get final type
                         final_type = Solver.apply_subst(stmt_type, solved_state.subst)
                         simple_type = Solver.to_simple_type(final_type)
-                        (List.append(acc, { node_id: 0, type: simple_type }), solved_state)
-                    Err(Solver.SolverError(msg)) ->
+                        (
+                            List.append(
+                                acc,
+                                { node_id: 0, type: simple_type }
+                            ),
+                            solved_state
+                        )
+                    Err(SolverError(msg)) ->
                         # Add error but continue
                         error = { message: msg, location: None, severity: Error }
-                        (acc, state))
+                        (acc, state)
 
             # Collect results
             {
