@@ -61,9 +61,9 @@ type_intersect = \t1, t2 ->
         (TUnknown, t) -> t
         (t, TUnknown) -> t
         # Same types intersect to themselves
-        (TNumber, TNumber) -> TNum
-        (TString, TString) -> TStr
-        (TBoolean, TBoolean) -> TBool
+        (TNumber, TNumber) -> TNumber
+        (TString, TString) -> TString
+        (TBoolean, TBoolean) -> TBoolean
         # Different types have no intersection (bottom type)
         # We represent this as Unknown for simplicity
         _ -> TUnknown

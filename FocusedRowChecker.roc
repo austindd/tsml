@@ -169,4 +169,4 @@ get_x_type : TypeWithRows
 get_x_type =
     TFunction
         [TRecord { fields: [{ label: "x", type_id: 1 }], tail: Open 100 }]
-        TNum
+        TNumber

@@ -51,7 +51,7 @@ solve_constraint = \constraint, table, subst ->
             # Get the actual type of the object
             obj_tid = apply_subst obj_id subst
             when TypeCore.get_type table obj_tid is
-                Ok (TObj fields) ->
+                Ok (TObject fields) ->
                     # Check if field exists
                     when List.find_first fields \f -> f.key == field_name is
                         Ok field ->
@@ -70,7 +70,7 @@ solve_constraint = \constraint, table, subst ->
             # Get function type
             fn_actual = apply_subst fn_tid subst
             when TypeCore.get_type table fn_actual is
-                Ok (TFun params_tid ret_tid) ->
+                Ok (TFunction params_tid ret_tid) ->
                     # For simplicity, assume params is a tuple
                     # In real implementation, we'd handle multiple params properly
                     when arg_tids is
@@ -135,10 +135,10 @@ unify_types = \tid1, tid2, table, subst ->
                 else
                     Err (TypeMismatch actual1 actual2)
 
-            (Ok (TArr e1), Ok (TArr e2)) ->
+            (Ok (TArray e1), Ok (TArray e2)) ->
                 unify_types e1 e2 table subst
 
-            (Ok (TFun p1 r1), Ok (TFun p2 r2)) ->
+            (Ok (TFunction p1 r1), Ok (TFunction p2 r2)) ->
                 when unify_types p1 p2 table subst is
                     Ok (subst1, table1) ->
                         unify_types r1 r2 table1 subst1
@@ -176,10 +176,10 @@ occurs_in = \var_id, type_id, table ->
             Ok stype ->
                 when stype is
                     TVar _ -> Bool.false
-                    TArr elem -> occurs_in var_id elem table
-                    TFun params ret ->
+                    TArray elem -> occurs_in var_id elem table
+                    TFunction params ret ->
                         occurs_in var_id params table || occurs_in var_id ret table
-                    TObj fields ->
+                    TObject fields ->
                         List.any fields \f -> occurs_in var_id f.tid table
                     TUnion tids ->
                         List.any tids \tid -> occurs_in var_id tid table

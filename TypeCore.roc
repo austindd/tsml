@@ -1,6 +1,7 @@
 module [
     TypeId,
     SimpleType,
+    Literal,
     TypeInfo,
     TypeTable,
     new_type_table,
@@ -23,9 +24,9 @@ SimpleType : [
     TVar TypeId,
     TPrim Str,
     TLit Literal,
-    TFun TypeId TypeId,
-    TArr TypeId,
-    TObj (List FieldInfo),
+    TFunction TypeId TypeId,
+    TArray TypeId,
+    TObject (List FieldInfo),
     TUnion (List TypeId),
     TTop,
     TBot,
@@ -88,15 +89,15 @@ mk_prim = \table, name ->
 
 mk_fun : TypeTable, TypeId, TypeId -> (TypeId, TypeTable)
 mk_fun = \table, params_id, return_id ->
-    add_type table (TFun params_id return_id)
+    add_type table (TFunction params_id return_id)
 
 mk_arr : TypeTable, TypeId -> (TypeId, TypeTable)
 mk_arr = \table, elem_id ->
-    add_type table (TArr elem_id)
+    add_type table (TArray elem_id)
 
 mk_obj : TypeTable, List FieldInfo -> (TypeId, TypeTable)
 mk_obj = \table, fields ->
-    add_type table (TObj fields)
+    add_type table (TObject fields)
 
 mk_union_id : TypeTable, List TypeId -> (TypeId, TypeTable)
 mk_union_id = \table, type_ids ->
@@ -124,10 +125,10 @@ simple_type_to_string = \table, stype ->
                 LBool b -> if b then "true" else "false"
                 LNull -> "null"
                 LUndefined -> "undefined"
-        TFun params ret ->
+        TFunction params ret ->
             "($(type_to_string table params)) => $(type_to_string table ret)"
-        TArr elem -> "$(type_to_string table elem)[]"
-        TObj fields ->
+        TArray elem -> "$(type_to_string table elem)[]"
+        TObject fields ->
             field_strs = List.map fields \{ key, tid, optional } ->
                 opt = if optional then "?" else ""
                 "$(key)$(opt): $(type_to_string table tid)"
