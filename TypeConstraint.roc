@@ -150,8 +150,10 @@ generate_constraints_helper = |node, env, next_var|
             (arg_types, arg_cs, var_after_args) =
                 List.walk arguments ([], [], var_after_callee) |(types, cs, v), arg|
                     (arg_type, arg_constraints, new_var) = generate_constraints_helper arg env v
+                    # Widen literal types when passing as arguments
+                    widened_arg_type = widen_type arg_type
                     (
-                        List.append types arg_type,
+                        List.append types widened_arg_type,
                         List.concat cs arg_constraints,
                         new_var,
                     )
@@ -201,6 +203,35 @@ generate_constraints_helper = |node, env, next_var|
         BlockStatement { body } -> process_statements(body, env, next_var)
         FunctionBody { body } -> process_statements(body, env, next_var)
         Program { body } -> process_statements(body, env, next_var)
+        FunctionDeclaration { id, params, body, async, generator } ->
+            # Extract function name
+            fn_name = extract_param_name id
+
+            # Create type variables for parameters
+            (param_types, param_env, param_constraints, var_after_params) =
+                List.walk params ([], env, [], next_var) |(types, e, cs, v), param|
+                    param_name = extract_param_name param
+                    param_type = Type.mk_type_var v
+                    param_scheme = { forall: Set.empty {}, body: param_type }
+                    new_env = extend_env e param_name param_scheme
+                    (
+                        List.append types param_type,
+                        new_env,
+                        cs,
+                        v + 1,
+                    )
+
+            # Process function body with parameters in scope
+            (body_type, body_constraints, var_after_body) = generate_constraints_helper body param_env var_after_params
+
+            # Create function type
+            fn_type = Type.mk_function(param_types, body_type)
+
+            # Add function to environment (functions are hoisted in JavaScript)
+            # Note: This is a simplified version - proper hoisting would require a two-pass approach
+            all_constraints = List.concat param_constraints body_constraints
+            (fn_type, all_constraints, var_after_body)
+
         VariableDeclaration { declarations } ->
             process_var_declarations(declarations, env, next_var)
 
@@ -354,9 +385,40 @@ process_statements_with_env = |stmts, env, next_var|
         [] -> (Type.mk_literal UndefinedLit, [], next_var)
         [single] -> generate_constraints_helper single env next_var
         [first, .. as rest] ->
-            # Special handling for variable declarations to update environment
+            # Special handling for declarations that update environment
             (first_type, first_cs, var_after_first, env_after_first) =
                 when first is
+                    FunctionDeclaration { id, params, body, async, generator } ->
+                        # Extract function name
+                        fn_name = extract_param_name id
+
+                        # Create type variables for parameters
+                        (param_types, param_env, param_constraints, var_after_params) =
+                            List.walk params ([], env, [], next_var) |(types, e, cs, v), param|
+                                param_name = extract_param_name param
+                                param_type = Type.mk_type_var v
+                                param_scheme = { forall: Set.empty {}, body: param_type }
+                                param_env_new = extend_env e param_name param_scheme
+                                (
+                                    List.append types param_type,
+                                    param_env_new,
+                                    cs,
+                                    v + 1,
+                                )
+
+                        # Process function body with parameters in scope
+                        (body_type, body_constraints, var_after_body) = generate_constraints_helper body param_env var_after_params
+
+                        # Create function type
+                        fn_type = Type.mk_function(param_types, body_type)
+
+                        # Add function to environment for subsequent statements
+                        fn_scheme = { forall: Set.empty {}, body: fn_type }
+                        env_with_fn = extend_env env fn_name fn_scheme
+
+                        all_constraints = List.concat param_constraints body_constraints
+                        (fn_type, all_constraints, var_after_body, env_with_fn)
+
                     VariableDeclaration { declarations } ->
                         # Process declarations and update environment
                         result = List.walk declarations (Type.mk_literal UndefinedLit, [], next_var, env) |(_, cs_acc, v_acc, env_acc), decl|
