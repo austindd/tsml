@@ -154,7 +154,7 @@ check_statement = |stmt, state|
                         (Solver.IUndefined, constraints, s))
 
         # Expression statement
-        ExpressionStatement({ expression }) ->
+        Directive({ expression }) ->
             Solver.generate_constraints(expression, state)
 
         # Block statement

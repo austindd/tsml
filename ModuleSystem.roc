@@ -55,19 +55,19 @@ ModuleRegistry : {
     current_module : Result Str [NoModule],
 }
 
-make_default_import : Str -> ModuleKind
+make_default_import : Str -> ImportKind
 make_default_import = \name ->
     DefaultImport name
     
-make_named_import : List { imported : Str, local : Str } -> ModuleKind
+make_named_import : List { imported : Str, local : Str } -> ImportKind
 make_named_import = \imports ->
     NamedImport imports
 
-make_namespace_import : Str -> ModuleKind
+make_namespace_import : Str -> ImportKind
 make_namespace_import = \name ->
     NamespaceImport name
 
-make_side_effect : {} -> ModuleKind
+make_side_effect : {} -> ImportKind
 make_side_effect = \{} ->
     SideEffect
 

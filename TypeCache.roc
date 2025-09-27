@@ -135,15 +135,11 @@ clear_cache = \cache ->
 
 # Simple hash function for AST nodes
 hash_node : Node -> U64
-hash_node = \node ->
+hash_node = |node|
     when node is
-        Identifier { name } -> hash_string name
-        NumberLiteral { value } ->
-            # Convert float to U64 for hashing
-            when Num.to_u64_checked (Num.round value) is
-                Ok n -> n * 1000007
-                Err _ -> 42
-        StringLiteral { value } -> hash_string value
+        Identifier { name } -> hash_string(name)
+        NumberLiteral { value } -> hash_string(value)
+        StringLiteral { value } -> hash_string(value)
         BooleanLiteral { value } -> if value then 1 else 0
         _ -> 42  # Default hash for complex nodes
 

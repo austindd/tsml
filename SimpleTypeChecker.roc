@@ -93,7 +93,7 @@ check_node_impl = |node|
             { node_type: Type.mk_null, errors: [] }
 
         # Expression statement
-        ExpressionStatement({ expression }) ->
+        Directive({ expression }) ->
             check_node_impl(expression)
 
         # Default - return unknown

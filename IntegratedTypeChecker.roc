@@ -35,10 +35,7 @@ empty_context = {
 check_program : Str -> TypeInfo
 check_program = |source|
     # Tokenize
-    token_results = Token.tokenize_str(source)
-
-    # Extract valid tokens
-    tokens = List.keep_oks(token_results, |r| r)
+    tokens = Token.tokenize_str(source)
 
     # Filter trivia tokens
     filtered = List.keep_if(tokens, |tok|
@@ -93,7 +90,7 @@ check_node = |node, ctx|
                 variables: List.append(ctx.variables, { name: var_name, type: var_type })
             }
 
-        ExpressionStatement({ expression }) ->
+        Directive({ expression }) ->
             # Check the expression
             _ = infer_type(expression, ctx)
             ctx

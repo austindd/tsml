@@ -11,7 +11,7 @@ module [
 import Ast
 import Option exposing [Option]
 import Parser
-import Token exposing [Token, WhitespaceToken, NewLineToken, SingleLineCommentToken, MultiLineCommentToken]
+import Token exposing [Token]
 
 # Core type representation
 TypeInfo : [
@@ -62,45 +62,43 @@ empty_context = {
     errors: [],
 }
 
+filter_trivia : List Token -> List Token
+filter_trivia = |tokens|
+    List.keep_if(tokens, |tok|
+        when tok is
+            WhitespaceTrivia(_) -> Bool.false
+            NewLineTrivia(_) -> Bool.false
+            LineCommentStart -> Bool.false
+            BlockCommentStart -> Bool.false
+            BlockCommentEnd -> Bool.false
+            CommentText(_) -> Bool.false
+            ShebangTrivia -> Bool.false
+            ConflictMarkerTrivia -> Bool.false
+            NonTextFileMarkerTrivia -> Bool.false
+            _ -> Bool.true
+    )
+
 # Check a complete program
 check_program : Str -> { result: TypeInfo, errors: List { message: Str, location: Option U32 } }
 check_program = |source|
     tokens = Token.tokenize_str(source)
     
     # Filter trivia tokens
-    filtered = List.keep_if(tokens, |tok|
-        when tok is
-            WhitespaceToken(_) -> Bool.false
-            NewLineToken -> Bool.false
-            SingleLineCommentToken(_) -> Bool.false
-            MultiLineCommentToken(_) -> Bool.false
-            _ -> Bool.true
-    )
+    filtered = filter_trivia(tokens)
     
-    when Parser.parse_program(filtered) is
-        Ok(parsed) ->
-            ctx = check_node(parsed.node, empty_context)
-            { result: TUnknown, errors: ctx.errors }
-        Err(err) ->
-            { result: TUnknown, errors: [{ message: err.message, location: None }] }
+    parsed = Parser.parse_program(filtered)
+    ctx = check_node(parsed, empty_context)
+    { result: TUnknown, errors: ctx.errors }
 
 # Check a single expression
 check_expression : Str -> TypeInfo
 check_expression = |source|
     tokens = Token.tokenize_str(source)
-    filtered = List.keep_if(tokens, |tok|
-        when tok is
-            WhitespaceToken(_) -> Bool.false
-            NewLineToken -> Bool.false
-            _ -> Bool.true
-    )
+    filtered = filter_trivia(tokens)
     
-    when Parser.parse_expression(filtered) is
-        Ok(parsed) ->
-            ctx = check_node(parsed.node, empty_context)
-            infer_type(parsed.node, ctx)
-        Err(_) ->
-            TUnknown
+    (parsed, _remaining_tokens) = Parser.parse_primary_expression(filtered)
+    ctx = check_node(parsed, empty_context)
+    infer_type(parsed, ctx)
 
 # Check an AST node
 check_node : Ast.Node, Context -> Context
@@ -218,12 +216,9 @@ infer_type = |node, ctx|
         ArrayExpression({ elements }) ->
             # Infer array element type from first element
             when List.first(elements) is
-                Ok(Some(elem)) ->
+                Ok(elem) ->
                     elem_type = infer_type(elem, ctx)
                     TArray(elem_type)
-                Ok(None) ->
-                    # Empty spot in sparse array
-                    TArray(TUnknown)
                 Err(_) ->
                     # Empty array
                     TArray(TUnknown)

@@ -150,9 +150,7 @@ process_ast = \node, registry, table ->
 
         # Function declarations
         FunctionDeclaration { id, params, body } ->
-            func_name = when id is
-                Some func_id -> extract_identifier_name func_id
-                None -> ""
+            func_name = extract_identifier_name(id)
 
             # Add function to symbol table
             new_table1 = if func_name != "" then
@@ -218,7 +216,7 @@ extract_literal_value = \node ->
             when List.first quasis is
                 Ok quasi ->
                     when quasi is
-                        TemplateElement { value } -> value.cooked
+                        TemplateElement { value } -> value
                         _ -> ""
                 Err _ -> ""
         _ -> ""

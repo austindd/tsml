@@ -12,7 +12,7 @@ import SimpleComprehensiveType as Type exposing [Type]
 
 # Fast equality check using pattern matching
 type_eq : Type, Type -> Bool
-type_eq = \t1, t2 ->
+type_eq = |t1, t2|
     when (t1, t2) is
         (TNumber, TNumber) -> Bool.true
         (TString, TString) -> Bool.true
@@ -22,16 +22,28 @@ type_eq = \t1, t2 ->
 
 # Convert type to string
 type_str : Type -> Str
-type_str = \t ->
+type_str = |t|
     when t is
         TNumber -> "number"
         TString -> "string"
         TBoolean -> "boolean"
+        TObject(props) ->
+            prop_strs = List.map props |p|
+                "${p.key}: ${type_str(p.value_type)}"
+            "{ ${Str.join_with(prop_strs, ", ")} }"
+        TArray(inner) -> "${type_str(inner)}[]"
+        TNull -> "null"
+        TUndefined -> "undefined"
+        TUnion(types) ->
+            type_strs = List.map(types, type_str)
+            Str.join_with(type_strs, " | ")
         TUnknown -> "unknown"
+        TAny -> "any"
+        TNever -> "never"
 
 # Check if t1 is assignable to t2
 is_assignable : Type, Type -> Bool
-is_assignable = \from, to ->
+is_assignable = |from, to|
     when (from, to) is
         # Unknown can be assigned to anything
         (TUnknown, _) -> Bool.true
@@ -46,7 +58,7 @@ is_assignable = \from, to ->
 
 # Type union - returns the least upper bound
 type_union : Type, Type -> Type
-type_union = \t1, t2 ->
+type_union = |t1, t2|
     if type_eq t1 t2 then
         t1
     else
@@ -55,7 +67,7 @@ type_union = \t1, t2 ->
 
 # Type intersection - returns the greatest lower bound
 type_intersect : Type, Type -> Type
-type_intersect = \t1, t2 ->
+type_intersect = |t1, t2|
     when (t1, t2) is
         # Unknown intersected with anything is that thing
         (TUnknown, t) -> t
@@ -70,6 +82,6 @@ type_intersect = \t1, t2 ->
 
 # Optimize a type (remove redundancies, simplify)
 optimize_type : Type -> Type
-optimize_type = \t ->
+optimize_type = |t|
     # In our simple system, types are already optimal
     t

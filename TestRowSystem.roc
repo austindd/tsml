@@ -54,7 +54,7 @@ rows_compatible = |r1, r2|
     all_r1_in_r2 and all_r2_in_r1
 
 # Test the row system
-test_row_system : {} -> { passed : U32, failed : U32, results : List Str }
+test_row_system : {} -> { passed : U64, failed : U64, results : List Str }
 test_row_system = |{}|
     # Test data
     point2d =
@@ -117,9 +117,9 @@ test_row_system = |{}|
         if t.result == t.expected then
             "✓ ${t.name}"
         else
-            "✗ ${t.name}: expected ${Bool.to_str t.expected}, got ${Bool.to_str t.result}"
+            "✗ ${t.name}: expected ${Inspect.to_str t.expected}, got ${Inspect.to_str t.result}"
 
-    passed = List.count tests |t| t.result == t.expected
+    passed = List.count_if tests |t| t.result == t.expected
     failed = List.len tests - passed
 
     { passed, failed, results }

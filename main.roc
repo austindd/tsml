@@ -2,90 +2,86 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 
 import pf.Stdout
 import pf.Stdin
-# import Token
-# import TokenTest
-# import Ast
-# import Parser
-# import TypeInfer
-# import Type
-# import TypeReport
-
-import Ast
-import AsyncTypes
-import BasicTypeInfer
-import BidirectionalTypeChecker
-import CompleteTypeChecker
-import ConstraintBasedInference
-import ControlFlowAnalysis
-import ControlFlowNarrowing
-import EndToEndTypeChecker
-import FinalTypeChecker
-import FlowSensitive
-import FocusedRowChecker
-import GenericsTypes
-import GradualTypes
-import IntegratedRowTypeChecker
-import IntegratedTypeChecker
-import IntegratedTypeSystem
-import JavaScriptFeatures
-import JSGlobals
-import JSTypeCoercion
-import LetPolymorphicConstraintSolver
-import ListMap
-import ListUtils
-import ModuleSystem
-import NonRecursiveRowChecker
-import NumUtils
-import OptimizedSymbolTable
-import OptimizedTypes
-import Option
-import Parser
-import ResultUtils
-import RowPoly
-import RowPolymorphicType
-
-import RowSystem
-import ScopedTypeInfer
-import SimpleAstTypeChecker
-import SimpleComprehensiveType
-import SimpleConstraint
-import SimpleIntegrated
-import SimpleRecursiveTypes
-import SimpleRowChecker
-import SimpleRowPoly
-import SimpleTypeChecker
-import SimpleUnify
-import SourceLocation
-import Stack
-import StackMap
-import StrUtils
-import SymTbl
-import SymTblStack
-import TestRowSystem
 import Token
 import TokenTest
-import Type
-import TypeAlgebra
-import TypeCache
-import TypeChecker
-import TypeConstraint
-import TypeCore
-import TypedModuleAnalyzer
-import TypedSymbolTable
+import Ast
+import Parser
 import TypeInfer
+import Type
 import TypeReport
-import TypeScriptModuleSystem
-import TypeUnification
-import TypeUnify
-import UnionIntersectionTypes
-import Utf8Char
-import UtilityTypes
-import WorkingRowPoly
-import RecursiveTypes
 
-
-## This import causes issues. RowPolymorphism.roc has a mutually recursive type, which causes the compiler to crash. We need to implement it in a different way.
-import RowPolymorphism
+# import Ast
+# import AsyncTypes
+# import BasicTypeInfer
+# import BidirectionalTypeChecker
+# import CompleteTypeChecker
+# import ConstraintBasedInference
+# import ControlFlowAnalysis
+# import ControlFlowNarrowing
+# import EndToEndTypeChecker
+# import FinalTypeChecker
+# import FlowSensitive
+# import FocusedRowChecker
+# import GenericsTypes
+# import GradualTypes
+# import IntegratedRowTypeChecker
+# import IntegratedTypeChecker
+# import IntegratedTypeSystem
+# import JavaScriptFeatures
+# import JSGlobals
+# import JSTypeCoercion
+# import LetPolymorphicConstraintSolver
+# import ListMap
+# import ListUtils
+# import ModuleSystem
+# import NonRecursiveRowChecker
+# import NumUtils
+# import OptimizedSymbolTable
+# import OptimizedTypes
+# import Option
+# import Parser
+# import ResultUtils
+# import RowPoly
+# import RowPolymorphicType
+# import RowSystem
+# import ScopedTypeInfer
+# import SimpleAstTypeChecker
+# import SimpleComprehensiveType
+# import SimpleConstraint
+# import SimpleIntegrated
+# import SimpleRecursiveTypes
+# import SimpleRowChecker
+# import SimpleRowPoly
+# import SimpleTypeChecker
+# import SimpleUnify
+# import SourceLocation
+# import Stack
+# import StackMap
+# import StrUtils
+# import SymTbl
+# import SymTblStack
+# import TestRowSystem
+# import Token
+# import TokenTest
+# import Type
+# import TypeAlgebra
+# import TypeCache
+# import TypeChecker
+# import TypeConstraint
+# import TypeCore
+# import TypedModuleAnalyzer
+# import TypedSymbolTable
+# import TypeInfer
+# import TypeReport
+# import TypeScriptModuleSystem
+# import TypeUnification
+# import TypeUnify
+# import UnionIntersectionTypes
+# import Utf8Char
+# import UtilityTypes
+# import WorkingRowPoly
+# import RecursiveTypes
+# import RowPolymorphism
 import ComprehensiveTypeIndexed
 # import FullType
 # import MLstructTypeSystem
@@ -105,20 +101,20 @@ is_trivia_token = |token|
         NonTextFileMarkerTrivia -> Bool.true
         _ -> Bool.false
 
-# Helper function to separate successful tokens from errors
-extract_tokens_and_errors : List Token.TokenResult -> (List Token.Token, List Str)
-extract_tokens_and_errors = |token_results|
-    List.walk(
-        token_results,
-        ([], []),
-        |state, result|
-            (tokens, errors) = state
-            when result is
-                Ok(token) -> (List.append(tokens, token), errors)
-                Err(error) ->
-                    error_str = "TokenError" # Simplified error handling
-                    (tokens, List.append(errors, error_str)),
-    )
+# # Helper function to separate successful tokens from errors
+# extract_tokens_and_errors : List Token.TokenResult -> (List Token.Token, List Str)
+# extract_tokens_and_errors = |token_results|
+#     List.walk(
+#         token_results,
+#         ([], []),
+#         |state, result|
+#             (tokens, errors) = state
+#             when result is
+#                 Ok(token) -> (List.append(tokens, token), errors)
+#                 Err(error) ->
+#                     error_str = "TokenError" # Simplified error handling
+#                     (tokens, List.append(errors, error_str)),
+#     )
 
 # Process a single line of input
 process_input! : Str => {}
@@ -127,11 +123,13 @@ process_input! = |input_code|
     _ = Stdout.line!("\n📝 Input Code:")
     _ = Stdout.line!(input_code)
 
-    token_results = Token.tokenize_str(input_code)
-
-    # Extract successful tokens and handle errors
-    (all_tokens, errors) = extract_tokens_and_errors(token_results)
-
+    all_tokens = Token.tokenize_str(input_code)
+    errors = List.keep_if(all_tokens, |tok|
+        when tok is
+            TokenError(_) -> Bool.true
+            _ -> Bool.false
+    )
+    
     _ = if List.len(errors) > 0 then
         _ = Stdout.line!("\n⚠️ Tokenization errors:")
         _ = Stdout.line!("Found some tokenization errors, continuing with valid tokens...")

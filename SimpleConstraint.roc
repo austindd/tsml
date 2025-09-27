@@ -96,7 +96,8 @@ gen_node = \node, set ->
 
         ObjectExpression { properties } ->
             # Process properties
-            (fields, final_set) = List.walk properties ([], set) \(field_list, current_set), prop ->
+            (fields, final_set) = List.walk properties ([], set) \acc, prop ->
+                (field_list, current_set) = acc
                 when prop is
                     Property { key, value } ->
                         key_name = get_property_key key

@@ -252,11 +252,11 @@ make_row_var = \store, var ->
 
 # Convert type to string (avoiding infinite recursion)
 type_to_str : TypeStore, TypeId -> Str
-type_to_str = \store, type_id ->
-    type_to_str_helper store type_id 0 5  # Max depth of 5
+type_to_str = |store, type_id|
+    type_to_str_helper(store, type_id, 0, 5)  # Max depth of 5
 
 type_to_str_helper : TypeStore, TypeId, U32, U32 -> Str
-type_to_str_helper = \store, type_id, depth, max_depth ->
+type_to_str_helper = |store, type_id, depth, max_depth|
     if depth > max_depth then
         "..."
     else
@@ -267,73 +267,78 @@ type_to_str_helper = \store, type_id, depth, max_depth ->
 
                     TLiteral lit ->
                         when lit is
-                            NumLit n -> n
-                            StrLit s -> "\"$(s)\""
-                            BoolLit b -> if b then "true" else "false"
+                            NumLit(n) -> n
+                            StrLit(s) -> "\"${s}\""
+                            BoolLit(b) -> if b then "true" else "false"
                             NullLit -> "null"
                             UndefinedLit -> "undefined"
-                            BigIntLit n -> "$(n)n"
+                            BigIntLit(n) -> "${n}n"
 
-                    TObject row_id -> row_to_str_helper store row_id (depth + 1) max_depth
+                    TObject(row_id) -> row_to_str_helper(store, row_id, depth + 1, max_depth)
 
-                    TArray elem_id ->
-                        elem_str = type_to_str_helper store elem_id depth + 1 max_depth
-                        "$(elem_str)[]"
+                    TArray(elem_id) ->
+                        elem_str = type_to_str_helper(store, elem_id, depth + 1, max_depth)
+                        "${elem_str}[]"
 
-                    TTuple types ->
-                        types_str = List.map types \id ->
-                            type_to_str_helper store id depth + 1 max_depth
-                        "[" |> Str.concat (Str.join_with types_str ", ") |> Str.concat "]"
+                    TTuple(types) ->
+                        types_str = List.map(types, |id|
+                            type_to_str_helper(store, id, depth + 1, max_depth)
+                        )
+                        "[" |> Str.concat (Str.join_with(types_str, ", ")) |> Str.concat "]"
 
-                    TFunction { params, ret, is_async } ->
-                        params_str = List.map params \id ->
-                            type_to_str_helper store id depth + 1 max_depth
-                        return_str = type_to_str_helper store ret depth + 1 max_depth
+                    TFunction({ params, ret, is_async }) ->
+                        params_str = List.map(params, |id|
+                            type_to_str_helper(store, id, depth + 1, max_depth)
+                        )
+                        return_str = type_to_str_helper(store, ret, depth + 1, max_depth)
                         async_prefix = if is_async then "async " else ""
-                        "$(async_prefix)($(Str.join_with params_str ", ")) => $(return_str)"
+                        "${async_prefix}(${Str.join_with params_str ", "}) => ${return_str}"
 
-                    TUnion types ->
-                        types_str = List.map types \id ->
-                            type_to_str_helper store id depth + 1 max_depth
-                        Str.join_with types_str " | "
+                    TUnion(types) ->
+                        types_str = List.map(types, |id|
+                            type_to_str_helper(store, id, depth + 1, max_depth)
+                        )
+                        Str.join_with(types_str, " | ")
 
-                    TIntersection types ->
-                        types_str = List.map types \id ->
-                            type_to_str_helper store id depth + 1 max_depth
-                        Str.join_with types_str " & "
+                    TIntersection(types) ->
+                        types_str = List.map(types, |id|
+                            type_to_str_helper(store, id, depth + 1, max_depth)
+                        )
+                        Str.join_with(types_str, " & ")
 
-                    TypeVariable var -> "T$(Num.to_str var)"
+                    TypeVariable(var) -> "T${Num.to_str var}"
 
-                    TGeneric { base, args } ->
-                        base_str = type_to_str_helper store base depth + 1 max_depth
-                        args_str = List.map args \id ->
-                            type_to_str_helper store id depth + 1 max_depth
-                        "$(base_str)<$(Str.join_with args_str ", ")>"
+                    TGeneric({ base, args }) ->
+                        base_str = type_to_str_helper(store, base, depth + 1, max_depth)
+                        args_str = List.map(args, |id|
+                            type_to_str_helper(store, id, depth + 1, max_depth)
+                        )
+                        "${base_str}<${Str.join_with(args_str, ", ")}>"
 
-                    TConditional { check, extends, true_type, false_type } ->
-                        check_str = type_to_str_helper store check depth + 1 max_depth
-                        extends_str = type_to_str_helper store extends depth + 1 max_depth
-                        true_str = type_to_str_helper store true_type depth + 1 max_depth
-                        false_str = type_to_str_helper store false_type depth + 1 max_depth
-                        "$(check_str) extends $(extends_str) ? $(true_str) : $(false_str)"
+                    TConditional({ check, extends, true_type, false_type }) ->
+                        check_str = type_to_str_helper(store, check, depth + 1, max_depth)
+                        extends_str = type_to_str_helper(store, extends, depth + 1, max_depth)
+                        true_str = type_to_str_helper(store, true_type, depth + 1, max_depth)
+                        false_str = type_to_str_helper(store, false_type, depth + 1, max_depth)
+                        "${check_str} extends ${extends_str} ? ${true_str} : ${false_str}"
 
-                    TKeyOf object_id ->
-                        object_str = type_to_str_helper store object_id depth + 1 max_depth
-                        "keyof $(object_str)"
+                    TKeyOf(object_id) ->
+                        object_str = type_to_str_helper(store, object_id, depth + 1, max_depth)
+                        "keyof ${object_str}"
 
-                    TIndexedAccess { object, index } ->
-                        object_str = type_to_str_helper store object depth + 1 max_depth
-                        index_str = type_to_str_helper store index depth + 1 max_depth
-                        "$(object_str)[$(index_str)]"
+                    TIndexedAccess({ object, index }) ->
+                        object_str = type_to_str_helper(store, object, depth + 1, max_depth)
+                        index_str = type_to_str_helper(store, index, depth + 1, max_depth)
+                        "${object_str}[${index_str}]"
 
-                    TMappedType { key_type, value_type, readonly, optional } ->
-                        key_str = type_to_str_helper store key_type depth + 1 max_depth
-                        value_str = type_to_str_helper store value_type depth + 1 max_depth
+                    TMappedType({ key_type, value_type, readonly, optional }) ->
+                        key_str = type_to_str_helper(store, key_type, depth + 1, max_depth)
+                        value_str = type_to_str_helper(store, value_type, depth + 1, max_depth)
                         ro = if readonly then "readonly " else ""
                         opt = if optional then "?" else ""
-                        "{ $(ro)[K in $(key_str)]$(opt): $(value_str) }"
+                        "{ ${ro}[K in ${key_str}]${opt}: ${value_str} }"
 
-                    TTemplateLiteral { parts, types } ->
+                    TTemplateLiteral({ parts, types }) ->
                         # Simplified template literal display
                         "`...template...`"
 
@@ -354,14 +359,14 @@ row_to_str_helper = \store, row_id, depth, max_depth ->
                 when row_def is
                     REmpty -> "{}"
 
-                    RExtend { label, field_type, optional, readonly, rest } ->
-                        type_str = type_to_str_helper store field_type depth + 1 max_depth
-                        rest_str = row_to_str_helper store rest depth + 1 max_depth
+                    RExtend({ label, field_type, optional, readonly, rest }) ->
+                        type_str = type_to_str_helper(store, field_type, depth + 1, max_depth)
+                        rest_str = row_to_str_helper(store, rest, depth + 1, max_depth)
                         ro = if readonly then "readonly " else ""
                         opt = if optional then "?" else ""
-                        field = "$(ro)$(label)$(opt): $(type_str)"
+                        field = "${ro}${label}${opt}: ${type_str}"
                         when rest_str is
-                            "{}" -> "{ $(field) }"
+                            "{}" -> "{ ${field} }"
                             _ ->
                                 # Remove the closing brace from rest_str and append
                                 inner = Str.drop_suffix rest_str " }"
@@ -369,19 +374,19 @@ row_to_str_helper = \store, row_id, depth, max_depth ->
                                     |> Str.drop_prefix "{ "
                                     |> Str.drop_prefix "{"
                                 if Str.is_empty inner then
-                                    "{ $(field) }"
+                                    "{ ${field} }"
                                 else
-                                    "{ $(field), $(inner) }"
+                                    "{ ${field}, ${inner} }"
 
-                    RVar var -> "{ ...ρ$(Num.to_str var) }"
+                    RVar(var) -> "{ ...ρ${Num.to_str var} }"
 
-                    RIndex { key_type, value_type, rest } ->
-                        key_str = type_to_str_helper store key_type depth + 1 max_depth
-                        value_str = type_to_str_helper store value_type depth + 1 max_depth
-                        rest_str = row_to_str_helper store rest depth + 1 max_depth
-                        index = "[key: $(key_str)]: $(value_str)"
+                    RIndex({ key_type, value_type, rest }) ->
+                        key_str = type_to_str_helper(store, key_type, depth + 1, max_depth)
+                        value_str = type_to_str_helper(store, value_type, depth + 1, max_depth)
+                        rest_str = row_to_str_helper(store, rest, depth + 1, max_depth)
+                        index = "[key: ${key_str}]: ${value_str}"
                         when rest_str is
-                            "{}" -> "{ $(index) }"
-                            _ -> "{ $(index), ...$(rest_str) }"
+                            "{}" -> "{ ${index} }"
+                            _ -> "{ ${index}, ...${rest_str} }"
 
             Err _ -> "{???}"
