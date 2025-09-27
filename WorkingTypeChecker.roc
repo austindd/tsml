@@ -50,8 +50,11 @@ check = |node|
         BooleanLiteral({ value }) ->
             { node_type: Type.mk_boolean, errors: [] }
             
-        NullLiteral({}) ->
+        NullLiteral ->
             { node_type: Type.mk_null, errors: [] }
+            
+        UndefinedLiteral ->
+            { node_type: Type.mk_undefined, errors: [] }
             
         ExpressionStatement({ expression }) ->
             check(expression)
