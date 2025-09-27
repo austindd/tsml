@@ -5,56 +5,56 @@ import Token exposing [tokenize_str]
 expect
     ts_string = ""
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(EndOfFileToken)]
+    token_list == [EndOfFileToken]
 
 expect
     ts_string = "\n"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(NewLineTrivia(1)), Ok(EndOfFileToken)]
+    token_list == [NewLineTrivia(1), EndOfFileToken]
 
 expect
     ts_string = "\r\n"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(NewLineTrivia(1)), Ok(EndOfFileToken)]
+    token_list == [NewLineTrivia(1), EndOfFileToken]
 
 expect
     ts_string = "\r"
     token_list = tokenize_str(ts_string)
-    token_list == [Err(UnknownToken([])), Ok(EndOfFileToken)]
+    token_list == [UnknownToken([]), EndOfFileToken]
 
 expect
     ts_string = "const"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(ConstKeyword), Ok(EndOfFileToken)]
+    token_list == [ConstKeyword, EndOfFileToken]
 
 expect
     ts_string = "const "
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(ConstKeyword), Ok(WhitespaceTrivia(1)), Ok(EndOfFileToken)]
+    token_list == [ConstKeyword, WhitespaceTrivia(1), EndOfFileToken]
 
 expect
     ts_string = "const\n"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(ConstKeyword), Ok(NewLineTrivia(1)), Ok(EndOfFileToken)]
+    token_list == [ConstKeyword, NewLineTrivia(1), EndOfFileToken]
 
 expect
     ts_string = "const\r\n"
     token_list = tokenize_str(ts_string)
-    token_list == [Ok(ConstKeyword), Ok(NewLineTrivia(1)), Ok(EndOfFileToken)]
+    token_list == [ConstKeyword, NewLineTrivia(1), EndOfFileToken]
 
 expect
     ts_string = "let x = 1"
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(LetKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("x")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("1")),
-        Ok(EndOfFileToken),
+        LetKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("x"),
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("1"),
+        EndOfFileToken,
     ]
 
 expect
@@ -62,15 +62,15 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(VarKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("x")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("23")),
-        Ok(SemicolonToken),
-        Ok(EndOfFileToken),
+        VarKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("x"),
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("23"),
+        SemicolonToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -78,9 +78,9 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(MinusToken),
-        Ok(NumberLiteralToken("1.890e-1")),
-        Ok(EndOfFileToken),
+        MinusToken,
+        NumberLiteralToken("1.890e-1"),
+        EndOfFileToken,
     ]
 
 expect
@@ -88,8 +88,8 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(NumberLiteralToken("18.90e21")),
-        Ok(EndOfFileToken),
+        NumberLiteralToken("18.90e21"),
+        EndOfFileToken,
     ]
 
 # TODO: Support hex literals
@@ -98,8 +98,8 @@ expect
 #     token_list = tokenize_str(ts_string)
 #     token_list
 #     == [
-#         Ok(NumberLiteralToken("0x1A")),
-#         Ok(EndOfFileToken),
+#         NumberLiteralToken("0x1A"),
+#         EndOfFileToken,
 #     ]
 
 expect
@@ -107,8 +107,8 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(NumberLiteralToken("1_000_123")),
-        Ok(EndOfFileToken),
+        NumberLiteralToken("1_000_123"),
+        EndOfFileToken,
     ]
 
 expect
@@ -116,8 +116,8 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(NumberLiteralToken("1_000_123.456_789")),
-        Ok(EndOfFileToken),
+        NumberLiteralToken("1_000_123.456_789"),
+        EndOfFileToken,
     ]
 
 expect
@@ -125,8 +125,8 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(NumberLiteralToken("1_000_123.456_789e-1")),
-        Ok(EndOfFileToken),
+        NumberLiteralToken("1_000_123.456_789e-1"),
+        EndOfFileToken,
     ]
 
 expect
@@ -134,8 +134,8 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(StringLiteralToken("\"Hello, world!\"")),
-        Ok(EndOfFileToken),
+        StringLiteralToken("\"Hello, world!\""),
+        EndOfFileToken,
     ]
 
 expect
@@ -143,8 +143,8 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(StringLiteralToken("'Hello, world!'")),
-        Ok(EndOfFileToken),
+        StringLiteralToken("'Hello, world!'"),
+        EndOfFileToken,
     ]
 
 expect
@@ -152,8 +152,8 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(StringLiteralToken("\"Hello, world!\\n\"")),
-        Ok(EndOfFileToken),
+        StringLiteralToken("\"Hello, world!\\n\""),
+        EndOfFileToken,
     ]
 
 expect
@@ -161,32 +161,32 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(ForKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenParenToken),
-        Ok(LetKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("i")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("0")),
-        Ok(SemicolonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("i")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(LessThanToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("10")),
-        Ok(SemicolonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("i")),
-        Ok(PlusPlusToken),
-        Ok(CloseParenToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenBraceToken),
-        Ok(CloseBraceToken),
-        Ok(EndOfFileToken),
+        ForKeyword,
+        WhitespaceTrivia(1),
+        OpenParenToken,
+        LetKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("i"),
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("0"),
+        SemicolonToken,
+        WhitespaceTrivia(1),
+        IdentifierToken("i"),
+        WhitespaceTrivia(1),
+        LessThanToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("10"),
+        SemicolonToken,
+        WhitespaceTrivia(1),
+        IdentifierToken("i"),
+        PlusPlusToken,
+        CloseParenToken,
+        WhitespaceTrivia(1),
+        OpenBraceToken,
+        CloseBraceToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -194,37 +194,37 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(ConstKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("x")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("100")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(PlusToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("y")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(PlusToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenParenToken),
-        Ok(FunctionKeyword),
-        Ok(OpenParenToken),
-        Ok(CloseParenToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenBraceToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(ReturnKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("42")),
-        Ok(SemicolonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(CloseBraceToken),
-        Ok(CloseParenToken),
-        Ok(OpenParenToken),
-        Ok(CloseParenToken),
-        Ok(EndOfFileToken),
+        ConstKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("x"),
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("100"),
+        WhitespaceTrivia(1),
+        PlusToken,
+        WhitespaceTrivia(1),
+        IdentifierToken("y"),
+        WhitespaceTrivia(1),
+        PlusToken,
+        WhitespaceTrivia(1),
+        OpenParenToken,
+        FunctionKeyword,
+        OpenParenToken,
+        CloseParenToken,
+        WhitespaceTrivia(1),
+        OpenBraceToken,
+        WhitespaceTrivia(1),
+        ReturnKeyword,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("42"),
+        SemicolonToken,
+        WhitespaceTrivia(1),
+        CloseBraceToken,
+        CloseParenToken,
+        OpenParenToken,
+        CloseParenToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -232,13 +232,13 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(InterfaceKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("A")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenBraceToken),
-        Ok(CloseBraceToken),
-        Ok(EndOfFileToken),
+        InterfaceKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("A"),
+        WhitespaceTrivia(1),
+        OpenBraceToken,
+        CloseBraceToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -246,18 +246,18 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(ConstKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("x")),
-        Ok(ColonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("42")),
-        Ok(SemicolonToken),
-        Ok(EndOfFileToken),
+        ConstKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("x"),
+        ColonToken,
+        WhitespaceTrivia(1),
+        NumberKeyword,
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("42"),
+        SemicolonToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -265,18 +265,18 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(LetKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("message")),
-        Ok(ColonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(StringKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(StringLiteralToken("\"Hello, World!\"")),
-        Ok(SemicolonToken),
-        Ok(EndOfFileToken),
+        LetKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("message"),
+        ColonToken,
+        WhitespaceTrivia(1),
+        StringKeyword,
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        StringLiteralToken("\"Hello, World!\""),
+        SemicolonToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -284,18 +284,18 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(ConstKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("pi")),
-        Ok(ColonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("3.14159")),
-        Ok(SemicolonToken),
-        Ok(EndOfFileToken),
+        ConstKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("pi"),
+        ColonToken,
+        WhitespaceTrivia(1),
+        NumberKeyword,
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("3.14159"),
+        SemicolonToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -303,28 +303,28 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(LetKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("names")),
-        Ok(ColonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(StringKeyword),
-        Ok(OpenBracketToken),
-        Ok(CloseBracketToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenBracketToken),
-        Ok(StringLiteralToken("\"Alice\"")),
-        Ok(CommaToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(StringLiteralToken("\"Bob\"")),
-        Ok(CommaToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(StringLiteralToken("\"Charlie\"")),
-        Ok(CloseBracketToken),
-        Ok(SemicolonToken),
-        Ok(EndOfFileToken),
+        LetKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("names"),
+        ColonToken,
+        WhitespaceTrivia(1),
+        StringKeyword,
+        OpenBracketToken,
+        CloseBracketToken,
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        OpenBracketToken,
+        StringLiteralToken("\"Alice\""),
+        CommaToken,
+        WhitespaceTrivia(1),
+        StringLiteralToken("\"Bob\""),
+        CommaToken,
+        WhitespaceTrivia(1),
+        StringLiteralToken("\"Charlie\""),
+        CloseBracketToken,
+        SemicolonToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -332,22 +332,22 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(EnumKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("Color")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenBraceToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("Red")),
-        Ok(CommaToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("Green")),
-        Ok(CommaToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("Blue")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(CloseBraceToken),
-        Ok(EndOfFileToken),
+        EnumKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("Color"),
+        WhitespaceTrivia(1),
+        OpenBraceToken,
+        WhitespaceTrivia(1),
+        IdentifierToken("Red"),
+        CommaToken,
+        WhitespaceTrivia(1),
+        IdentifierToken("Green"),
+        CommaToken,
+        WhitespaceTrivia(1),
+        IdentifierToken("Blue"),
+        WhitespaceTrivia(1),
+        CloseBraceToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -355,27 +355,27 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(EnumKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("Status")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenBraceToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("Active")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("1")),
-        Ok(CommaToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("Inactive")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(EqualsToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberLiteralToken("0")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(CloseBraceToken),
-        Ok(EndOfFileToken),
+        EnumKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("Status"),
+        WhitespaceTrivia(1),
+        OpenBraceToken,
+        WhitespaceTrivia(1),
+        IdentifierToken("Active"),
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("1"),
+        CommaToken,
+        WhitespaceTrivia(1),
+        IdentifierToken("Inactive"),
+        WhitespaceTrivia(1),
+        EqualsToken,
+        WhitespaceTrivia(1),
+        NumberLiteralToken("0"),
+        WhitespaceTrivia(1),
+        CloseBraceToken,
+        EndOfFileToken,
     ]
 
 expect
@@ -383,28 +383,28 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(InterfaceKeyword),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("Person")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(OpenBraceToken),
-        Ok(NewLineTrivia(1)),
-        Ok(WhitespaceTrivia(2)),
-        Ok(IdentifierToken("name")),
-        Ok(ColonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(StringKeyword),
-        Ok(SemicolonToken),
-        Ok(NewLineTrivia(1)),
-        Ok(WhitespaceTrivia(2)),
-        Ok(IdentifierToken("age")),
-        Ok(ColonToken),
-        Ok(WhitespaceTrivia(1)),
-        Ok(NumberKeyword),
-        Ok(SemicolonToken),
-        Ok(NewLineTrivia(1)),
-        Ok(CloseBraceToken),
-        Ok(EndOfFileToken),
+        InterfaceKeyword,
+        WhitespaceTrivia(1),
+        IdentifierToken("Person"),
+        WhitespaceTrivia(1),
+        OpenBraceToken,
+        NewLineTrivia(1),
+        WhitespaceTrivia(2),
+        IdentifierToken("name"),
+        ColonToken,
+        WhitespaceTrivia(1),
+        StringKeyword,
+        SemicolonToken,
+        NewLineTrivia(1),
+        WhitespaceTrivia(2),
+        IdentifierToken("age"),
+        ColonToken,
+        WhitespaceTrivia(1),
+        NumberKeyword,
+        SemicolonToken,
+        NewLineTrivia(1),
+        CloseBraceToken,
+        EndOfFileToken,
     ]
 
 # This makes sure that identifiers are not tokenized as keywords when they begin with keyword characters.
@@ -413,126 +413,126 @@ expect
     token_list = tokenize_str(ts_string)
     token_list
     == [
-        Ok(IdentifierToken("any_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("as_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("async_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("await_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("boolean_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("break_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("case_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("catch_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("class_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("const_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("constructor_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("continue_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("debugger_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("declare_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("default_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("delete_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("do_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("else_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("enum_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("export_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("extends_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("false_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("finally_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("for_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("function_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("get_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("if_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("implements_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("import_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("in_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("instanceof_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("interface_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("let_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("module_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("new_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("null_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("number_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("of_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("package_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("private_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("protected_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("public_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("require_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("return_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("set_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("static_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("string_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("super_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("switch_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("symbol_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("this_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("throw_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("true_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("try_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("type_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("typeof_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("var_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("void_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("while_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("with_")),
-        Ok(WhitespaceTrivia(1)),
-        Ok(IdentifierToken("yield_")),
-        Ok(EndOfFileToken),
+        IdentifierToken("any_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("as_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("async_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("await_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("boolean_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("break_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("case_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("catch_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("class_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("const_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("constructor_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("continue_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("debugger_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("declare_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("default_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("delete_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("do_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("else_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("enum_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("export_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("extends_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("false_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("finally_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("for_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("function_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("get_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("if_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("implements_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("import_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("in_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("instanceof_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("interface_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("let_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("module_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("new_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("null_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("number_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("of_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("package_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("private_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("protected_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("public_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("require_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("return_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("set_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("static_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("string_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("super_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("switch_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("symbol_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("this_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("throw_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("true_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("try_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("type_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("typeof_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("var_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("void_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("while_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("with_"),
+        WhitespaceTrivia(1),
+        IdentifierToken("yield_"),
+        EndOfFileToken,
     ]
