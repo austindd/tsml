@@ -9,6 +9,8 @@ import Parser
 import TypeInfer
 import Type
 import TypeReport
+import TypeConstraintSolver
+import TestConstraintSolver
 
 # import Ast
 # import AsyncTypes
@@ -214,5 +216,15 @@ main_loop! = |{}|
 main! = |_|
     _ = Stdout.line!("🚀 TypeScript/JavaScript Parser")
     _ = Stdout.line!("Interactive Mode - Enter JavaScript/TypeScript code to parse")
-    _ = main_loop!({})
+    # _ = main_loop!({})
+    output = TestConstraintSolver.test_basic_unification({})
+        |> List.concat(TestConstraintSolver.test_subtyping({}))
+        |> List.concat(TestConstraintSolver.test_arrays({}))
+        |> List.concat(TestConstraintSolver.test_tuples({}))
+        |> List.concat(TestConstraintSolver.test_unions({}))
+        |> List.concat(TestConstraintSolver.test_objects({}))
+    _ = List.for_each!(output, |line|
+        _ = Stdout.line!(line)
+        {}
+    )
     Ok({})
