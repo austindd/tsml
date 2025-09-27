@@ -1875,7 +1875,7 @@ parse_new_arguments = |callee, arguments, token_list|
 parse_function_parameters : List Token -> (List Node, List Token)
 parse_function_parameters = |token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [OpenParenToken, .. as rest1] ->
             parse_parameter_list([], rest1)
 
@@ -1891,7 +1891,7 @@ parse_function_parameters = |token_list|
 parse_parameter_list : List Node, List Token -> (List Node, List Token)
 parse_parameter_list = |params, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [CloseParenToken, .. as rest] ->
             (params, rest)
 
@@ -1899,7 +1899,7 @@ parse_parameter_list = |params, token_list|
             # Check for type annotation: param: type
             (param_with_type, remaining_after_type) =
                 when rest1 is
-                    [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
+                    [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
                     [ColonToken, .. as rest2] ->
                         (type_annotation, remaining) = parse_type_annotation(rest2)
                         identifier_with_type = Identifier({ name: param_name })
@@ -1914,7 +1914,7 @@ parse_parameter_list = |params, token_list|
             # Check for default value: param = defaultValue
             (param, remaining_tokens) =
                 when remaining_after_type is
-                    [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
+                    [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
                     [EqualsToken, .. as rest2] ->
                         # Parse default value with precedence 60 to stop at comma
                         (default_expr, remaining) = parse_expression(Nud, 60, rest2)
@@ -2078,7 +2078,7 @@ parse_decorated_declaration = |token_list|
 parse_decorators : List Node, List Token -> (List Node, List Token)
 parse_decorators = |decorators, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [AtToken, .. as rest] ->
             # Parse the decorator expression
             (decorator_expr, rest1) = parse_decorator_expression(rest)
@@ -2122,7 +2122,7 @@ parse_class_declaration_with_decorators = |decorators, token_list|
             # Check for extends clause
             (super_class, rest2) =
                 when rest1 is
-                    [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
                     [ExtendsKeyword, IdentifierToken(super_name), .. as rest] ->
                         super_id = Identifier({ name: super_name })
                         (Some(super_id), rest)
@@ -2599,7 +2599,7 @@ parse_import_declaration = |token_list|
 parse_import_specifiers : List Node, List Token -> (List Node, List Token)
 parse_import_specifiers = |specifiers, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [CloseBraceToken, .. as rest] ->
             (specifiers, rest)
 
@@ -2613,7 +2613,7 @@ parse_import_specifiers = |specifiers, token_list|
             )
             new_specifiers = List.append(specifiers, specifier)
             when rest1 is
-                [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                 [CommaToken, .. as rest2] ->
                     parse_import_specifiers(new_specifiers, rest2)
 
@@ -2630,7 +2630,7 @@ parse_import_specifiers = |specifiers, token_list|
             )
             new_specifiers = List.append(specifiers, specifier)
             when rest1 is
-                [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                 [CommaToken, .. as rest2] ->
                     parse_import_specifiers(new_specifiers, rest2)
 
@@ -3250,7 +3250,7 @@ parse_interface_declaration = |token_list|
             # Check for extends clause
             (extends_clause, rest3) =
                 when rest2 is
-                    [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+                    [TokenError(err), .. as after] -> (Some([Error({message: Inspect.to_str(err)})]), after)
                     [ExtendsKeyword, .. as rest] ->
                         (extends_list, remaining) = parse_interface_extends(rest)
                         (Some(extends_list), remaining)
@@ -3348,7 +3348,7 @@ parse_interface_body_statements = |statements, token_list|
             (params, rest2) = parse_method_signature_params([], rest1)
             (return_type, rest3) =
                 when rest2 is
-                    [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
                     [ColonToken, .. as rest] ->
                         (type_node, remaining) = parse_type_annotation(rest)
                         (Some(type_node), remaining)
@@ -3803,7 +3803,7 @@ parse_tuple_type = |token_list|
 parse_tuple_elements : List Node, List Token -> (List Node, List Token)
 parse_tuple_elements = |elements, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         # Empty tuple or end of elements
         [CloseBracketToken, ..] ->
             (elements, token_list)
@@ -3855,26 +3855,26 @@ parse_tuple_element = |token_list|
             # Fall back to regular type parsing (for non-literals)
             parse_union_type(token_list)
 
+# TODO: Let's avoid crashing on error cases.
+# TODO: We should also handle error tokens here.
+# We probably need to use a lot of nested 'when' expressions.
 parse_enum_declaration : List Token -> (Node, List Token)
 parse_enum_declaration = |token_list|
     # Check for optional const modifier
     (is_const, rest1) =
         when token_list is
-            [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
             [ConstKeyword, .. as rest] -> (Bool.true, rest)
             _ -> (Bool.false, token_list)
 
     # Expect enum keyword
     rest2 =
         when rest1 is
-            [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
             [EnumKeyword, .. as rest] -> rest
             _ -> crash("Expected enum keyword")
 
     # Parse the enum identifier
     (id, rest3) =
         when rest2 is
-            [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
             [IdentifierToken(name), .. as rest] ->
                 (Identifier({ name }), rest)
 
@@ -3884,7 +3884,6 @@ parse_enum_declaration = |token_list|
     # Expect opening brace
     rest4 =
         when rest3 is
-            [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
             [OpenBraceToken, .. as rest] -> rest
             _ -> rest3
 
@@ -3909,7 +3908,7 @@ parse_enum_declaration = |token_list|
 parse_enum_members : List Node, List Token -> (List Node, List Token)
 parse_enum_members = |members, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [CloseBraceToken, ..] | [] ->
             (members, token_list)
 
@@ -3926,9 +3925,8 @@ parse_enum_members = |members, token_list|
 
             # Continue parsing or stop at close brace
             when rest2 is
-                [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
-                [CloseBraceToken, ..] ->
-                    (new_members, rest2)
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
+                [CloseBraceToken, ..] -> (new_members, rest2)
 
                 _ ->
                     parse_enum_members(new_members, rest2)
@@ -3951,7 +3949,7 @@ parse_enum_member = |token_list|
     # Check for optional initializer
     (initializer, rest2) =
         when rest1 is
-            [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+            [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
             [EqualsToken, .. as rest] ->
                 # Parse the initializer expression with higher precedence to stop at commas
                 (expr, remaining) = parse_expression(Nud, 60, rest)
@@ -3971,7 +3969,7 @@ parse_enum_member = |token_list|
 parse_type_parameters : List Token -> (Option Node, List Token)
 parse_type_parameters = |token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
         [LessThanToken, .. as rest] ->
             (params, rest1) = parse_type_parameter_list([], rest)
             when rest1 is
@@ -3988,7 +3986,7 @@ parse_type_parameters = |token_list|
 parse_type_parameter_list : List Node, List Token -> (List Node, List Token)
 parse_type_parameter_list = |params, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [GreaterThanToken, ..] | [] ->
             (params, token_list)
 
@@ -3997,6 +3995,7 @@ parse_type_parameter_list = |params, token_list|
             new_params = List.append(params, param)
 
             when rest1 is
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                 [CommaToken, .. as rest2] ->
                     parse_type_parameter_list(new_params, rest2)
 
@@ -4018,7 +4017,7 @@ parse_type_parameter = |token_list|
     # Check for constraint
     (constraint, rest2) =
         when rest1 is
-            [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+            [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
             [ExtendsKeyword, .. as rest] ->
                 (type_node, remaining) = parse_type_annotation(rest)
                 (Some(type_node), remaining)
@@ -4029,7 +4028,7 @@ parse_type_parameter = |token_list|
     # Check for default
     (default, rest3) =
         when rest2 is
-            [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+            [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
             [EqualsToken, .. as rest] ->
                 (type_node, remaining) = parse_type_annotation(rest)
                 (Some(type_node), remaining)
@@ -4049,10 +4048,11 @@ parse_type_parameter = |token_list|
 parse_type_arguments : List Token -> (Option Node, List Token)
 parse_type_arguments = |token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
         [LessThanToken, .. as rest] ->
             (args, rest1) = parse_type_argument_list([], rest)
             when rest1 is
+                [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
                 [GreaterThanToken, .. as rest2] ->
                     type_args = TSTypeParameterInstantiation({ params: args })
                     (Some(type_args), rest2)
@@ -4066,7 +4066,7 @@ parse_type_arguments = |token_list|
 parse_type_argument_list : List Node, List Token -> (List Node, List Token)
 parse_type_argument_list = |args, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [GreaterThanToken, ..] | [] ->
             (args, token_list)
 
@@ -4075,6 +4075,7 @@ parse_type_argument_list = |args, token_list|
             new_args = List.append(args, arg)
 
             when rest1 is
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                 [CommaToken, .. as rest2] ->
                     parse_type_argument_list(new_args, rest2)
 
@@ -4169,6 +4170,7 @@ parse_object_type_literal = |token_list|
             (members, rest1) = parse_object_type_members([], token_list)
 
             when rest1 is
+                [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
                 [CloseBraceToken, .. as rest2] ->
                     object_type = TSTypeLiteral(
                         {
@@ -4194,6 +4196,7 @@ parse_mapped_type_with_modifiers = |param_name, readonly_mod, optional_mod, toke
         [CloseBracketToken, .. as rest2] ->
             # Now look for ]: and the type
             when rest2 is
+                [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
                 [ColonToken, .. as rest3] ->
                     # Check for optional modifier before the type
                     (final_optional, rest4) =
@@ -4210,6 +4213,7 @@ parse_mapped_type_with_modifiers = |param_name, readonly_mod, optional_mod, toke
 
                     # Look for closing brace
                     when rest5 is
+                        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
                         [CloseBraceToken, .. as rest6] ->
                             # Create type parameter
                             type_param = TSTypeParameter(
@@ -4244,7 +4248,7 @@ parse_mapped_type_with_modifiers = |param_name, readonly_mod, optional_mod, toke
 parse_object_type_members : List Node, List Token -> (List Node, List Token)
 parse_object_type_members = |members, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         # Empty object type or end of members
         [CloseBraceToken, ..] ->
             (members, token_list)
@@ -4295,6 +4299,7 @@ parse_object_type_members = |members, token_list|
             new_members = List.append(members, prop_signature)
 
             when rest2 is
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                 [SemicolonToken, .. as rest3] ->
                     # More properties (semicolon separated)
                     parse_object_type_members(new_members, rest3)
@@ -4315,7 +4320,7 @@ parse_object_type_members = |members, token_list|
 continue_parsing_members : List Node, List Token -> (List Node, List Token)
 continue_parsing_members = |members, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [SemicolonToken, .. as rest] | [CommaToken, .. as rest] ->
             # More properties
             parse_object_type_members(members, rest)
@@ -4328,13 +4333,13 @@ continue_parsing_members = |members, token_list|
 parse_index_signature : List Node, List Token -> (List Node, List Token)
 parse_index_signature = |members, token_list|
     when token_list is
-        [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [OpenBracketToken, IdentifierToken(param_name), ColonToken, .. as rest1] ->
             # Parse the parameter type (e.g., string, number, symbol)
             (param_type, rest2) = parse_type_annotation(rest1)
 
             when rest2 is
-                [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                 [CloseBracketToken, ColonToken, .. as rest3] ->
                     # Parse the value type
                     (value_type, rest4) = parse_type_annotation(rest3)
@@ -4376,11 +4381,13 @@ parse_readonly_member = |members, token_list|
         # readonly [key: string]: type
         [OpenBracketToken, .. as rest] ->
             when rest is
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                 [IdentifierToken(param_name), ColonToken, .. as rest1] ->
                     # Parse the parameter type
                     (param_type, rest2) = parse_type_annotation(rest1)
 
                     when rest2 is
+                        [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                         [CloseBracketToken, ColonToken, .. as rest3] ->
                             # Parse the value type
                             (value_type, rest4) = parse_type_annotation(rest3)
@@ -4416,7 +4423,7 @@ parse_readonly_member = |members, token_list|
         # readonly propName: type or readonly propName?: type
         [IdentifierToken(prop_name), .. as rest] ->
             when rest is
-                [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
+                [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
                 [QuestionToken, ColonToken, .. as rest1] ->
                     # readonly optional property
                     (prop_type, rest2) = parse_simple_type_annotation(rest1)

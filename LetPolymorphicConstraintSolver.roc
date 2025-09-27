@@ -360,18 +360,18 @@ generate_constraints = |node, state|
             # Generate constraints for elements
             (elem_var, state1) = fresh_var(state)
 
-            # Process only non-null elements
-            non_null_elems = List.keep_if(elements, |elem_opt|
-                when elem_opt is
-                    Some(_) -> Bool.true
-                    None -> Bool.false
-            ) |> List.map(|elem_opt|
-                when elem_opt is
-                    Some(elem) -> elem
-                    None -> Identifier({ name: "" })
-            )
+            # # Process only non-null elements
+            # non_null_elems = List.keep_if(elements, |elem_opt|
+            #     when elem_opt is
+            #         Some(_) -> Bool.true
+            #         None -> Bool.false
+            # ) |> List.map(|elem_opt|
+            #     when elem_opt is
+            #         Some(elem) -> elem
+            #         None -> Identifier({ name: "" })
+            # )
 
-            (elem_constraints, state2) = List.walk(non_null_elems, ([], state1), |(constraints, s), elem|
+            (elem_constraints, state2) = List.walk(elements, ([], state1), |(constraints, s), elem|
                 (elem_type, elem_cs, s1) = generate_constraints(elem, s)
                 # Each element should unify with the element type
                 new_constraints = List.append(elem_cs, TypeEq(elem_type, IVar(elem_var)))

@@ -23,12 +23,19 @@ type_check_source = |source|
     tokens = Token.tokenize_str(source)
 
     # Step 2: Filter trivia
-    non_trivia = List.keep_if tokens \token ->
+    non_trivia = List.keep_if(tokens, |token|
         when token is
-            Whitespace(_) -> Bool.false
-            BlockComment(_) -> Bool.false
-            LineComment(_) -> Bool.false
+            WhitespaceTrivia(_) -> Bool.false
+            NewLineTrivia(_) -> Bool.false
+            BlockCommentStart -> Bool.false
+            BlockCommentEnd -> Bool.false
+            LineCommentStart -> Bool.false
+            CommentText(_) -> Bool.false
+            ShebangTrivia -> Bool.false
+            ConflictMarkerTrivia -> Bool.false
+            NonTextFileMarkerTrivia -> Bool.false
             _ -> Bool.true
+    )
 
     # Step 3: Parse
     ast = Parser.parse_program(non_trivia)
