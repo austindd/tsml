@@ -31,11 +31,15 @@ import ComprehensiveTypeIndexed exposing [
     InterfaceDef,
     TypeParamId,
     TypeParamDef,
+    EnumId,
+    EnumDef,
+    EnumMemberValue,
     get_type,
     get_row,
     get_class,
     get_interface,
     get_type_param,
+    get_enum,
 ]
 
 # Constraint kinds
@@ -282,6 +286,20 @@ unify_type_defs = \store, type1_def, type2_def, type1_id, type2_id, subst ->
             else
                 Err (SolverError (UnificationError "Interfaces don't match"))
 
+        # Enums
+        (TEnum enum1, TEnum enum2) ->
+            if enum1 == enum2 then
+                Ok subst
+            else
+                Err (SolverError (UnificationError "Enums don't match"))
+
+        # Enum members
+        (TEnumMember mem1, TEnumMember mem2) ->
+            if mem1.enum_id == mem2.enum_id && mem1.member_name == mem2.member_name then
+                Ok subst
+            else
+                Err (SolverError (UnificationError "Enum members don't match"))
+
         # Generics
         (TGeneric gen1, TGeneric gen2) ->
             if gen1.base == gen2.base then
@@ -524,6 +542,98 @@ check_subtype_defs = \store, sub_def, super_def, sub_id, super_id, subst ->
 
         (TInterface sub_iface, TInterface super_iface) ->
             check_interface_subtype store sub_iface super_iface subst
+
+        # Enum subtyping
+        (TEnum enum1, TEnum enum2) ->
+            # Enums are nominally typed - must be same enum
+            if enum1 == enum2 then
+                Ok subst
+            else
+                Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Different enums are not subtypes" }))
+
+        # Enum member is subtype of its enum
+        (TEnumMember mem, TEnum enum_id) ->
+            if mem.enum_id == enum_id then
+                Ok subst
+            else
+                Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum member not from this enum" }))
+
+        # Enum members with same value
+        (TEnumMember mem1, TEnumMember mem2) ->
+            if mem1.enum_id == mem2.enum_id && mem1.member_name == mem2.member_name then
+                Ok subst
+            else
+                Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Different enum members" }))
+
+        # Enum member to literal (for const enums)
+        (TEnumMember mem, _) ->
+            # Check if this is a const enum and get its value
+            when get_enum store mem.enum_id is
+                Ok enum_def ->
+                    if enum_def.is_const then
+                        # Find the member's value
+                        when List.find_first enum_def.members \m -> m.name == mem.member_name is
+                            Ok member ->
+                                # Check if the member's value type matches the target
+                                when (member.value, super_def) is
+                                    (EnumNumValue n, TNumber) -> Ok subst
+                                    (EnumStrValue _, TString) -> Ok subst
+                                    (EnumNumValue n, TLiteral (NumLit expected)) ->
+                                        if Num.to_str n == Num.to_str expected then
+                                            Ok subst
+                                        else
+                                            Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum value doesn't match literal" }))
+                                    (EnumStrValue s, TLiteral (StrLit expected)) ->
+                                        if s == expected then
+                                            Ok subst
+                                        else
+                                            Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum value doesn't match literal" }))
+                                    _ -> Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum member type mismatch" }))
+                            Err _ -> Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum member not found" }))
+                    else
+                        Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Non-const enum member cannot be subtype of literal" }))
+                Err _ -> Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum not found" }))
+
+        # Literal to enum member (reverse const enum check)
+        (TLiteral lit, TEnumMember mem) ->
+            when get_enum store mem.enum_id is
+                Ok enum_def ->
+                    if enum_def.is_const then
+                        when List.find_first enum_def.members \m -> m.name == mem.member_name is
+                            Ok member ->
+                                when (lit, member.value) is
+                                    (NumLit n, EnumNumValue expected) ->
+                                        if Num.to_str n == Num.to_str expected then
+                                            Ok subst
+                                        else
+                                            Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Literal doesn't match enum value" }))
+                                    (StrLit s, EnumStrValue expected) ->
+                                        if s == expected then
+                                            Ok subst
+                                        else
+                                            Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Literal doesn't match enum value" }))
+                                    _ -> Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Type mismatch with enum value" }))
+                            Err _ -> Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum member not found" }))
+                    else
+                        Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Cannot assign to non-const enum member" }))
+                Err _ -> Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum not found" }))
+
+        # Enum to union containing its members
+        (TEnum enum_id, TUnion union_types) ->
+            # Check if union contains all possible enum members
+            when get_enum store enum_id is
+                Ok enum_def ->
+                    # For simplicity, just check if enum is in the union
+                    # A full implementation would expand enum to its members
+                    if List.any union_types \t ->
+                        when get_type store t is
+                            Ok (TEnum e) -> e == enum_id
+                            _ -> Bool.false
+                    then
+                        Ok subst
+                    else
+                        Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum not in union" }))
+                Err _ -> Err (SolverError (SubtypeError { expected: super_id, actual: sub_id, reason: "Enum not found" }))
 
         # Conditional types
         (TConditional cond, _) ->

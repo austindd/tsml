@@ -11,17 +11,22 @@ module [
     InterfaceDef,
     TypeParamId,
     TypeParamDef,
+    EnumId,
+    EnumDef,
+    EnumMemberValue,
     empty_store,
     add_type,
     add_row,
     add_class,
     add_interface,
     add_type_param,
+    add_enum,
     get_type,
     get_row,
     get_class,
     get_interface,
     get_type_param,
+    get_enum,
     # Type constructors
     make_primitive,
     make_literal,
@@ -38,6 +43,8 @@ module [
     make_template_literal,
     make_class,
     make_interface,
+    make_enum,
+    make_enum_member,
     make_any,
     make_never,
     make_unknown,
@@ -60,6 +67,7 @@ RowVar : U32
 ClassId : U32
 InterfaceId : U32
 TypeParamId : U32
+EnumId : U32
 
 # Literal values
 LiteralValue : [
@@ -68,6 +76,20 @@ LiteralValue : [
     BoolLit Bool,
     BigIntLit Str,
 ]
+
+# Enum member values
+EnumMemberValue : [
+    EnumNumValue F64,
+    EnumStrValue Str,
+    EnumAutoValue,  # Auto-incremented numeric value
+]
+
+# Enum definition (stored separately)
+EnumDef : {
+    name: Str,
+    members: List { name: Str, value: EnumMemberValue },
+    is_const: Bool,  # const enum
+}
 
 # Type parameter definition (stored separately to avoid recursion)
 TypeParamDef : {
@@ -181,6 +203,10 @@ TypeDef : [
     # Class and interface references
     TClass ClassId,
     TInterface InterfaceId,
+
+    # Enum types
+    TEnum EnumId,
+    TEnumMember { enum_id: EnumId, member_name: Str },
 ]
 
 # Helper record types for row definitions
@@ -213,6 +239,7 @@ TypeStore : {
     classes: List ClassDef,
     interfaces: List InterfaceDef,
     type_params: List TypeParamDef,
+    enums: List EnumDef,
     next_type_id: TypeId,
     next_row_id: RowId,
     next_type_var: TypeVar,
@@ -220,6 +247,7 @@ TypeStore : {
     next_class_id: ClassId,
     next_interface_id: InterfaceId,
     next_type_param_id: TypeParamId,
+    next_enum_id: EnumId,
 }
 
 # Create an empty type store
@@ -230,6 +258,7 @@ empty_store = {
     classes: [],
     interfaces: [],
     type_params: [],
+    enums: [],
     next_type_id: 0,
     next_row_id: 0,
     next_type_var: 0,
@@ -237,6 +266,7 @@ empty_store = {
     next_class_id: 0,
     next_interface_id: 0,
     next_type_param_id: 0,
+    next_enum_id: 0,
 }
 
 # Add a type to the store and get its ID
@@ -322,6 +352,23 @@ get_type_param : TypeStore, TypeParamId -> Result TypeParamDef [NotFound]
 get_type_param = \store, type_param_id ->
     when List.get store.type_params (Num.to_u64 type_param_id) is
         Ok type_param_def -> Ok type_param_def
+        Err _ -> Err NotFound
+
+# Add an enum to the store and get its ID
+add_enum : TypeStore, EnumDef -> (TypeStore, EnumId)
+add_enum = \store, enum_def ->
+    enum_id = store.next_enum_id
+    new_store = { store &
+        enums: List.append store.enums enum_def,
+        next_enum_id: enum_id + 1,
+    }
+    (new_store, enum_id)
+
+# Get an enum by ID
+get_enum : TypeStore, EnumId -> Result EnumDef [NotFound]
+get_enum = \store, enum_id ->
+    when List.get store.enums (Num.to_u64 enum_id) is
+        Ok enum_def -> Ok enum_def
         Err _ -> Err NotFound
 
 # Type constructor helpers
@@ -413,6 +460,16 @@ make_interface : TypeStore, InterfaceDef -> (TypeStore, TypeId)
 make_interface = \store, interface_def ->
     (store_with_interface, interface_id) = add_interface store interface_def
     add_type store_with_interface (TInterface interface_id)
+
+# Enum constructors
+make_enum : TypeStore, EnumDef -> (TypeStore, TypeId)
+make_enum = \store, enum_def ->
+    (store_with_enum, enum_id) = add_enum store enum_def
+    add_type store_with_enum (TEnum enum_id)
+
+make_enum_member : TypeStore, EnumId, Str -> (TypeStore, TypeId)
+make_enum_member = \store, enum_id, member_name ->
+    add_type store (TEnumMember { enum_id, member_name })
 
 # Row constructor helpers
 make_empty_row : TypeStore -> (TypeStore, RowId)
@@ -565,6 +622,16 @@ type_to_str_helper = |store, type_id, depth, max_depth|
                                     "<${Str.join_with(params, ", ")}>"
                                 "${interface_def.name}${type_params_str}"
                             Err _ -> "Interface???"
+
+                    TEnum(enum_id) ->
+                        when get_enum store enum_id is
+                            Ok enum_def -> enum_def.name
+                            Err _ -> "Enum???"
+
+                    TEnumMember({ enum_id, member_name }) ->
+                        when get_enum store enum_id is
+                            Ok enum_def -> "${enum_def.name}.${member_name}"
+                            Err _ -> "Enum.${member_name}"
 
             Err _ -> "???"
 
