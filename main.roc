@@ -81,7 +81,6 @@ import UnionIntersectionTypes
 import Utf8Char
 import UtilityTypes
 import WorkingRowPoly
-import WorkingTypeChecker
 import RecursiveTypes
 
 

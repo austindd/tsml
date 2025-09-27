@@ -82,12 +82,16 @@ synth_type = |node, ctx|
         BinaryExpression({ left, operator, right }) ->
             synth_binary(left, operator, right, ctx)
 
+        # Logical expressions
+        LogicalExpression({ left, operator, right }) ->
+            synth_logical(left, operator, right, ctx)
+
         # Member access
-        MemberExpression({ object, property, computed, optional }) ->
+        MemberExpression({ object, property, computed }) ->
             synth_member(object, property, computed, ctx)
 
         # Function call
-        CallExpression({ callee, arguments, optional }) ->
+        CallExpression({ callee, arguments }) ->
             synth_call(callee, arguments, ctx)
 
         # Array literal
@@ -187,14 +191,6 @@ synth_binary = |left, op, right, ctx|
         EqualEqual | BangEqual | EqualEqualEqual | BangEqualEqual ->
             Ok(Type.mk_boolean)
 
-        # Logical operators
-        AmpersandAmpersand | PipePipe ->
-            # Return union of operand types
-            when (synth_type(left, ctx), synth_type(right, ctx)) is
-                (Ok(left_type), Ok(right_type)) ->
-                    Ok(Type.mk_union([left_type, right_type]))
-                _ -> Ok(Type.mk_unknown)
-
         # Bitwise operators
         Ampersand | Pipe | Caret | LeftShift | RightShift | UnsignedRightShift ->
             Ok(Type.mk_number)
@@ -204,6 +200,17 @@ synth_binary = |left, op, right, ctx|
             Ok(Type.mk_boolean)
 
         _ -> Ok(Type.mk_unknown)
+
+synth_logical : Ast.Node, Ast.LogicalOperator, Ast.Node, TypeContext -> Result Type.Type [TypeError Str]
+synth_logical = |left, op, right, ctx|
+    when op is
+        # Logical operators
+        LogicalAnd | LogicalOr ->
+            # Return union of operand types
+            when (synth_type(left, ctx), synth_type(right, ctx)) is
+                (Ok(left_type), Ok(right_type)) ->
+                    Ok(Type.mk_union([left_type, right_type]))
+                _ -> Ok(Type.mk_unknown)
 
 # Synthesize member access type
 synth_member : Ast.Node, Ast.Node, Bool, TypeContext -> Result Type.Type [TypeError Str]
@@ -227,26 +234,33 @@ synth_call = |callee, arguments, ctx|
     Ok(Type.mk_unknown)
 
 # Synthesize array literal type
-synth_array : List (Option Ast.Node), TypeContext -> Result Type.Type [TypeError Str]
+synth_array : List Ast.Node, TypeContext -> Result Type.Type [TypeError Str]
 synth_array = |elements, ctx|
-    # Collect element types
-    elem_types = List.keep_oks(elements, |elem_opt|
-        when elem_opt is
-            Some(elem) -> synth_type(elem, ctx)
-            None -> Ok(Type.mk_unknown))
-
     # Create union of element types
-    when elem_types is
+    when elements is
         [] -> Ok(Type.mk_array(Type.mk_unknown))
-        [single] -> Ok(Type.mk_array(single))
-        multiple -> Ok(Type.mk_array(Type.mk_union(multiple)))
+        [single] ->
+            when synth_type(single, ctx) is
+                Ok(single_type) -> Ok(Type.mk_array(single_type))
+                Err(_) -> Ok(Type.mk_array(Type.mk_unknown))
+        multiple ->
+            type_results = List.map(multiple, |elem| synth_type(elem, ctx))
+            if List.any(type_results, |result| Result.is_err(result)) then
+                Ok(Type.mk_array(Type.mk_unknown))
+            else 
+                types = List.map(type_results, |result| 
+                    when result is
+                        Ok(t) -> t
+                        Err(_) -> Type.mk_unknown
+                )
+                Ok(Type.mk_array(Type.mk_union(types)))
 
 # Synthesize object literal type
 synth_object : List Ast.Node, TypeContext -> Result Type.Type [TypeError Str]
 synth_object = |properties, ctx|
     props = List.keep_oks(properties, |prop|
         when prop is
-            Property({ key, value, kind, method, shorthand, computed }) ->
+            Property({ key, value, kind }) ->
                 when key is
                     Identifier({ name }) ->
                         when value is
@@ -289,20 +303,17 @@ check_function = |params, body, expected, ctx|
     Ok(Type.mk_unknown)
 
 # Check array elements against expected element type
-check_array_elements : List (Option Ast.Node), Type.Type, TypeContext -> Result Type.Type [TypeError Str]
+check_array_elements : List Ast.Node, Type.Type, TypeContext -> Result Type.Type [TypeError Str]
 check_array_elements = |elements, elem_type, ctx|
     # Check each element
     checking_ctx = { ctx & mode: Checking(elem_type) }
 
-    results = List.walk(elements, Ok([]), |acc_result, elem_opt|
+    results = List.walk(elements, Ok([]), |acc_result, elem|
         when acc_result is
             Ok(types) ->
-                when elem_opt is
-                    Some(elem) ->
-                        when check_type(elem, checking_ctx) is
-                            Ok(t) -> Ok(List.append(types, t))
-                            Err(e) -> Err(e)
-                    None -> Ok(types)
+                when check_type(elem, checking_ctx) is
+                    Ok(t) -> Ok(List.append(types, t))
+                    Err(e) -> Err(e)
             Err(e) -> Err(e))
 
     when results is
@@ -319,14 +330,14 @@ check_object_props = |actual_props, expected_props, ctx|
                 # Find corresponding actual property
                 actual_prop_opt = List.find_first(actual_props, |p|
                     when p is
-                        Property({ key, value, kind, method, shorthand, computed }) ->
+                        Property({ key, value, kind }) ->
                             when key is
                                 Identifier({ name }) -> name == exp_prop.key
                                 _ -> Bool.false
                         _ -> Bool.false)
 
                 when actual_prop_opt is
-                    Ok(Property({ key, value, kind, method, shorthand, computed })) ->
+                    Ok(Property({ key, value, kind })) ->
                         when value is
                             Some(val) ->
                                 checking_ctx = { ctx & mode: Checking(exp_prop.value_type) }
