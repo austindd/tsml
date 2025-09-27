@@ -49,6 +49,8 @@ module [
     make_never,
     make_unknown,
     make_void,
+    make_null,
+    make_undefined,
     # Row constructors
     make_empty_row,
     make_row_extend,
@@ -401,6 +403,14 @@ make_unknown = \store ->
 make_void : TypeStore -> (TypeStore, TypeId)
 make_void = \store ->
     add_type store TVoid
+
+make_null : TypeStore -> (TypeStore, TypeId)
+make_null = \store ->
+    add_type store TNull
+
+make_undefined : TypeStore -> (TypeStore, TypeId)
+make_undefined = \store ->
+    add_type store TUndefined
 
 make_literal : TypeStore, LiteralValue -> (TypeStore, TypeId)
 make_literal = \store, value ->

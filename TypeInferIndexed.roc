@@ -137,46 +137,46 @@ infer_statement = \stmt, store, env ->
 infer_node : Node, InferContext -> Result (TypeId, InferContext) Str
 infer_node = \node, ctx ->
     when node is
-        Program { body, source_type, has_shebang, directives } ->
-            infer_statement_list body ctx
+        Program data ->
+            infer_statement_list data.body ctx
 
         # Literals
-        NumberLiteral { value, raw } ->
-            num_val = Str.to_f64 value |> Result.with_default 0.0
+        NumberLiteral data ->
+            num_val = Str.to_f64 data.value |> Result.with_default 0.0
             (new_store, type_id) = ComprehensiveTypeIndexed.make_literal ctx.store (NumLit num_val)
             Ok (type_id, { ctx & store: new_store })
 
-        StringLiteral { value, raw } ->
-            (new_store, type_id) = ComprehensiveTypeIndexed.make_literal ctx.store (StrLit value)
+        StringLiteral data ->
+            (new_store, type_id) = ComprehensiveTypeIndexed.make_literal ctx.store (StrLit data.value)
             Ok (type_id, { ctx & store: new_store })
 
-        BooleanLiteral { value, raw } ->
-            (new_store, type_id) = ComprehensiveTypeIndexed.make_literal ctx.store (BoolLit value)
+        BooleanLiteral data ->
+            (new_store, type_id) = ComprehensiveTypeIndexed.make_literal ctx.store (BoolLit data.value)
             Ok (type_id, { ctx & store: new_store })
 
         NullLiteral _ ->
-            (new_store, type_id) = ComprehensiveTypeIndexed.make_literal ctx.store NullLit
-            Ok (type_id, { ctx & store: new_store })
-
-        # Note: In JavaScript/TypeScript, undefined is a value handled separately
-        Identifier { name } if name == "undefined" ->
-            (new_store, type_id) = ComprehensiveTypeIndexed.make_literal ctx.store UndefinedLit
+            (new_store, type_id) = ComprehensiveTypeIndexed.make_null ctx.store
             Ok (type_id, { ctx & store: new_store })
 
         # Identifier lookup
-        Identifier { name } ->
-            when Dict.get ctx.env name is
-                Ok scheme ->
-                    (instantiated_type, new_ctx) = instantiate_scheme scheme ctx
-                    Ok (instantiated_type, new_ctx)
-                Err _ ->
-                    # Unknown identifier - create a type variable
-                    (new_store, type_var) = ComprehensiveTypeIndexed.make_type_var ctx.store (Num.to_u32 ctx.next_var)
-                    Ok (type_var, { ctx & store: new_store, next_var: ctx.next_var + 1 })
+        Identifier data ->
+            # Check if this is the special 'undefined' identifier
+            if data.name == "undefined" then
+                (new_store, type_id) = ComprehensiveTypeIndexed.make_undefined ctx.store
+                Ok (type_id, { ctx & store: new_store })
+            else
+                when Dict.get ctx.env data.name is
+                    Ok scheme ->
+                        (instantiated_type, new_ctx) = instantiate_scheme scheme ctx
+                        Ok (instantiated_type, new_ctx)
+                    Err _ ->
+                        # Unknown identifier - create a type variable
+                        (new_store, type_var) = ComprehensiveTypeIndexed.make_type_var ctx.store (Num.to_u32 ctx.next_var)
+                        Ok (type_var, { ctx & store: new_store, next_var: ctx.next_var + 1 })
 
         # Array expressions
-        ArrayExpression { elements } ->
-            when elements is
+        ArrayExpression data ->
+            when data.elements is
                 [] ->
                     # Empty array - Array<never>
                     (store1, never_type) = ComprehensiveTypeIndexed.make_never ctx.store
@@ -195,7 +195,7 @@ infer_node = \node, ctx ->
                                             Err e -> Err e
                                     None ->
                                         # Sparse array element
-                                        (new_store, undef) = ComprehensiveTypeIndexed.make_literal curr_ctx.store UndefinedLit
+                                        (new_store, undef) = ComprehensiveTypeIndexed.make_undefined curr_ctx.store
                                         Ok (List.append types undef, { curr_ctx & store: new_store })
                             Err e -> Err e
 
@@ -313,7 +313,7 @@ infer_node = \node, ctx ->
                 Some arg ->
                     infer_node arg ctx
                 None ->
-                    (new_store, undef) = ComprehensiveTypeIndexed.make_literal ctx.store UndefinedLit
+                    (new_store, undef) = ComprehensiveTypeIndexed.make_undefined ctx.store
                     Ok (undef, { ctx & store: new_store })
 
         # Statements
@@ -338,7 +338,7 @@ infer_node = \node, ctx ->
                 Some arg ->
                     infer_node arg ctx
                 None ->
-                    (new_store, undef) = ComprehensiveTypeIndexed.make_literal ctx.store UndefinedLit
+                    (new_store, undef) = ComprehensiveTypeIndexed.make_undefined ctx.store
                     Ok (undef, { ctx & store: new_store })
 
         IfStatement { test, consequent, alternate } ->
@@ -443,7 +443,7 @@ infer_object_literal = \properties, ctx ->
                                         Ok (List.append fields field, new_ctx)
                                     Err e -> Err e
                             None ->
-                                (new_store, undef) = ComprehensiveTypeIndexed.make_literal curr_ctx.store UndefinedLit
+                                (new_store, undef) = ComprehensiveTypeIndexed.make_undefined curr_ctx.store
                                 field = { name: key_name, type_id: undef, optional: Bool.true, readonly: Bool.false }
                                 Ok (List.append fields field, { curr_ctx & store: new_store })
 
@@ -783,7 +783,7 @@ infer_variable_declarations = \declarations, kind, ctx ->
                                             Err e -> Err e
                                     None ->
                                         # No initializer - type is undefined
-                                        (new_store, undef) = ComprehensiveTypeIndexed.make_literal curr_ctx.store UndefinedLit
+                                        (new_store, undef) = ComprehensiveTypeIndexed.make_undefined curr_ctx.store
                                         scheme = { forall: Set.empty {}, type_id: undef }
                                         new_env = Dict.insert curr_ctx.env name scheme
                                         Ok (Some undef, { curr_ctx & store: new_store, env: new_env })
@@ -874,11 +874,11 @@ handle_ts_type_node = \node, ctx ->
             Ok (void_type, { ctx & store: new_store })
 
         TSUndefinedKeyword _ ->
-            (new_store, undef) = ComprehensiveTypeIndexed.make_literal ctx.store UndefinedLit
+            (new_store, undef) = ComprehensiveTypeIndexed.make_undefined ctx.store
             Ok (undef, { ctx & store: new_store })
 
         TSNullKeyword _ ->
-            (new_store, null) = ComprehensiveTypeIndexed.make_literal ctx.store NullLit
+            (new_store, null) = ComprehensiveTypeIndexed.make_null ctx.store
             Ok (null, { ctx & store: new_store })
 
         TSAnyKeyword _ ->
@@ -959,15 +959,9 @@ instantiate_scheme = \scheme, ctx ->
     if Set.is_empty scheme.forall then
         (scheme.type_id, ctx)
     else
-        # Create fresh type variables for each quantified variable
-        substitution = Set.walk scheme.forall (Dict.empty {}) \subst, old_var ->
-            Dict.insert subst old_var ctx.next_var
-
-        # Apply substitution to get instantiated type
-        instantiated = apply_substitution_to_type_id ctx.store scheme.type_id substitution
-        new_next_var = ctx.next_var + (Set.len scheme.forall |> Num.to_u64)
-
-        (instantiated, { ctx & next_var: new_next_var })
+        # For now, just return the type as-is
+        # In a full implementation, we'd instantiate with fresh type variables
+        (scheme.type_id, ctx)
 
 # Generalization
 generalize : TypeId, TypeStore, TypeEnv -> TypeScheme
@@ -1025,9 +1019,8 @@ find_free_vars_in_row = \row_id, store ->
 # Apply substitution to type ID
 apply_substitution_to_type_id : TypeStore, TypeId, Substitution -> TypeId
 apply_substitution_to_type_id = \store, type_id, subst ->
-    # This would need to walk the type and apply substitutions
-    # For now, return the original type
-    type_id
+    # Apply the substitution using TypeConstraintSolver
+    TypeConstraintSolver.apply_substitution store type_id subst
 
 # Apply substitution to environment
 apply_substitution_to_env : TypeStore, TypeEnv, Substitution -> TypeEnv
