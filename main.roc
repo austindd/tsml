@@ -153,7 +153,7 @@ process_input! = |input_code|
 
     # Step 4: Parse tokens into AST
     _ = Stdout.line!("\n🌳 Parsing AST...")
-    (ast, _remaining) = Parser.parse_program(parse_tokens)
+    ast = Parser.parse_program(parse_tokens)
 
     # Step 5: Display AST
     _ = Stdout.line!("\n✨ Abstract Syntax Tree:")
@@ -216,15 +216,18 @@ main_loop! = |{}|
 main! = |_|
     _ = Stdout.line!("🚀 TypeScript/JavaScript Parser")
     _ = Stdout.line!("Interactive Mode - Enter JavaScript/TypeScript code to parse")
-    # _ = main_loop!({})
-    output = TestConstraintSolver.test_basic_unification({})
-        |> List.concat(TestConstraintSolver.test_subtyping({}))
-        |> List.concat(TestConstraintSolver.test_arrays({}))
-        |> List.concat(TestConstraintSolver.test_tuples({}))
-        |> List.concat(TestConstraintSolver.test_unions({}))
-        |> List.concat(TestConstraintSolver.test_objects({}))
-    _ = List.for_each!(output, |line|
-        _ = Stdout.line!(line)
-        {}
-    )
+
+    _ = main_loop!({})
+
+    # output = TestConstraintSolver.test_basic_unification({})
+    #     |> List.concat(TestConstraintSolver.test_subtyping({}))
+    #     |> List.concat(TestConstraintSolver.test_arrays({}))
+    #     |> List.concat(TestConstraintSolver.test_tuples({}))
+    #     |> List.concat(TestConstraintSolver.test_unions({}))
+    #     |> List.concat(TestConstraintSolver.test_objects({}))
+    # _ = List.for_each!(output, |line|
+    #     _ = Stdout.line!(line)
+    #     {}
+    # )
+
     Ok({})
