@@ -5,8 +5,8 @@ module [
 
 # Row type definition
 RowType : {
-    fields: List { label: Str, type_id: U32 },
-    tail: [Closed, Open U32],
+    fields: List { label: Str, type_id: U64 },
+    tail: [Closed, Open U64],
 }
 
 # Demonstrate row polymorphism
@@ -77,14 +77,14 @@ unify_demo = \r1, r2 ->
             "✓ Closed can unify with open"
 
 # Check field compatibility
-fields_compatible : List { label: Str, type_id: U32 }, List { label: Str, type_id: U32 } -> Bool
+fields_compatible : List { label: Str, type_id: U64 }, List { label: Str, type_id: U64 } -> Bool
 fields_compatible = \subset, superset ->
     List.all subset \field ->
         List.any superset \f ->
             f.label == field.label && f.type_id == field.type_id
 
 # Check if fields are the same
-same_fields : List { label: Str, type_id: U32 }, List { label: Str, type_id: U32 } -> Bool
+same_fields : List { label: Str, type_id: U64 }, List { label: Str, type_id: U64 } -> Bool
 same_fields = \f1, f2 ->
     List.len f1 == List.len f2 &&
     fields_compatible f1 f2 &&

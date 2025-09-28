@@ -35,11 +35,11 @@ lookup_env = |env, name|
         Ok scheme -> Some scheme
         Err _ -> None
 
-generate_constraints : Node, TypeEnv -> (Type, List Constraint, U32)
+generate_constraints : Node, TypeEnv -> (Type, List Constraint, U64)
 generate_constraints = |node, env|
     generate_constraints_helper node env 0
 
-generate_constraints_helper : Node, TypeEnv, U32 -> (Type, List Constraint, U32)
+generate_constraints_helper : Node, TypeEnv, U64 -> (Type, List Constraint, U64)
 generate_constraints_helper = |node, env, next_var|
     when node is
         Identifier { name } ->
@@ -321,7 +321,7 @@ extract_param_name = |node|
         Identifier { name } -> name
         _ -> "_param_"
 
-instantiate_scheme : TypeScheme, U32 -> (Type, U32)
+instantiate_scheme : TypeScheme, U64 -> (Type, U64)
 instantiate_scheme = |scheme, next_var|
     if Set.is_empty scheme.forall then
         (scheme.body, next_var)
@@ -368,7 +368,7 @@ apply_substitutions = |type, subs|
 
         _ -> type
 
-infer_binary_op_type : BinaryOperator, Type, Type, U32 -> Type
+infer_binary_op_type : BinaryOperator, Type, Type, U64 -> Type
 infer_binary_op_type = |op, left, right, next_var|
     when op is
         EqualEqual | BangEqual | EqualEqualEqual | BangEqualEqual ->
@@ -398,11 +398,11 @@ infer_unary_op_type = |op, arg|
         Void -> Type.mk_literal UndefinedLit
         Delete -> Type.mk_primitive "boolean"
 
-process_statements : List Node, TypeEnv, U32 -> (Type, List Constraint, U32)
+process_statements : List Node, TypeEnv, U64 -> (Type, List Constraint, U64)
 process_statements = |stmts, env, next_var|
     process_statements_with_env stmts env next_var
 
-process_statements_with_env : List Node, TypeEnv, U32 -> (Type, List Constraint, U32)
+process_statements_with_env : List Node, TypeEnv, U64 -> (Type, List Constraint, U64)
 process_statements_with_env = |stmts, env, next_var|
     when stmts is
         [] -> (Type.mk_literal UndefinedLit, [], next_var)
@@ -508,7 +508,7 @@ process_statements_with_env = |stmts, env, next_var|
             (rest_type, rest_cs, final_var) = process_statements_with_env rest env_after_first var_after_first
             (rest_type, List.concat first_cs rest_cs, final_var)
 
-process_var_declarations : List Node, TypeEnv, U32 -> (Type, List Constraint, U32)
+process_var_declarations : List Node, TypeEnv, U64 -> (Type, List Constraint, U64)
 process_var_declarations = |decls, env, next_var|
     List.walk decls (Type.mk_literal UndefinedLit, [], next_var) |(_, cs, v), decl|
         when decl is

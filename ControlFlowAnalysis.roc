@@ -36,16 +36,16 @@ FlowNode : [
     # Conditional branch
     Branch {
         condition: Ast.Node,
-        true_branch: U32,  # Index to true flow node
-        false_branch: U32, # Index to false flow node
+        true_branch: U64,  # Index to true flow node
+        false_branch: U64, # Index to false flow node
     },
     # Merge point after branches
-    Merge (List U32), # Indices of incoming branches
+    Merge (List U64), # Indices of incoming branches
     # Loop
     Loop {
         condition: Ast.Node,
-        body: U32,
-        exit: U32,
+        body: U64,
+        exit: U64,
     },
     # Return statement
     Return (Option Ast.Node),
@@ -62,7 +62,7 @@ RefinedType : {
 # Control flow context
 FlowContext : {
     nodes: List FlowNode,
-    current_index: U32,
+    current_index: U64,
     type_environment: List { name: Str, type: RefinedType },
     guards: List TypeGuard,
 }

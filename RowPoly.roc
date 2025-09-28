@@ -10,10 +10,10 @@ module [
 # Avoiding recursive type definitions that cause Roc compiler issues
 
 # Row variable identifier
-RowVar : U32
+RowVar : U64
 
 # Type variable identifier
-TypeVar : U32
+TypeVar : U64
 
 # Row types - using tags without recursion initially
 RowTag : [

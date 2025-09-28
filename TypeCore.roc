@@ -18,7 +18,7 @@ module [
     type_to_string,
 ]
 
-TypeId : U32
+TypeId : U64
 
 SimpleType : [
     TVar TypeId,

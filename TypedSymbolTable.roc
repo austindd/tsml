@@ -20,7 +20,7 @@ Symbol : {
     sym_type : Type,
     is_const : Bool,  # const vs let/var
     is_function : Bool,
-    scope_level : U32,
+    scope_level : U64,
 }
 
 # Different types of scopes in JavaScript
@@ -38,13 +38,13 @@ ScopeType : [
 Scope : {
     scope_type : ScopeType,
     symbols : List Symbol,
-    parent_index : Result U32 [NoParent],
+    parent_index : Result U64 [NoParent],
 }
 
 # Symbol table maintains a stack of scopes
 SymbolTable : {
     scopes : List Scope,
-    current_scope_index : U32,
+    current_scope_index : U64,
 }
 
 # Create an empty symbol table with global scope
@@ -122,7 +122,7 @@ lookup_symbol : SymbolTable, Str -> Result Symbol [SymbolNotFound]
 lookup_symbol = \table, name ->
     lookup_in_scope table name table.current_scope_index
 
-lookup_in_scope : SymbolTable, Str, U32 -> Result Symbol [SymbolNotFound]
+lookup_in_scope : SymbolTable, Str, U64 -> Result Symbol [SymbolNotFound]
 lookup_in_scope = \table, name, scope_index ->
     when List.get table.scopes (Num.to_u64 scope_index) is
         Ok scope ->
@@ -151,7 +151,7 @@ update_symbol_type = \table, name, new_type ->
         Err _ ->
             Err SymbolNotFound
 
-update_symbol_in_scope : SymbolTable, Str, Type, U32 -> Result SymbolTable [SymbolNotFound]
+update_symbol_in_scope : SymbolTable, Str, Type, U64 -> Result SymbolTable [SymbolNotFound]
 update_symbol_in_scope = \table, name, new_type, scope_level ->
     scope_idx = Num.to_u64 scope_level
     when List.get table.scopes scope_idx is

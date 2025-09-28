@@ -15,7 +15,7 @@ module [
 
 # TypeScript Utility Types Implementation
 
-TypeId : U32
+TypeId : U64
 
 # Base type representation
 BaseType : [

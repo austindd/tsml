@@ -26,10 +26,10 @@ module [
 
 # Row Polymorphism using indices to avoid mutual recursion
 
-TypeId : U32
-RowId : U32
-TypeVar : U32
-RowVar : U32
+TypeId : U64
+RowId : U64
+TypeVar : U64
+RowVar : U64
 
 # Type definitions (no direct recursion)
 TypeDef : [

@@ -9,10 +9,10 @@ module [
 # A working row polymorphism system for structural typing
 
 # Type identifier (simplified)
-TypeId : U32
+TypeId : U64
 
 # Row variable identifier
-RowVar : U32
+RowVar : U64
 
 # Field map representing record fields
 FieldMap : List { label: Str, type_id: TypeId }

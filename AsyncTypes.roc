@@ -8,7 +8,7 @@ module [
 
 # Async/Await and Promise Type Support for TypeScript/JavaScript
 
-TypeId : U32
+TypeId : U64
 
 # Core async type representations
 AsyncType : [

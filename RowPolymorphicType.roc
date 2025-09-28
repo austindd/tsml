@@ -12,7 +12,7 @@ module [
 import SimpleComprehensiveType as Type
 
 # Row variable identifier
-RowVar : U32
+RowVar : U64
 
 # Field in a record
 Field : { label: Str, type: Type.Type }
@@ -154,11 +154,11 @@ check_field_access = |row, field_name|
                     Err(FieldNotFound("Field $(field_name) not found in record"))
 
 # Fresh row variable counter (simplified - would need state in real impl)
-fresh_row_var_counter : U32
+fresh_row_var_counter : U64
 fresh_row_var_counter = 1000
 
 # Instantiate a row-polymorphic type
-instantiate_row : TypeWithRows, U32 -> TypeWithRows
+instantiate_row : TypeWithRows, U64 -> TypeWithRows
 instantiate_row = |type, fresh_var|
     when type is
         RowPolyFunction(data) ->

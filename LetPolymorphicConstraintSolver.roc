@@ -16,7 +16,7 @@ import SimpleComprehensiveType as Type
 import Option exposing [Option]
 
 # Type variable
-TypeVar : U32
+TypeVar : U64
 
 # Type with variables for inference
 InferType : [
@@ -69,13 +69,13 @@ SolverState : {
     subst: Substitution,
 
     # Fresh variable counter
-    next_var: U32,
+    next_var: U64,
 
     # Type environment for let-bound variables
     env: List { name: Str, scheme: TypeScheme },
 
     # Current nesting level for generalization
-    level: U32,
+    level: U64,
 }
 
 # Create initial solver state

@@ -13,10 +13,10 @@ module [
 ]
 
 # Type identifier (simplified)
-TypeId : U32
+TypeId : U64
 
 # Row variable identifier
-RowVar : U32
+RowVar : U64
 
 # A row is a collection of fields plus a tail
 Row : {

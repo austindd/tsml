@@ -8,7 +8,7 @@ module [
 
 # Control Flow Type Narrowing Implementation
 
-TypeId : U32
+TypeId : U64
 
 # Type representation with narrowing support
 NarrowableType : [

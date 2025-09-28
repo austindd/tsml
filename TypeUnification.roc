@@ -9,7 +9,7 @@ import SimpleComprehensiveType as Type
 import Option exposing [Option]
 
 # Type variable
-TypeVar : U32
+TypeVar : U64
 
 # Extended type with variables for unification
 UnifiableType : [

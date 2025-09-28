@@ -10,10 +10,10 @@ module [
 # Handles self-referential types like linked lists, trees, classes
 
 # Type variable for recursion binding
-RecVar : U32
+RecVar : U64
 
 # Type identifier
-TypeId : U32
+TypeId : U64
 
 # Recursive type: μα.T where α can appear in T
 RecType : {
@@ -214,7 +214,7 @@ check_recursive_type = \t1, t2 ->
             check_type_equality t1 t2 0
 
 # Check type equality with depth limit for recursive types
-check_type_equality : TypeWithRec, TypeWithRec, U32 -> Bool
+check_type_equality : TypeWithRec, TypeWithRec, U64 -> Bool
 check_type_equality = \t1, t2, depth ->
     if depth > 10 then
         # Depth limit reached - assume equal (coinductive)
@@ -255,7 +255,7 @@ check_type_equality = \t1, t2, depth ->
             _ -> Bool.false
 
 # Check record fields match
-check_record_fields : List { label: Str, type: TypeWithRec }, List { label: Str, type: TypeWithRec }, U32 -> Bool
+check_record_fields : List { label: Str, type: TypeWithRec }, List { label: Str, type: TypeWithRec }, U64 -> Bool
 check_record_fields = \fields1, fields2, depth ->
     (List.len fields1 == List.len fields2) &&
     (List.all fields1 \f1 ->

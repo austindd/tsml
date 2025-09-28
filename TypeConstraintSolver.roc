@@ -8,6 +8,7 @@ module [
     # Main solver API
     empty_solver_state,
     add_constraint,
+    add_constraints,
     solve_constraints,
     apply_substitution,
     # Type relationship checks
@@ -69,8 +70,8 @@ Constraint : {
 
 # Substitution mapping type variables to concrete types
 Substitution : {
-    type_var_map: List { var: U32, replacement: TypeId },
-    row_var_map: List { var: U32, replacement: RowId },
+    type_var_map: List { var: U64, replacement: TypeId },
+    row_var_map: List { var: U64, replacement: RowId },
 }
 
 # Solution to constraint solving
@@ -114,12 +115,17 @@ add_constraint = \state, kind, source ->
         work_list: List.append state.work_list constraint,
     }
 
+add_constraints : SolverState, List Constraint -> SolverState
+add_constraints = |state, constraints|
+    new_state = { state & constraints: List.concat(state.constraints, constraints) }
+    new_state
+    
 # Main constraint solving algorithm
 solve_constraints : SolverState -> Solution
 solve_constraints = \initial_state ->
     solve_loop initial_state 0
 
-solve_loop : SolverState, U32 -> Solution
+solve_loop : SolverState, U64 -> Solution
 solve_loop = \state, iteration ->
     # Prevent infinite loops
     if iteration > 1000 then
@@ -1111,12 +1117,12 @@ apply_row_substitution = \store, row_id, subst ->
         _ -> row_id  # Not a variable
 
 # Add type substitution
-add_type_substitution : Substitution, U32, TypeId -> Substitution
+add_type_substitution : Substitution, U64, TypeId -> Substitution
 add_type_substitution = \subst, var, replacement ->
     { subst & type_var_map: List.append subst.type_var_map { var, replacement } }
 
 # Add row substitution
-add_row_substitution : Substitution, U32, RowId -> Substitution
+add_row_substitution : Substitution, U64, RowId -> Substitution
 add_row_substitution = \subst, var, replacement ->
     { subst & row_var_map: List.append subst.row_var_map { var, replacement } }
 

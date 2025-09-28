@@ -13,10 +13,10 @@ module [
 # Using lists and tags to avoid Roc compiler issues
 
 # Type identifier
-TypeId : U32
+TypeId : U64
 
 # Row variable identifier
-RowVar : U32
+RowVar : U64
 
 # Field in a record
 Field : { label: Str, type_id: TypeId }

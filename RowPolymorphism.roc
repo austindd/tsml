@@ -12,7 +12,7 @@ module [
 # Row Polymorphism without mutual recursion (v2)
 # Simplified to avoid any complex recursion patterns
 
-RowVar : U32
+RowVar : U64
 
 GenericRow fieldType : [
     REmpty,
@@ -26,7 +26,7 @@ Type : [
     TBoolean,
     TNull,
     TUndefined,
-    TVar U32,
+    TVar U64,
     TRecord (GenericRow Type),
     TFunction Type Type,
     TArray Type,
@@ -34,7 +34,7 @@ Type : [
 ]
 
 RowSubst : List { var: RowVar, row: GenericRow Type }
-TypeSubst : List { var: U32, type: Type }
+TypeSubst : List { var: U64, type: Type }
 
 Substitution : {
     type_subst: TypeSubst,

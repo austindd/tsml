@@ -25,7 +25,7 @@ all2 = |list1, list2, predicate|
 
 TypeError : {
     error : UnificationError,
-    location : Option { line : U32, column : U32 },
+    location : Option { line : U64, column : U64 },
     context : Option Node,
 }
 

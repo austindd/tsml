@@ -6,10 +6,10 @@ import pf.Stdout
 
 # Row Polymorphism using indices - inline implementation
 
-TypeId : U32
-RowId : U32
-TypeVar : U32
-RowVar : U32
+TypeId : U64
+RowId : U64
+TypeVar : U64
+RowVar : U64
 
 TypeDef : [
     TNumber,

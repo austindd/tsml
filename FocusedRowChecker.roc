@@ -10,8 +10,8 @@ RowType : {
     tail: [Closed, Open RowVar],
 }
 
-RowVar : U32
-TypeId : U32
+RowVar : U64
+TypeId : U64
 
 # Types with row polymorphism
 TypeWithRows : [

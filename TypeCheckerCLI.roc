@@ -39,8 +39,8 @@ CheckResult : {
 }
 
 SourceLocation : {
-    line: U32,
-    column: U32,
+    line: U64,
+    column: U64,
     file: Str,
 }
 

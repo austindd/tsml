@@ -64,11 +64,11 @@ es_version_cmp = |a, b|
     rank_b = get_es_version_rank(b)
     Num.compare(rank_a, rank_b)
 
-# WithPosition x : { line : U32, column : U32 }x
+# WithPosition x : { line : U64, column : U64 }x
 #
 # Position : WithPosition {}
 #
-# WithSourceLocation x : { source : Str, start : Position, end : Position, byte_index : U32 }x
+# WithSourceLocation x : { source : Str, start : Position, end : Position, byte_index : U64 }x
 #
 # SourceLocation : WithSourceLocation {}
 
@@ -390,6 +390,7 @@ Node : [
     TSVoidKeyword (WithBaseNodeData {}),
     TSAnyKeyword (WithBaseNodeData {}),
     TSUnknownKeyword (WithBaseNodeData {}),
+    TSNeverKeyword (WithBaseNodeData {}),
     TSNullKeyword (WithBaseNodeData {}),
     TSUndefinedKeyword (WithBaseNodeData {}),
     TSAsExpression (WithBaseNodeData {
@@ -541,6 +542,7 @@ BinaryOperator : [
     Ampersand,
     In,
     Instanceof,
+    NullishCoalesce,
 ]
 
 UnaryOperator : [
@@ -563,7 +565,7 @@ WithLiteralNode x : [
                 value : Bool,
             }),
     NumberLiteral (WithBaseNodeData {
-                value : U32,
+                value : U64,
             }),
     StringLiteral (WithBaseNodeData {
                 value : Str,
@@ -591,16 +593,16 @@ node_to_str : Node -> Str
 node_to_str = |node|
     node_to_str_with_max_depth(node, default_max_depth)
 
-node_to_str_with_max_depth : Node, U32 -> Str
+node_to_str_with_max_depth : Node, U64 -> Str
 node_to_str_with_max_depth = |node, max_depth|
     node_to_str_with_config(node, 0, max_depth)
 
-node_to_str_with_indent : Node, U32 -> Str
+node_to_str_with_indent : Node, U64 -> Str
 node_to_str_with_indent = |node, indent_level|
     # Legacy function - calls with unlimited depth
     node_to_str_with_config(node, indent_level, 0)
 
-node_list_to_str_or_truncate : List Node, U32, U32 -> Str
+node_list_to_str_or_truncate : List Node, U64, U64 -> Str
 node_list_to_str_or_truncate = |nodes, indent_level, max_depth|
     indent = Str.repeat("  ", Num.to_u64(indent_level))
     if (max_depth > 0 and indent_level >= max_depth) or List.len(nodes) == 0 then
@@ -617,21 +619,21 @@ node_list_to_str_or_truncate = |nodes, indent_level, max_depth|
         |> Str.concat(indent)
         |> Str.concat("  ]")
 
-node_to_str_or_truncate : Node, U32, U32 -> Str
+node_to_str_or_truncate : Node, U64, U64 -> Str
 node_to_str_or_truncate = |node, indent_level, max_depth|
     if max_depth > 0 and indent_level >= max_depth then
         "<node>"
     else
         node_to_str_with_config(node, indent_level, max_depth)
 
-node_to_str_or_truncate_inline : Node, U32, U32 -> Str
+node_to_str_or_truncate_inline : Node, U64, U64 -> Str
 node_to_str_or_truncate_inline = |node, base_indent_level, max_depth|
     if max_depth > 0 and base_indent_level >= max_depth then
         "<node>"
     else
         node_to_str_inline_with_config(node, base_indent_level, max_depth)
 
-node_to_str_with_config : Node, U32, U32 -> Str
+node_to_str_with_config : Node, U64, U64 -> Str
 node_to_str_with_config = |node, indent_level, max_depth|
     indent = Str.repeat("  ", Num.to_u64(indent_level))
 
@@ -2095,12 +2097,12 @@ node_to_str_with_config = |node, indent_level, max_depth|
         _ ->
             Str.concat(indent, "UnsupportedNode")
 
-list_to_str_with_indent : List Node, U32 -> Str
+list_to_str_with_indent : List Node, U64 -> Str
 list_to_str_with_indent = |nodes, indent_level|
     # Legacy function - calls with unlimited depth
     list_to_str_with_config(nodes, indent_level, 0)
 
-list_to_str_with_config : List Node, U32, U32 -> Str
+list_to_str_with_config : List Node, U64, U64 -> Str
 list_to_str_with_config = |nodes, indent_level, max_depth|
     List.walk(
         nodes,
@@ -2110,27 +2112,27 @@ list_to_str_with_config = |nodes, indent_level, max_depth|
             Str.concat(acc, node_str) |> Str.concat(",\n"),
     )
 
-node_to_str_inline : Node, U32 -> Str
+node_to_str_inline : Node, U64 -> Str
 node_to_str_inline = |node, base_indent_level|
     # Render node inline (without leading indent) but preserve internal structure
     result = node_to_str_with_indent(node, base_indent_level)
     # Remove leading whitespace
     Str.trim_start(result)
 
-node_to_str_inline_with_config : Node, U32, U32 -> Str
+node_to_str_inline_with_config : Node, U64, U64 -> Str
 node_to_str_inline_with_config = |node, base_indent_level, max_depth|
     # Render node inline (without leading indent) but preserve internal structure
     result = node_to_str_with_config(node, base_indent_level, max_depth)
     # Remove leading whitespace
     Str.trim_start(result)
 
-option_to_str_with_indent : Option Node, U32 -> Str
+option_to_str_with_indent : Option Node, U64 -> Str
 option_to_str_with_indent = |opt, indent_level|
     when opt is
         Some(node) -> node_to_str_with_indent(node, indent_level)
         None -> "None"
 
-option_to_str_inline : Option Node, U32 -> Str
+option_to_str_inline : Option Node, U64 -> Str
 option_to_str_inline = |opt, base_indent_level|
     when opt is
         Some(node) -> node_to_str_inline(node, base_indent_level)
@@ -2188,6 +2190,7 @@ binary_operator_to_str = |op|
         Ampersand -> "&"
         In -> "in"
         Instanceof -> "instanceof"
+        NullishCoalesce -> "??"
 
 unary_operator_to_str : UnaryOperator -> Str
 unary_operator_to_str = |op|

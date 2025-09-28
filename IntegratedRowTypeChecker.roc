@@ -10,8 +10,8 @@ import Parser
 
 # === Row Polymorphism Types ===
 
-TypeId : U32
-RowVar : U32
+TypeId : U64
+RowVar : U64
 
 # Row type for records
 RowType : {
@@ -130,7 +130,7 @@ unify_rows = \row1, row2, subst ->
 
 TypeEnv : {
     bindings: List { name: Str, type: TypeWithRows },
-    next_var: U32,
+    next_var: U64,
     row_subst: RowSubst,
 }
 

@@ -8,7 +8,7 @@ import pf.Stdout
 GenericRow fieldType : [
     REmpty,
     RExtend Str fieldType (GenericRow fieldType),
-    RVar U32,
+    RVar U64,
 ]
 
 Type : [

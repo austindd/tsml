@@ -10,10 +10,10 @@ module [
 # Each type alias only references itself, no mutual recursion
 
 # Type identifier
-TypeId : U32
+TypeId : U64
 
 # Recursive binding identifier
-RecVar : U32
+RecVar : U64
 
 # Single recursive type definition that can reference itself
 RecursiveType : [
@@ -127,7 +127,7 @@ make_json_type = \{} ->
 # === Type Equality Checking ===
 
 # Check if two types are equal (with depth limit for recursion)
-check_recursive_equality : RecursiveType, RecursiveType, U32 -> Bool
+check_recursive_equality : RecursiveType, RecursiveType, U64 -> Bool
 check_recursive_equality = \t1, t2, depth ->
     if depth > 10 then
         # Assume equal at depth limit (coinductive equality)
@@ -178,7 +178,7 @@ check_recursive_equality = \t1, t2, depth ->
             _ -> Bool.false
 
 # Check if record fields are equal
-check_fields_equal : List { label: Str, type: RecursiveType }, List { label: Str, type: RecursiveType }, U32 -> Bool
+check_fields_equal : List { label: Str, type: RecursiveType }, List { label: Str, type: RecursiveType }, U64 -> Bool
 check_fields_equal = \f1, f2, depth ->
     (List.len f1 == List.len f2) &&
     List.all f1 \field1 ->
@@ -238,7 +238,7 @@ is_recursive = \typ ->
         _ -> Bool.false
 
 # Get the depth of recursion nesting
-recursion_depth : RecursiveType -> U32
+recursion_depth : RecursiveType -> U64
 recursion_depth = \typ ->
     when typ is
         RMu _ body -> 1 + recursion_depth body

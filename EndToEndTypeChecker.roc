@@ -16,7 +16,7 @@ import Option exposing [Option]
 # Type checking result
 TypeCheckResult : {
     # Inferred types for each node
-    types: List { node_id: U32, type: Type.Type },
+    types: List { node_id: U64, type: Type.Type },
 
     # Errors found
     errors: List TypeError,
@@ -28,14 +28,14 @@ TypeCheckResult : {
 # Type error
 TypeError : {
     message: Str,
-    location: Option { line: U32, column: U32 },
+    location: Option { line: U64, column: U64 },
     severity: [Error, Warning, Info],
 }
 
 # Type warning
 TypeWarning : {
     message: Str,
-    location: Option { line: U32, column: U32 },
+    location: Option { line: U64, column: U64 },
 }
 
 # Check an entire program

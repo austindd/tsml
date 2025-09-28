@@ -6,7 +6,7 @@ import pf.Stdout
 
 # Row Polymorphism implementation inline to avoid module import issues
 
-RowVar : U32
+RowVar : U64
 
 GenericRow fieldType : [
     REmpty,
@@ -24,7 +24,7 @@ Type : [
 ]
 
 RowSubst : List { var: RowVar, row: GenericRow Type }
-TypeSubst : List { var: U32, type: Type }
+TypeSubst : List { var: U64, type: Type }
 
 Substitution : {
     type_subst: TypeSubst,

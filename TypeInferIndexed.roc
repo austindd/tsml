@@ -9,7 +9,7 @@ module [
     get_principal_type,
 ]
 
-import Ast exposing [Node, BinaryOperator, UnaryOperator, AssignmentOperator]
+import Ast exposing [Node, BinaryOperator, UnaryOperator, AssignmentOperator, LogicalOperator]
 import ComprehensiveTypeIndexed exposing [
     TypeStore,
     TypeId,
@@ -74,7 +74,10 @@ infer_program = \ast ->
     when infer_node ast initial_ctx is
         Ok (type_id, final_ctx) ->
             # Solve accumulated constraints
-            when TypeConstraintSolver.solve_constraints final_ctx.store final_ctx.constraints is
+            initial_solver_state =
+                TypeConstraintSolver.empty_solver_state(final_ctx.store)
+                |> TypeConstraintSolver.add_constraints(final_ctx.constraints)
+            when TypeConstraintSolver.solve_constraints(initial_solver_state) is
                 Ok substitution ->
                     # Apply substitution to get final type
                     final_type_id = apply_substitution_to_type_id final_ctx.store type_id substitution
@@ -102,9 +105,12 @@ infer_expression = \expr, store, env ->
 
     when infer_node expr ctx is
         Ok (type_id, final_ctx) ->
-            when TypeConstraintSolver.solve_constraints final_ctx.store final_ctx.constraints is
+            initial_solver_state =
+                TypeConstraintSolver.empty_solver_state(final_ctx.store)
+                |> TypeConstraintSolver.add_constraints(final_ctx.constraints)
+            when TypeConstraintSolver.solve_constraints(initial_solver_state) is
                 Ok substitution ->
-                    final_type_id = apply_substitution_to_type_id final_ctx.store type_id substitution
+                    final_type_id = apply_substitution_to_type_id(final_ctx.store, type_id, substitution)
                     Ok final_type_id
                 Err solver_error ->
                     Err (SolverError solver_error)
@@ -122,7 +128,11 @@ infer_statement = \stmt, store, env ->
 
     when infer_node stmt ctx is
         Ok (type_id, final_ctx) ->
-            when TypeConstraintSolver.solve_constraints final_ctx.store final_ctx.constraints is
+            initial_solver_state =
+                TypeConstraintSolver.empty_solver_state(final_ctx.store)
+                |> TypeConstraintSolver.add_constraints(final_ctx.constraints)
+            subst_result = TypeConstraintSolver.solve_constraints(initial_solver_state)
+            when subst_result is
                 Ok substitution ->
                     final_type_id = apply_substitution_to_type_id final_ctx.store type_id substitution
                     final_env = apply_substitution_to_env final_ctx.store final_ctx.env substitution
@@ -171,7 +181,7 @@ infer_node = \node, ctx ->
                         Ok (instantiated_type, new_ctx)
                     Err _ ->
                         # Unknown identifier - create a type variable
-                        (new_store, type_var) = ComprehensiveTypeIndexed.make_type_var ctx.store (Num.to_u32 ctx.next_var)
+                        (new_store, type_var) = ComprehensiveTypeIndexed.make_type_var ctx.store ctx.next_var
                         Ok (type_var, { ctx & store: new_store, next_var: ctx.next_var + 1 })
 
         # Array expressions
@@ -184,7 +194,7 @@ infer_node = \node, ctx ->
                     Ok (array_type, { ctx & store: store2 })
                 _ ->
                     # Infer types of all elements
-                    result = List.walk elements (Ok ([], ctx)) \acc_result, elem ->
+                    result = List.walk data.elements (Ok ([], ctx)) \acc_result, elem ->
                         when acc_result is
                             Ok (types, curr_ctx) ->
                                 when elem is
@@ -251,7 +261,10 @@ infer_node = \node, ctx ->
                 Ok (arg_type, new_ctx) ->
                     # Ensure argument is number type
                     (store1, num_type) = ComprehensiveTypeIndexed.make_primitive new_ctx.store "number"
-                    constraint = Equal arg_type num_type
+                    constraint = {
+                        kind: Equality(arg_type, num_type),
+                        source: Err(NoSource),
+                    }
                     Ok (num_type, { new_ctx &
                         store: store1,
                         constraints: List.append new_ctx.constraints constraint
@@ -265,7 +278,7 @@ infer_node = \node, ctx ->
         # This expression
         ThisExpression _ ->
             # Create a type variable for 'this'
-            (new_store, this_var) = ComprehensiveTypeIndexed.make_type_var ctx.store (Num.to_u32 ctx.next_var)
+            (new_store, this_var) = ComprehensiveTypeIndexed.make_type_var ctx.store ctx.next_var
             Ok (this_var, { ctx & store: new_store, next_var: ctx.next_var + 1 })
 
         # Sequence expressions
@@ -417,12 +430,13 @@ infer_node = \node, ctx ->
 infer_object_literal : List Node, InferContext -> Result (TypeId, InferContext) Str
 infer_object_literal = \properties, ctx ->
     # First pass: collect all property names and create type variables for recursive references
-    prop_vars = List.walk properties Dict.empty{} \vars, prop ->
+    prop_vars = List.walk(properties, Dict.empty{}, |vars, prop|
         when prop is
             Property { key, kind, value } ->
                 key_name = extract_property_key key
                 Dict.insert vars key_name ctx.next_var
             _ -> vars
+    )
 
     # Create initial context with type variables for potential recursive references
     initial_ctx = { ctx & next_var: ctx.next_var + (Dict.len prop_vars |> Num.to_u64) }
@@ -472,7 +486,7 @@ infer_node_with_recursion = \node, ctx, prop_vars, current_key ->
             # Check if this refers to a property in the same object (recursive reference)
             when Dict.get prop_vars name is
                 Ok var_id ->
-                    (new_store, type_var) = ComprehensiveTypeIndexed.make_type_var ctx.store (Num.to_u32 var_id)
+                    (new_store, type_var) = ComprehensiveTypeIndexed.make_type_var ctx.store var_id
                     Ok (type_var, { ctx & store: new_store })
                 Err _ ->
                     # Not a recursive reference, use normal inference
@@ -517,17 +531,17 @@ infer_function = \id, params, body, is_async, is_generator, return_type, type_pa
             Ok (param_types, param_names, curr_ctx) ->
                 when param is
                     Identifier { name } ->
-                        (new_store, param_var) = ComprehensiveTypeIndexed.make_type_var curr_ctx.store (Num.to_u32 curr_ctx.next_var)
+                        (new_store, param_var) = ComprehensiveTypeIndexed.make_type_var curr_ctx.store curr_ctx.next_var
                         Ok (
-                            List.append param_types { name, type_id: param_var, optional: Bool.false },
+                            List.append param_types { name, param_type: param_var, optional: Bool.false },
                             List.append param_names name,
                             { curr_ctx & store: new_store, next_var: curr_ctx.next_var + 1 }
                         )
                     _ ->
                         # Handle patterns, rest parameters, etc.
-                        (new_store, param_var) = ComprehensiveTypeIndexed.make_type_var curr_ctx.store (Num.to_u32 curr_ctx.next_var)
+                        (new_store, param_var) = ComprehensiveTypeIndexed.make_type_var curr_ctx.store curr_ctx.next_var
                         Ok (
-                            List.append param_types { name: "_", type_id: param_var, optional: Bool.false },
+                            List.append param_types { name: "_", param_type: param_var, optional: Bool.false },
                             List.append param_names "_",
                             { curr_ctx & store: new_store, next_var: curr_ctx.next_var + 1 }
                         )
@@ -537,7 +551,7 @@ infer_function = \id, params, body, is_async, is_generator, return_type, type_pa
         Ok (param_types, param_names, param_ctx) ->
             # Add parameters to environment
             env_with_params = List.walk param_types param_ctx.env \env, param_type ->
-                scheme = { forall: Set.empty {}, type_id: param_type.type_id }
+                scheme = { forall: Set.empty {}, type_id: param_type.param_type }
                 Dict.insert env param_type.name scheme
 
             # Infer body type
@@ -553,12 +567,14 @@ infer_function = \id, params, body, is_async, is_generator, return_type, type_pa
                         None -> body_type
 
                     # Create function type
-                    (fn_store, fn_type) = ComprehensiveTypeIndexed.make_function
-                        final_ctx.store
-                        param_types
-                        return_type_id
-                        is_async
+                    (fn_store, fn_type) = ComprehensiveTypeIndexed.make_function(
+                        final_ctx.store,
+                        param_types,
+                        return_type_id,
+                        [], # TODO: Handle type parameters
+                        is_async,
                         is_generator
+                    )
 
                     # Add function to environment if it has a name
                     final_env = when id is
@@ -571,6 +587,19 @@ infer_function = \id, params, body, is_async, is_generator, return_type, type_pa
                 Err e -> Err e
         Err e -> Err e
 
+infer_logical_op : Node, Node, LogicalOperator, InferContext -> Result (TypeId, InferContext) Str
+infer_logical_op = \left, right, operator, ctx ->
+    when (infer_node left ctx, infer_node right ctx) is
+        (Ok (left_type, left_ctx), Ok (right_type, right_ctx)) ->
+            when operator is
+                LogicalAnd | LogicalOr ->
+                    # Logical operators - result is the type of one of the operands
+                    # For simplicity, return a union type
+                    (store1, union_type) = ComprehensiveTypeIndexed.make_union right_ctx.store [left_type, right_type]
+                    Ok (union_type, { right_ctx & store: store1 })
+        (Err e, _) -> Err e
+        (_, Err e) -> Err e
+
 # Binary operation inference
 infer_binary_op : Node, Node, BinaryOperator, InferContext -> Result (TypeId, InferContext) Str
 infer_binary_op = \left, right, operator, ctx ->
@@ -579,7 +608,7 @@ infer_binary_op = \left, right, operator, ctx ->
             when infer_node right left_ctx is
                 Ok (right_type, right_ctx) ->
                     when operator is
-                        Add | Sub | Mul | Div | Mod | Pow ->
+                        Plus | Minus | Star | Slash | Percent ->
                             # Arithmetic operators - result is number
                             (store1, num_type) = ComprehensiveTypeIndexed.make_primitive right_ctx.store "number"
                             # Add constraints that operands should be numbers
@@ -590,12 +619,12 @@ infer_binary_op = \left, right, operator, ctx ->
                                 constraints: List.concat right_ctx.constraints [constraint1, constraint2]
                             })
 
-                        EqEq | NotEq | EqEqEq | NotEqEq | Lt | Lte | Gt | Gte | In | InstanceOf ->
+                        EqualEqual | BangEqual | EqualEqualEqual | BangEqualEqual | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual | In | Instanceof ->
                             # Comparison operators - result is boolean
                             (store1, bool_type) = ComprehensiveTypeIndexed.make_primitive right_ctx.store "boolean"
                             Ok (bool_type, { right_ctx & store: store1 })
 
-                        LShift | RShift | RShiftU | BitAnd | BitOr | BitXor ->
+                        LeftShift | RightShift | UnsignedRightShift | Ampersand | Pipe | Caret ->
                             # Bitwise operators - result is number
                             (store1, num_type) = ComprehensiveTypeIndexed.make_primitive right_ctx.store "number"
                             constraint1 = Equal left_type num_type
@@ -604,12 +633,6 @@ infer_binary_op = \left, right, operator, ctx ->
                                 store: store1,
                                 constraints: List.concat right_ctx.constraints [constraint1, constraint2]
                             })
-
-                        LogAnd | LogOr ->
-                            # Logical operators - result is the type of one of the operands
-                            # For simplicity, return a union type
-                            (store1, union_type) = ComprehensiveTypeIndexed.make_union right_ctx.store [left_type, right_type]
-                            Ok (union_type, { right_ctx & store: store1 })
 
                         NullishCoalesce ->
                             # ?? operator - left type without null/undefined, or right type
@@ -625,7 +648,7 @@ infer_unary_op = \argument, operator, prefix, ctx ->
     when infer_node argument ctx is
         Ok (arg_type, new_ctx) ->
             when operator is
-                Not | Delete ->
+                Bang | Delete ->
                     # These return boolean
                     (store1, bool_type) = ComprehensiveTypeIndexed.make_primitive new_ctx.store "boolean"
                     Ok (bool_type, { new_ctx & store: store1 })
@@ -633,7 +656,10 @@ infer_unary_op = \argument, operator, prefix, ctx ->
                 Plus | Minus | Tilde ->
                     # These return number
                     (store1, num_type) = ComprehensiveTypeIndexed.make_primitive new_ctx.store "number"
-                    constraint = Equal arg_type num_type
+                    constraint = {
+                        kind: Equality(arg_type, num_type),
+                        source: Err(NoSource),
+                    }
                     Ok (num_type, { new_ctx &
                         store: store1,
                         constraints: List.append new_ctx.constraints constraint
@@ -646,7 +672,7 @@ infer_unary_op = \argument, operator, prefix, ctx ->
 
                 Void ->
                     # void returns undefined
-                    (store1, undef) = ComprehensiveTypeIndexed.make_literal new_ctx.store UndefinedLit
+                    (store1, undef) = ComprehensiveTypeIndexed.make_undefined new_ctx.store
                     Ok (undef, { new_ctx & store: store1 })
         Err e -> Err e
 
@@ -670,7 +696,7 @@ infer_member_access = \object, property, computed, optional, ctx ->
             when property_name is
                 Some prop_name ->
                     # Create a type variable for the result
-                    (store1, result_var) = ComprehensiveTypeIndexed.make_type_var obj_ctx.store (Num.to_u32 obj_ctx.next_var)
+                    (store1, result_var) = ComprehensiveTypeIndexed.make_type_var obj_ctx.store obj_ctx.next_var
                     # Add constraint that object has this property
                     constraint = HasField obj_type prop_name result_var
                     Ok (result_var, { obj_ctx &
@@ -702,7 +728,7 @@ infer_call = \callee, arguments, optional, type_args, ctx ->
             when arg_result is
                 Ok (arg_types, args_ctx) ->
                     # Create type variable for result
-                    (store1, result_var) = ComprehensiveTypeIndexed.make_type_var args_ctx.store (Num.to_u32 args_ctx.next_var)
+                    (store1, result_var) = ComprehensiveTypeIndexed.make_type_var args_ctx.store args_ctx.next_var
                     # Add constraint that fn_type is callable with these arguments
                     constraint = IsCallable fn_type arg_types result_var
                     Ok (result_var, { args_ctx &
@@ -720,7 +746,7 @@ infer_new = \callee, arguments, type_args, ctx ->
         Ok (constructor_type, cons_ctx) ->
             # For 'new' expressions, we need to determine the instance type
             # This is complex in the general case, so we'll create a type variable
-            (store1, instance_var) = ComprehensiveTypeIndexed.make_type_var cons_ctx.store (Num.to_u32 cons_ctx.next_var)
+            (store1, instance_var) = ComprehensiveTypeIndexed.make_type_var cons_ctx.store cons_ctx.next_var
             Ok (instance_var, { cons_ctx & store: store1, next_var: cons_ctx.next_var + 1 })
         Err e -> Err e
 
@@ -770,7 +796,7 @@ infer_variable_declarations = \declarations, kind, ctx ->
         when acc_result is
             Ok (_, curr_ctx) ->
                 when decl is
-                    VariableDeclarator { id, init, definite } ->
+                    VariableDeclarator { id, init } ->
                         when id is
                             Identifier { name } ->
                                 when init is
@@ -893,8 +919,8 @@ handle_ts_type_node = \node, ctx ->
             (new_store, never) = ComprehensiveTypeIndexed.make_never ctx.store
             Ok (never, { ctx & store: new_store })
 
-        TSArrayType { element_type } ->
-            when infer_node element_type ctx is
+        TSArrayType({ elementType }) ->
+            when infer_node(elementType, ctx) is
                 Ok (elem_type, elem_ctx) ->
                     (new_store, array_type) = ComprehensiveTypeIndexed.make_array elem_ctx.store elem_type
                     Ok (array_type, { elem_ctx & store: new_store })
@@ -941,7 +967,7 @@ extract_promise_type : TypeId, InferContext -> Result (TypeId, InferContext) Str
 extract_promise_type = \promise_type, ctx ->
     # For now, just return a type variable
     # In a full implementation, we'd extract the T from Promise<T>
-    (new_store, result_var) = ComprehensiveTypeIndexed.make_type_var ctx.store (Num.to_u32 ctx.next_var)
+    (new_store, result_var) = ComprehensiveTypeIndexed.make_type_var ctx.store ctx.next_var
     Ok (result_var, { ctx & store: new_store, next_var: ctx.next_var + 1 })
 
 # Property key extraction helper
@@ -986,11 +1012,11 @@ find_free_vars_in_type = \type_id, store ->
     when ComprehensiveTypeIndexed.get_type store type_id is
         Ok type_def ->
             when type_def is
-                TVar var -> Set.single var
-                TFunction { params, return_type } ->
+                TypeVariable var -> Set.single var
+                TFunction { params, ret } ->
                     param_vars = List.walk params (Set.empty {}) \acc, param ->
-                        Set.union acc (find_free_vars_in_type param.type_id store)
-                    Set.union param_vars (find_free_vars_in_type return_type store)
+                        Set.union acc (find_free_vars_in_type param.param_type store)
+                    Set.union param_vars (find_free_vars_in_type ret store)
                 TArray elem -> find_free_vars_in_type elem store
                 TObject row -> find_free_vars_in_row row store
                 TUnion types ->
@@ -1014,6 +1040,11 @@ find_free_vars_in_row = \row_id, store ->
                     rest_vars = find_free_vars_in_row rest store
                     Set.union field_vars rest_vars
                 RVar var -> Set.single var
+                RIndex { key_type, value_type, rest } ->
+                    key_vars = find_free_vars_in_type key_type store
+                    value_vars = find_free_vars_in_type value_type store
+                    rest_vars = find_free_vars_in_row rest store
+                    Set.union key_vars (Set.union value_vars rest_vars)
         Err _ -> Set.empty {}
 
 # Apply substitution to type ID

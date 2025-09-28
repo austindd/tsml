@@ -13,14 +13,14 @@ import Option exposing [Option]
 # Type information result
 TypeInfo : {
     type: Type.Type,
-    errors: List { message: Str, location: Option U32 },
+    errors: List { message: Str, location: Option U64 },
 }
 
 # Type checking context
 TypeContext : {
     variables: List { name: Str, type: Type.Type },
     functions: List { name: Str, type: Type.Type },
-    errors: List { message: Str, location: Option U32 },
+    errors: List { message: Str, location: Option U64 },
 }
 
 # Create empty context

@@ -10,7 +10,7 @@ import SimpleComprehensiveType as Type
 import Option exposing [Option]
 
 # Type variable for unknowns
-TypeVariable : U32
+TypeVariable : U64
 
 # Constraints between types
 Constraint : [

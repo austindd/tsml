@@ -22,10 +22,10 @@ Type : [
     TUndefined,
 
     # Type variables (for polymorphism)
-    TVar U32,
+    TVar U64,
 
     # Polymorphic types
-    TForall (List U32) Type,  # ∀α.τ
+    TForall (List U64) Type,  # ∀α.τ
 
     # Object types with row polymorphism
     TObject RowType,
@@ -58,7 +58,7 @@ RowType : [
     RExtend Str Type RowType,
 
     # Row variable (for polymorphism)
-    RVar U32,
+    RVar U64,
 ]
 
 # Literal values
@@ -71,13 +71,13 @@ LiteralValue : [
 # Type scheme (polymorphic type)
 TypeScheme : {
     # Quantified variables
-    quantified: List U32,
+    quantified: List U64,
 
     # The type
     type: Type,
 
     # Row variables
-    row_vars: List U32,
+    row_vars: List U64,
 }
 
 # Principal type result
@@ -86,10 +86,10 @@ PrincipalType : {
     type: TypeScheme,
 
     # Substitution used
-    substitution: List { var: U32, type: Type },
+    substitution: List { var: U64, type: Type },
 
     # Row substitution
-    row_substitution: List { var: U32, row: RowType },
+    row_substitution: List { var: U64, row: RowType },
 }
 
 # ============================================
@@ -102,20 +102,20 @@ TypeEnv : {
     bindings: List { name: Str, scheme: TypeScheme },
 
     # Current level for generalization
-    level: U32,
+    level: U64,
 
     # Fresh variable counter
-    next_var: U32,
+    next_var: U64,
 
     # Fresh row variable counter
-    next_row_var: U32,
+    next_row_var: U64,
 }
 
 # Inference state
 InferState : {
     env: TypeEnv,
-    substitution: List { var: U32, type: Type },
-    row_substitution: List { var: U32, row: RowType },
+    substitution: List { var: U64, type: Type },
+    row_substitution: List { var: U64, row: RowType },
     constraints: List Constraint,
 }
 
@@ -305,7 +305,7 @@ unify_rows = \r1, r2, state ->
 # ============================================
 
 # Generalize a type to a type scheme
-generalize : Type, U32 -> TypeScheme
+generalize : Type, U64 -> TypeScheme
 generalize = \type, level ->
     # Find all free type variables above the level
     free_vars = find_free_vars_above_level(type, level)

@@ -5,7 +5,7 @@ module [
     Position,
 ]
 
-WithPosition x : { line : U32, column : U32 }x
+WithPosition x : { line : U64, column : U64 }x
 
 Position : WithPosition {}
 

@@ -49,7 +49,7 @@ Context : {
     # Type narrowing information from conditionals
     narrowed: List { name: Str, type: TypeInfo },
     # Collected errors
-    errors: List { message: Str, location: Option U32 },
+    errors: List { message: Str, location: Option U64 },
 }
 
 # Create empty context
@@ -79,7 +79,7 @@ filter_trivia = |tokens|
     )
 
 # Check a complete program
-check_program : Str -> { result: TypeInfo, errors: List { message: Str, location: Option U32 } }
+check_program : Str -> { result: TypeInfo, errors: List { message: Str, location: Option U64 } }
 check_program = |source|
     tokens = Token.tokenize_str(source)
     

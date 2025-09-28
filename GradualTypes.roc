@@ -10,7 +10,7 @@ module [
 
 # Gradual Typing System (any and unknown handling)
 
-TypeId : U32
+TypeId : U64
 
 # Gradual type representation
 GradualType : [

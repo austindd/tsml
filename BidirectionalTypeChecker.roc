@@ -26,7 +26,7 @@ TypeContext : {
     mode: Mode,
 
     # Parent context for nested scopes (using index instead of self-reference)
-    parent_id: Option U32,
+    parent_id: Option U64,
 }
 
 # Create empty context

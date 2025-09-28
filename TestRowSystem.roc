@@ -3,8 +3,8 @@ module [test_row_system]
 # Working row polymorphism implementation
 # This demonstrates the core concepts needed for MLstruct
 
-TypeId : U32
-RowVar : U32
+TypeId : U64
+RowVar : U64
 
 Row : {
     fields : List { label : Str, type_id : TypeId },

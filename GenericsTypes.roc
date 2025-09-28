@@ -10,8 +10,8 @@ import Option exposing [Option]
 
 # Generic Type Parameters and Type Arguments Implementation
 
-TypeId : U32
-TypeParamId : U32
+TypeId : U64
+TypeParamId : U64
 
 # Type parameter with constraints
 TypeParam : {

@@ -62,14 +62,14 @@ module [
 
 # Comprehensive Type System using indices to avoid mutual recursion
 
-TypeId : U32
-RowId : U32
-TypeVar : U32
-RowVar : U32
-ClassId : U32
-InterfaceId : U32
-TypeParamId : U32
-EnumId : U32
+TypeId : U64
+RowId : U64
+TypeVar : U64
+RowVar : U64
+ClassId : U64
+InterfaceId : U64
+TypeParamId : U64
+EnumId : U64
 
 # Literal values
 LiteralValue : [
@@ -499,7 +499,7 @@ type_to_str : TypeStore, TypeId -> Str
 type_to_str = |store, type_id|
     type_to_str_helper(store, type_id, 0, 5)  # Max depth of 5
 
-type_to_str_helper : TypeStore, TypeId, U32, U32 -> Str
+type_to_str_helper : TypeStore, TypeId, U64, U64 -> Str
 type_to_str_helper = |store, type_id, depth, max_depth|
     if depth > max_depth then
         "..."
@@ -650,7 +650,7 @@ row_to_str : TypeStore, RowId -> Str
 row_to_str = \store, row_id ->
     row_to_str_helper store row_id 0 5
 
-row_to_str_helper : TypeStore, RowId, U32, U32 -> Str
+row_to_str_helper : TypeStore, RowId, U64, U64 -> Str
 row_to_str_helper = \store, row_id, depth, max_depth ->
     if depth > max_depth then
         "{...}"

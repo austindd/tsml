@@ -9,8 +9,8 @@ module [
 
 # Module System and Import/Export Types for TypeScript/JavaScript
 
-TypeId : U32
-ModuleId : U32
+TypeId : U64
+ModuleId : U64
 
 # Module type representation
 ModuleType : {

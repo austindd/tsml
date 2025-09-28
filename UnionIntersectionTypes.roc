@@ -11,7 +11,7 @@ import Option exposing [Option]
 
 # Union and Intersection Type Operations for TypeScript
 
-TypeId : U32
+TypeId : U64
 
 # Base type for union/intersection operations
 BaseType : [

@@ -34,7 +34,7 @@ all2 = \list1, list2, predicate ->
                 Bool.false
         _ -> Bool.false
 
-TypeVar : U32
+TypeVar : U64
 
 Type : [
     Var TypeVar,
