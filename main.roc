@@ -153,7 +153,7 @@ process_input! = |input_code|
 
     # Step 4: Parse tokens into AST
     _ = Stdout.line!("\n🌳 Parsing AST...")
-    ast = Parser.parse_program(parse_tokens)
+    (ast, _remaining) = Parser.parse_program(parse_tokens)
 
     # Step 5: Display AST
     _ = Stdout.line!("\n✨ Abstract Syntax Tree:")
