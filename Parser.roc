@@ -268,13 +268,13 @@ parse_primary_expression = |token_list|
         [YieldKeyword, AsteriskToken, .. as rest1] ->
             # yield* expression (delegate)
             (argument, rest2) = parse_expression(Nud, 1600, rest1) # High precedence for yield
-            yield_expr = YieldExpression({ argument: argument, delegate: Bool.true })
+            yield_expr = YieldExpression({ argument: Some(argument), delegate: Bool.true })
             (yield_expr, rest2)
 
         [YieldKeyword, .. as rest1] ->
             # yield expression (non-delegate)
             (argument, rest2) = parse_expression(Nud, 1600, rest1) # High precedence for yield
-            yield_expr = YieldExpression({ argument: argument, delegate: Bool.false })
+            yield_expr = YieldExpression({ argument: Some(argument), delegate: Bool.false })
             (yield_expr, rest2)
 
         [CloseParenToken, .. as rest] ->
@@ -881,7 +881,11 @@ parse_function_arguments = |callee, arguments, token_list|
     when token_list is
         [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
         [CloseParenToken, .. as rest] ->
-            (CallExpression({ callee: callee, arguments: arguments }), rest)
+            (CallExpression({
+                callee: callee,
+                arguments: arguments,
+                type_args: None # TODO: Parse type args
+            }), rest)
 
         [] ->
             (Error({ message: "Unexpected end of function call" }), [])
@@ -894,7 +898,11 @@ parse_function_arguments = |callee, arguments, token_list|
 
                 [CloseParenToken, .. as rest] ->
                     final_args = List.append(arguments, arg)
-                    (CallExpression({ callee: callee, arguments: final_args }), rest)
+                    (CallExpression({
+                        callee: callee,
+                        arguments: final_args,
+                        type_args: None # TODO: Parse type args
+                    }), rest)
 
                 _ ->
                     (Error({ message: "Expected comma or close paren in function call" }), remaining_tokens)
@@ -1534,6 +1542,7 @@ parse_function_declaration = |token_list|
                     generator: Bool.false,
                     async: Bool.false,
                     type_parameters: type_params,
+                    return_type: return_type,
                 },
             )
             (func_decl, rest4)
@@ -1571,6 +1580,7 @@ parse_async_function_declaration = |token_list|
                     generator: Bool.false,
                     async: Bool.true,
                     type_parameters: type_params,
+                    return_type: return_type,
                 },
             )
             (func_decl, rest4)
@@ -1608,6 +1618,7 @@ parse_generator_function_declaration = |token_list|
                     generator: Bool.true,
                     async: Bool.false,
                     type_parameters: type_params,
+                    return_type: return_type,
                 },
             )
             (func_decl, rest4)
@@ -1645,6 +1656,7 @@ parse_async_generator_function_declaration = |token_list|
                     generator: Bool.true,
                     async: Bool.true,
                     type_parameters: type_params,
+                    return_type: return_type,
                 },
             )
             (func_decl, rest4)
@@ -1664,7 +1676,18 @@ parse_function_expression = |token_list|
             # Named function expression
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
-            (body, rest3) = parse_function_body(rest2)
+            # Check for return type annotation: function name(): type
+            (return_type, rest3) =
+                when rest2 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
+            (body, rest4) = parse_function_body(rest3)
             func_expr = FunctionExpression(
                 {
                     id: Some(identifier),
@@ -1673,14 +1696,26 @@ parse_function_expression = |token_list|
                     generator: Bool.false,
                     async: Bool.false,
                     type_parameters: None,
+                    return_type: return_type,
                 },
             )
-            (func_expr, rest3)
+            (func_expr, rest4)
 
         [OpenParenToken, .. as rest1] ->
             # Anonymous function expression
             (params, rest2) = parse_function_parameters(token_list)
-            (body, rest3) = parse_function_body(rest2)
+            # Check for return type annotation: function(): type
+            (return_type, rest3) =
+                when rest2 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
+            (body, rest4) = parse_function_body(rest3)
             func_expr = FunctionExpression(
                 {
                     id: None,
@@ -1689,9 +1724,10 @@ parse_function_expression = |token_list|
                     generator: Bool.false,
                     async: Bool.false,
                     type_parameters: None,
+                    return_type: return_type,
                 },
             )
-            (func_expr, rest3)
+            (func_expr, rest4)
 
         _ ->
             (Error({ message: "Expected function parameters or name" }), token_list)
@@ -1704,7 +1740,18 @@ parse_async_function_expression = |token_list|
             # Named async function expression
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
-            (body, rest3) = parse_function_body(rest2)
+            # Check for return type annotation: async function name(): type
+            (return_type, rest3) =
+                when rest2 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
+            (body, rest4) = parse_function_body(rest3)
             func_expr = FunctionExpression(
                 {
                     id: Some(identifier),
@@ -1713,14 +1760,26 @@ parse_async_function_expression = |token_list|
                     generator: Bool.false,
                     async: Bool.true,
                     type_parameters: None,
+                    return_type: return_type,
                 },
             )
-            (func_expr, rest3)
+            (func_expr, rest4)
 
         [OpenParenToken, .. as rest1] ->
             # Anonymous async function expression
             (params, rest2) = parse_function_parameters(token_list)
-            (body, rest3) = parse_function_body(rest2)
+            # Check for return type annotation: async function(): type
+            (return_type, rest3) =
+                when rest2 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
+            (body, rest4) = parse_function_body(rest3)
             func_expr = FunctionExpression(
                 {
                     id: None,
@@ -1729,9 +1788,10 @@ parse_async_function_expression = |token_list|
                     generator: Bool.false,
                     async: Bool.true,
                     type_parameters: None,
+                    return_type: return_type,
                 },
             )
-            (func_expr, rest3)
+            (func_expr, rest4)
 
         _ ->
             (Error({ message: "Expected async function parameters or name" }), token_list)
@@ -1744,7 +1804,18 @@ parse_generator_function_expression = |token_list|
             # Named generator function expression
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
-            (body, rest3) = parse_function_body(rest2)
+            # Check for return type annotation: function* name(): type
+            (return_type, rest3) =
+                when rest2 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
+            (body, rest4) = parse_function_body(rest3)
             func_expr = FunctionExpression(
                 {
                     id: Some(identifier),
@@ -1753,14 +1824,26 @@ parse_generator_function_expression = |token_list|
                     generator: Bool.true,
                     async: Bool.false,
                     type_parameters: None,
+                    return_type: return_type,
                 },
             )
-            (func_expr, rest3)
+            (func_expr, rest4)
 
         [OpenParenToken, .. as rest1] ->
             # Anonymous generator function expression
             (params, rest2) = parse_function_parameters(token_list)
-            (body, rest3) = parse_function_body(rest2)
+            # Check for return type annotation: function*(): type
+            (return_type, rest3) =
+                when rest2 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
+            (body, rest4) = parse_function_body(rest3)
             func_expr = FunctionExpression(
                 {
                     id: None,
@@ -1769,9 +1852,10 @@ parse_generator_function_expression = |token_list|
                     generator: Bool.true,
                     async: Bool.false,
                     type_parameters: None,
+                    return_type: return_type,
                 },
             )
-            (func_expr, rest3)
+            (func_expr, rest4)
 
         _ ->
             (Error({ message: "Expected generator function parameters or name" }), token_list)
@@ -1784,7 +1868,18 @@ parse_async_generator_function_expression = |token_list|
             # Named async generator function expression
             identifier = Identifier({ name: name })
             (params, rest2) = parse_function_parameters(rest1)
-            (body, rest3) = parse_function_body(rest2)
+            # Check for return type annotation: async function* name(): type
+            (return_type, rest3) =
+                when rest2 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
+            (body, rest4) = parse_function_body(rest3)
             func_expr = FunctionExpression(
                 {
                     id: Some(identifier),
@@ -1793,14 +1888,26 @@ parse_async_generator_function_expression = |token_list|
                     generator: Bool.true,
                     async: Bool.true,
                     type_parameters: None,
+                    return_type: return_type,
                 },
             )
-            (func_expr, rest3)
+            (func_expr, rest4)
 
         [OpenParenToken, .. as rest1] ->
             # Anonymous async generator function expression
             (params, rest2) = parse_function_parameters(token_list)
-            (body, rest3) = parse_function_body(rest2)
+            # Check for return type annotation: async function*(): type
+            (return_type, rest3) =
+                when rest2 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
+                    [ColonToken, .. as rest_after_colon] ->
+                        (type_node, remaining) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), remaining)
+
+                    _ ->
+                        # No return type annotation
+                        (None, rest2)
+            (body, rest4) = parse_function_body(rest3)
             func_expr = FunctionExpression(
                 {
                     id: None,
@@ -1809,9 +1916,10 @@ parse_async_generator_function_expression = |token_list|
                     generator: Bool.true,
                     async: Bool.true,
                     type_parameters: None,
+                    return_type: return_type,
                 },
             )
-            (func_expr, rest3)
+            (func_expr, rest4)
 
         _ ->
             (Error({ message: "Expected async generator function parameters or name" }), token_list)
@@ -1834,6 +1942,7 @@ parse_new_expression = |token_list|
                 {
                     callee: callee,
                     arguments: [],
+                    type_args: None, # TODO: Parse type args
                 },
             )
             (new_expr, rest1)
@@ -1847,6 +1956,7 @@ parse_new_arguments = |callee, arguments, token_list|
                 {
                     callee: callee,
                     arguments: arguments,
+                    type_args: None, # TODO: Parse type args
                 },
             )
             (new_expr, rest)
@@ -1866,6 +1976,7 @@ parse_new_arguments = |callee, arguments, token_list|
                         {
                             callee: callee,
                             arguments: final_args,
+                            type_args: None, # TODO: Parse type args
                         },
                     )
                     (new_expr, rest)
@@ -2219,6 +2330,7 @@ parse_method_definition_with_key = |kind, key, token_list|
                     generator: Bool.false,
                     async: Bool.false,
                     type_parameters: None,
+                    return_type: None,
                 },
             )
             method_def = MethodDefinition(
@@ -2359,6 +2471,8 @@ parse_arrow_function_body = |params_node, token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
+                    type_parameters: None,
+                    return_type: None,
                 },
             )
             (arrow_fn, remaining_tokens)
@@ -2372,6 +2486,8 @@ parse_arrow_function_body = |params_node, token_list|
                     body: expr,
                     generator: Bool.false,
                     async: Bool.false,
+                    type_parameters: None,
+                    return_type: None,
                 },
             )
             (arrow_fn, remaining_tokens)
@@ -2392,6 +2508,8 @@ parse_async_arrow_function_body = |params_node, token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.true,
+                    type_parameters: None,
+                    return_type: None,
                 },
             )
             (arrow_fn, remaining_tokens)
@@ -2405,6 +2523,8 @@ parse_async_arrow_function_body = |params_node, token_list|
                     body: expr,
                     generator: Bool.false,
                     async: Bool.true,
+                    type_parameters: None,
+                    return_type: None,
                 },
             )
             (arrow_fn, remaining_tokens)
@@ -4509,14 +4629,14 @@ parse_generic_function_expression = |token_list|
             identifier = Identifier({ name: name })
             (params, rest3) = parse_function_parameters(rest2)
             # Parse optional return type annotation ": Type"
-            rest4 =
+            (return_type, rest4) =
                 when rest3 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
                     [ColonToken, .. as rest_after_colon] ->
-                        # Skip the return type annotation for now
-                        (_, rest_after_type) = parse_type_annotation(rest_after_colon)
-                        rest_after_type
+                        (type_node, rest_after_type) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), rest_after_type)
 
-                    _ -> rest3
+                    _ -> (None, rest3)
             (body, rest5) = parse_function_body(rest4)
             func_expr = FunctionExpression(
                 {
@@ -4526,6 +4646,7 @@ parse_generic_function_expression = |token_list|
                     generator: Bool.false,
                     async: Bool.false,
                     type_parameters: type_params,
+                    return_type: return_type,
                 },
             )
             (func_expr, rest5)
@@ -4534,14 +4655,14 @@ parse_generic_function_expression = |token_list|
             # Anonymous generic function expression
             (params, rest3) = parse_function_parameters(rest1)
             # Parse optional return type annotation ": Type"
-            rest4 =
+            (return_type, rest4) =
                 when rest3 is
+                    [TokenError(err), .. as after] -> (Some(Error({message: Inspect.to_str(err)})), after)
                     [ColonToken, .. as rest_after_colon] ->
-                        # Skip the return type annotation for now
-                        (_, rest_after_type) = parse_type_annotation(rest_after_colon)
-                        rest_after_type
+                        (type_node, rest_after_type) = parse_type_annotation(rest_after_colon)
+                        (Some(type_node), rest_after_type)
 
-                    _ -> rest3
+                    _ -> (None, rest3)
             (body, rest5) = parse_function_body(rest4)
             func_expr = FunctionExpression(
                 {
@@ -4551,6 +4672,7 @@ parse_generic_function_expression = |token_list|
                     generator: Bool.false,
                     async: Bool.false,
                     type_parameters: type_params,
+                    return_type: return_type,
                 },
             )
             (func_expr, rest5)

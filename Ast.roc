@@ -301,12 +301,12 @@ Node : [
     CallExpression (WithBaseNodeData {
                 callee : Node,
                 arguments : List Node,
-                type_args : Option (List Node),
+                type_args : Option Node,
             }),
     NewExpression (WithBaseNodeData {
                 callee : Node,
                 arguments : List Node,
-                type_args : Option (List Node),
+                type_args : Option Node,
             }),
     SequenceExpression (WithBaseNodeData {
                 expressions : List Node,
