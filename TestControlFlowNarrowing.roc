@@ -4,7 +4,7 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 import pf.Stdout
 import ComprehensiveTypeIndexed as T
 import ControlFlowNarrowing as CFN
-import ControlFlowNarrowing exposing [TypeGuard, TypeofGuard, TruthinessGuard, EqualityGuard, NullishGuard]
+import ControlFlowNarrowing exposing [TypeGuard]
 
 # Test control-flow based type narrowing
 main! = |_args|
