@@ -468,9 +468,9 @@ parse_expression_led = |left_node, min_precedence, token_list|
                     # Create a TSAsExpression node with const assertion
                     as_expr = TSAsExpression({
                         expression: left_node,
-                        typeAnnotation: TSTypeReference({
-                            typeName: Identifier({ name: "const" }),
-                            typeArguments: None
+                        type_annotation: TSTypeReference({
+                            type_name: Identifier({ name: "const" }),
+                            type_arguments: None
                         })
                     })
                     parse_expression_led(as_expr, min_precedence, rest2)
@@ -483,7 +483,7 @@ parse_expression_led = |left_node, min_precedence, token_list|
                     # Create a TSAsExpression node
                     as_expr = TSAsExpression({
                         expression: left_node,
-                        typeAnnotation: TSAnyKeyword({})  # Placeholder
+                        type_annotation: TSAnyKeyword({})  # Placeholder
                     })
                     parse_expression_led(as_expr, min_precedence, rest2)
 
@@ -1105,7 +1105,7 @@ parse_variable_declarator = |token_list|
                         {
                             id: identifier,
                             init: Some(init_expr),
-                            typeAnnotation: type_annotation,
+                            type_annotation: type_annotation,
                         },
                     )
                     (declarator, rest3)
@@ -1116,7 +1116,7 @@ parse_variable_declarator = |token_list|
                         {
                             id: identifier,
                             init: None,
-                            typeAnnotation: type_annotation,
+                            type_annotation: type_annotation,
                         },
                     )
                     (declarator, remaining_after_type)
@@ -1132,7 +1132,7 @@ parse_variable_declarator = |token_list|
                         {
                             id: pattern,
                             init: Some(init_expr),
-                            typeAnnotation: None,
+                            type_annotation: None,
                         },
                     )
                     (declarator, rest4)
@@ -1152,7 +1152,7 @@ parse_variable_declarator = |token_list|
                         {
                             id: pattern,
                             init: Some(init_expr),
-                            typeAnnotation: None,
+                            type_annotation: None,
                         },
                     )
                     (declarator, rest4)
@@ -1533,7 +1533,7 @@ parse_function_declaration = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
-                    typeParameters: type_params,
+                    type_parameters: type_params,
                 },
             )
             (func_decl, rest4)
@@ -1570,7 +1570,7 @@ parse_async_function_declaration = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.true,
-                    typeParameters: type_params,
+                    type_parameters: type_params,
                 },
             )
             (func_decl, rest4)
@@ -1607,7 +1607,7 @@ parse_generator_function_declaration = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.false,
-                    typeParameters: type_params,
+                    type_parameters: type_params,
                 },
             )
             (func_decl, rest4)
@@ -1644,7 +1644,7 @@ parse_async_generator_function_declaration = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.true,
-                    typeParameters: type_params,
+                    type_parameters: type_params,
                 },
             )
             (func_decl, rest4)
@@ -1672,7 +1672,7 @@ parse_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1688,7 +1688,7 @@ parse_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1712,7 +1712,7 @@ parse_async_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.true,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1728,7 +1728,7 @@ parse_async_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.true,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1752,7 +1752,7 @@ parse_generator_function_expression = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.false,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1768,7 +1768,7 @@ parse_generator_function_expression = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.false,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1792,7 +1792,7 @@ parse_async_generator_function_expression = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.true,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (func_expr, rest3)
@@ -1808,7 +1808,7 @@ parse_async_generator_function_expression = |token_list|
                     body: body,
                     generator: Bool.true,
                     async: Bool.true,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (func_expr, rest3)
@@ -2218,7 +2218,7 @@ parse_method_definition_with_key = |kind, key, token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             method_def = MethodDefinition(
@@ -3267,7 +3267,7 @@ parse_interface_declaration = |token_list|
                     id: interface_id,
                     body: interface_body,
                     extends: extends_clause,
-                    typeParameters: type_params,
+                    type_parameters: type_params,
                 },
             )
             (interface_decl, rest4)
@@ -3280,7 +3280,7 @@ parse_interface_extends = |token_list|
     when token_list is
         [TokenError(err), .. as after] -> ([Error({message: Inspect.to_str(err)})], after)
         [IdentifierToken(type_name), .. as rest1] ->
-            type_ref = TSTypeReference({ typeName: Identifier({ name: type_name }), typeArguments: None })
+            type_ref = TSTypeReference({ type_name: Identifier({ name: type_name }), type_arguments: None })
 
             # Check for more extends (comma-separated)
             when rest1 is
@@ -3320,7 +3320,7 @@ parse_interface_body_statements = |statements, token_list|
             prop_sig = TSPropertySignature(
                 {
                     key: prop_key,
-                    typeAnnotation: Some(type_annotation),
+                    type_annotation: Some(type_annotation),
                     optional: Bool.true,
                     readonly: Bool.false,
                 },
@@ -3335,7 +3335,7 @@ parse_interface_body_statements = |statements, token_list|
             prop_sig = TSPropertySignature(
                 {
                     key: prop_key,
-                    typeAnnotation: Some(type_annotation),
+                    type_annotation: Some(type_annotation),
                     optional: Bool.false,
                     readonly: Bool.false,
                 },
@@ -3432,8 +3432,8 @@ parse_type_alias_declaration = |token_list|
             type_alias = TSTypeAliasDeclaration(
                 {
                     id: type_id,
-                    typeAnnotation: type_annotation,
-                    typeParameters: type_params,
+                    type_annotation: type_annotation,
+                    type_parameters: type_params,
                 },
             )
             (type_alias, rest5)
@@ -3696,8 +3696,8 @@ parse_primary_type = |token_list|
                     None -> None
             type_ref = TSTypeReference(
                 {
-                    typeName: Identifier({ name: type_name }),
-                    typeArguments: type_params,
+                    type_name: Identifier({ name: type_name }),
+                    type_arguments: type_params,
                 },
             )
             (type_ref, rest1)
@@ -3731,8 +3731,8 @@ parse_keyof_type = |token_list|
     # In a full implementation, we'd have a TSKeyofType node
     keyof_ref = TSTypeReference(
         {
-            typeName: Identifier({ name: "keyof" }),
-            typeArguments: Some([inner_type]),
+            type_name: Identifier({ name: "keyof" }),
+            type_arguments: Some([inner_type]),
         },
     )
     (keyof_ref, rest)
@@ -4103,7 +4103,7 @@ collect_function_type_tokens = |collected, token_list|
                 {
                     parameters: [],
                     returnType: return_type,
-                    typeParameters: None,
+                    type_parameters: None,
                 },
             )
             (function_type, remaining)
@@ -4143,8 +4143,8 @@ parse_simple_type_annotation = |token_list|
         [IdentifierToken(type_name), .. as rest] ->
             type_ref = TSTypeReference(
                 {
-                    typeName: Identifier({ name: type_name }),
-                    typeArguments: None,
+                    type_name: Identifier({ name: type_name }),
+                    type_arguments: None,
                 },
             )
             (type_ref, rest)
@@ -4228,9 +4228,9 @@ parse_mapped_type_with_modifiers = |param_name, readonly_mod, optional_mod, toke
                             # Create mapped type
                             mapped_type = TSMappedType(
                                 {
-                                    typeParameter: type_param,
+                                    type_parameter: type_param,
                                     constraint: constraint,
-                                    typeAnnotation: Some(type_ann),
+                                    type_annotation: Some(type_ann),
                                     optional: final_optional,
                                     readonly: readonly_mod,
                                 },
@@ -4275,7 +4275,7 @@ parse_object_type_members = |members, token_list|
             prop_signature = TSPropertySignature(
                 {
                     key: Identifier({ name: prop_name }),
-                    typeAnnotation: Some(prop_type),
+                    type_annotation: Some(prop_type),
                     optional: Bool.true,
                     readonly: Bool.false,
                 },
@@ -4292,7 +4292,7 @@ parse_object_type_members = |members, token_list|
             prop_signature = TSPropertySignature(
                 {
                     key: Identifier({ name: prop_name }),
-                    typeAnnotation: Some(prop_type),
+                    type_annotation: Some(prop_type),
                     optional: Bool.false,
                     readonly: Bool.false,
                 },
@@ -4349,7 +4349,7 @@ parse_index_signature = |members, token_list|
                     param = TSPropertySignature(
                         {
                             key: Identifier({ name: param_name }),
-                            typeAnnotation: Some(param_type),
+                            type_annotation: Some(param_type),
                             optional: Bool.false,
                             readonly: Bool.false,
                         },
@@ -4359,7 +4359,7 @@ parse_index_signature = |members, token_list|
                     index_sig = TSIndexSignature(
                         {
                             parameters: [param],
-                            typeAnnotation: Some(value_type),
+                            type_annotation: Some(value_type),
                             readonly: Bool.false,
                         },
                     )
@@ -4397,7 +4397,7 @@ parse_readonly_member = |members, token_list|
                             param = TSPropertySignature(
                                 {
                                     key: Identifier({ name: param_name }),
-                                    typeAnnotation: Some(param_type),
+                                    type_annotation: Some(param_type),
                                     optional: Bool.false,
                                     readonly: Bool.false,
                                 },
@@ -4407,7 +4407,7 @@ parse_readonly_member = |members, token_list|
                             index_sig = TSIndexSignature(
                                 {
                                     parameters: [param],
-                                    typeAnnotation: Some(value_type),
+                                    type_annotation: Some(value_type),
                                     readonly: Bool.true,
                                 },
                             )
@@ -4432,7 +4432,7 @@ parse_readonly_member = |members, token_list|
                     prop_signature = TSPropertySignature(
                         {
                             key: Identifier({ name: prop_name }),
-                            typeAnnotation: Some(prop_type),
+                            type_annotation: Some(prop_type),
                             optional: Bool.true,
                             readonly: Bool.true,
                         },
@@ -4447,7 +4447,7 @@ parse_readonly_member = |members, token_list|
                     prop_signature = TSPropertySignature(
                         {
                             key: Identifier({ name: prop_name }),
-                            typeAnnotation: Some(prop_type),
+                            type_annotation: Some(prop_type),
                             optional: Bool.false,
                             readonly: Bool.true,
                         },
@@ -4481,7 +4481,7 @@ parse_generic_function_type = |token_list|
                             {
                                 parameters: data.parameters,
                                 returnType: data.returnType,
-                                typeParameters: type_params,
+                                type_parameters: type_params,
                             },
                         )
 
@@ -4525,7 +4525,7 @@ parse_generic_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
-                    typeParameters: type_params,
+                    type_parameters: type_params,
                 },
             )
             (func_expr, rest5)
@@ -4550,7 +4550,7 @@ parse_generic_function_expression = |token_list|
                     body: body,
                     generator: Bool.false,
                     async: Bool.false,
-                    typeParameters: type_params,
+                    type_parameters: type_params,
                 },
             )
             (func_expr, rest5)

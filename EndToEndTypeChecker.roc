@@ -127,7 +127,7 @@ check_statement = |stmt, state|
             # Process each declarator
             List.walk(declarations, (Solver.IUndefined, [], state), \(_, constraints, s), decl ->
                 when decl is
-                    VariableDeclarator({ id, init, typeAnnotation }) ->
+                    VariableDeclarator({ id, init, type_annotation }) ->
                         when (id, init) is
                             (Identifier({ name }), Some(init_expr)) ->
                                 # Generate constraints for initializer

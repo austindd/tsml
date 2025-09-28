@@ -194,19 +194,13 @@ infer_node = \node, ctx ->
                     Ok (array_type, { ctx & store: store2 })
                 _ ->
                     # Infer types of all elements
-                    result = List.walk data.elements (Ok ([], ctx)) \acc_result, elem ->
+                    result = List.walk data.elements (Ok ([], ctx)) \acc_result, expr ->
                         when acc_result is
                             Ok (types, curr_ctx) ->
-                                when elem is
-                                    Some expr ->
-                                        when infer_node expr curr_ctx is
-                                            Ok (elem_type, new_ctx) ->
-                                                Ok (List.append types elem_type, new_ctx)
-                                            Err e -> Err e
-                                    None ->
-                                        # Sparse array element
-                                        (new_store, undef) = ComprehensiveTypeIndexed.make_undefined curr_ctx.store
-                                        Ok (List.append types undef, { curr_ctx & store: new_store })
+                                when infer_node expr curr_ctx is
+                                    Ok (elem_type, new_ctx) ->
+                                        Ok (List.append types elem_type, new_ctx)
+                                    Err e -> Err e
                             Err e -> Err e
 
                     when result is
@@ -229,11 +223,11 @@ infer_node = \node, ctx ->
             infer_object_literal properties ctx
 
         # Function expressions
-        FunctionExpression { id, params, body, is_async, is_generator, return_type, type_params } ->
-            infer_function id params body is_async is_generator return_type type_params ctx
+        FunctionExpression { id, params, body, async, generator, return_type, type_parameters } ->
+            infer_function id params body async generator return_type type_parameters ctx
 
-        ArrowFunctionExpression { id, params, body, is_async, expression, return_type, type_params } ->
-            infer_function id params body is_async Bool.false return_type type_params ctx
+        ArrowFunctionExpression { params, body, async, generator, return_type, type_parameters } ->
+            infer_function(None, params, body, async, generator, return_type, type_parameters, ctx)
 
         # Binary operations
         BinaryExpression { left, right, operator } ->
@@ -244,12 +238,12 @@ infer_node = \node, ctx ->
             infer_unary_op argument operator prefix ctx
 
         # Member access
-        MemberExpression { object, property, computed, optional } ->
-            infer_member_access object property computed optional ctx
+        MemberExpression { object, property, computed } ->
+            infer_member_access object property computed Bool.false ctx
 
         # Call expressions
-        CallExpression { callee, arguments, optional, type_args } ->
-            infer_call callee arguments optional type_args ctx
+        CallExpression { callee, arguments, type_args } ->
+            infer_call callee arguments Bool.false type_args ctx
 
         # Assignment
         AssignmentExpression { left, right, operator } ->
@@ -333,18 +327,14 @@ infer_node = \node, ctx ->
         BlockStatement { body } ->
             infer_statement_list body ctx
 
-        ExpressionStatement { expression } ->
+        Directive { expression } ->
             infer_node expression ctx
 
         VariableDeclaration { declarations, kind } ->
             infer_variable_declarations declarations kind ctx
 
-        FunctionDeclaration { id, params, body, is_async, is_generator, return_type, type_params } ->
-            when id is
-                Some ident ->
-                    infer_function (Some ident) params body is_async is_generator return_type type_params ctx
-                None ->
-                    Err "Function declaration must have a name"
+        FunctionDeclaration { id, params, body, async, generator, return_type, type_parameters } ->
+            infer_function (Some id) params body async generator return_type type_parameters ctx
 
         ReturnStatement { argument } ->
             when argument is
@@ -426,20 +416,32 @@ infer_node = \node, ctx ->
             (new_store, unknown) = ComprehensiveTypeIndexed.make_unknown ctx.store
             Ok (unknown, { ctx & store: new_store })
 
-# Helper function for object literal inference with recursive types
+# Helper function for object literal inference with recursive types and discriminants
 infer_object_literal : List Node, InferContext -> Result (TypeId, InferContext) Str
 infer_object_literal = \properties, ctx ->
-    # First pass: collect all property names and create type variables for recursive references
-    prop_vars = List.walk(properties, Dict.empty{}, |vars, prop|
+    # First pass: collect all property names and identify potential discriminants
+    analysis = List.walk properties { prop_vars: Dict.empty{}, discriminants: [] } \acc, prop ->
         when prop is
             Property { key, kind, value } ->
                 key_name = extract_property_key key
-                Dict.insert vars key_name ctx.next_var
-            _ -> vars
-    )
+
+                # Check if this is a potential discriminant (literal string value)
+                is_discriminant = when value is
+                    Some (StringLiteral data) -> Bool.true
+                    _ -> Bool.false
+
+                new_acc = { acc &
+                    prop_vars: Dict.insert acc.prop_vars key_name ctx.next_var
+                }
+
+                if is_discriminant then
+                    { new_acc & discriminants: List.append acc.discriminants key_name }
+                else
+                    new_acc
+            _ -> acc
 
     # Create initial context with type variables for potential recursive references
-    initial_ctx = { ctx & next_var: ctx.next_var + (Dict.len prop_vars |> Num.to_u64) }
+    initial_ctx = { ctx & next_var: ctx.next_var + (Dict.len analysis.prop_vars |> Num.to_u64) }
 
     # Second pass: infer property types
     result = List.walk properties (Ok ([], initial_ctx)) \acc_result, prop ->
@@ -451,7 +453,7 @@ infer_object_literal = \properties, ctx ->
 
                         when value is
                             Some val ->
-                                when infer_node_with_recursion val curr_ctx prop_vars key_name is
+                                when infer_node_with_recursion val curr_ctx analysis key_name is
                                     Ok (val_type, new_ctx) ->
                                         field = { name: key_name, type_id: val_type, optional: Bool.false, readonly: Bool.false }
                                         Ok (List.append fields field, new_ctx)
@@ -479,12 +481,12 @@ infer_object_literal = \properties, ctx ->
         Err e -> Err e
 
 # Special helper for recursive type inference
-infer_node_with_recursion : Node, InferContext, Dict.Dict Str U64, Str -> Result (TypeId, InferContext) Str
-infer_node_with_recursion = \node, ctx, prop_vars, current_key ->
+infer_node_with_recursion : Node, InferContext, { prop_vars: Dict.Dict Str U64, discriminants: List Str }, Str -> Result (TypeId, InferContext) Str
+infer_node_with_recursion = \node, ctx, analysis, current_key ->
     when node is
         Identifier { name } ->
             # Check if this refers to a property in the same object (recursive reference)
-            when Dict.get prop_vars name is
+            when Dict.get analysis.prop_vars name is
                 Ok var_id ->
                     (new_store, type_var) = ComprehensiveTypeIndexed.make_type_var ctx.store var_id
                     Ok (type_var, { ctx & store: new_store })
@@ -612,8 +614,8 @@ infer_binary_op = \left, right, operator, ctx ->
                             # Arithmetic operators - result is number
                             (store1, num_type) = ComprehensiveTypeIndexed.make_primitive right_ctx.store "number"
                             # Add constraints that operands should be numbers
-                            constraint1 = Equal left_type num_type
-                            constraint2 = Equal right_type num_type
+                            constraint1 = { kind: Equality left_type num_type, source: Err NoSource }
+                            constraint2 = { kind: Equality right_type num_type, source: Err NoSource }
                             Ok (num_type, { right_ctx &
                                 store: store1,
                                 constraints: List.concat right_ctx.constraints [constraint1, constraint2]
@@ -627,8 +629,8 @@ infer_binary_op = \left, right, operator, ctx ->
                         LeftShift | RightShift | UnsignedRightShift | Ampersand | Pipe | Caret ->
                             # Bitwise operators - result is number
                             (store1, num_type) = ComprehensiveTypeIndexed.make_primitive right_ctx.store "number"
-                            constraint1 = Equal left_type num_type
-                            constraint2 = Equal right_type num_type
+                            constraint1 = { kind: Equality left_type num_type, source: Err NoSource }
+                            constraint2 = { kind: Equality right_type num_type, source: Err NoSource }
                             Ok (num_type, { right_ctx &
                                 store: store1,
                                 constraints: List.concat right_ctx.constraints [constraint1, constraint2]
@@ -697,11 +699,20 @@ infer_member_access = \object, property, computed, optional, ctx ->
                 Some prop_name ->
                     # Create a type variable for the result
                     (store1, result_var) = ComprehensiveTypeIndexed.make_type_var obj_ctx.store obj_ctx.next_var
-                    # Add constraint that object has this property
-                    constraint = HasField obj_type prop_name result_var
+                    # For object field access, we need to handle it more carefully
+                    # We'll generate a constraint that the object type has this field
+                    # This is done by creating a row variable and constraints
+                    (store2, row_var) = ComprehensiveTypeIndexed.make_row_var store1 obj_ctx.next_var
+                    (store3, expected_obj) = ComprehensiveTypeIndexed.make_object store2 row_var
+                    (store4, empty_row) = ComprehensiveTypeIndexed.make_empty_row store3
+                    (store5, field_row) = ComprehensiveTypeIndexed.make_row_extend store4 prop_name result_var Bool.false Bool.false row_var
+                    (store6, field_obj) = ComprehensiveTypeIndexed.make_object store5 field_row
+
+                    # Constraint: obj_type must be subtype of object with this field
+                    constraint = { kind: Subtype field_obj obj_type, source: Ok "field $(prop_name) access" }
                     Ok (result_var, { obj_ctx &
-                        store: store1,
-                        next_var: obj_ctx.next_var + 1,
+                        store: store6,  # Use the final store with all the types
+                        next_var: obj_ctx.next_var + 2,  # We used two variables (result and row)
                         constraints: List.append obj_ctx.constraints constraint
                     })
                 None ->
@@ -711,7 +722,7 @@ infer_member_access = \object, property, computed, optional, ctx ->
         Err e -> Err e
 
 # Call expression inference
-infer_call : Node, List Node, Bool, Option Node, InferContext -> Result (TypeId, InferContext) Str
+infer_call : Node, List Node, Bool, Option (List Node), InferContext -> Result (TypeId, InferContext) Str
 infer_call = \callee, arguments, optional, type_args, ctx ->
     when infer_node callee ctx is
         Ok (fn_type, fn_ctx) ->
@@ -729,10 +740,13 @@ infer_call = \callee, arguments, optional, type_args, ctx ->
                 Ok (arg_types, args_ctx) ->
                     # Create type variable for result
                     (store1, result_var) = ComprehensiveTypeIndexed.make_type_var args_ctx.store args_ctx.next_var
-                    # Add constraint that fn_type is callable with these arguments
-                    constraint = IsCallable fn_type arg_types result_var
+                    # For function calls, we need to unify with a function type
+                    # Create a function type with the argument types and result type
+                    (store2, expected_fn_type) = ComprehensiveTypeIndexed.make_function store1 (List.map arg_types \t -> { name: "_", param_type: t, optional: Bool.false }) result_var [] Bool.false Bool.false
+                    # Constraint: fn_type must equal this function type
+                    constraint = { kind: Equality fn_type expected_fn_type, source: Ok "function call" }
                     Ok (result_var, { args_ctx &
-                        store: store1,
+                        store: store2,  # Use the store with the function type
                         next_var: args_ctx.next_var + 1,
                         constraints: List.append args_ctx.constraints constraint
                     })
@@ -740,7 +754,7 @@ infer_call = \callee, arguments, optional, type_args, ctx ->
         Err e -> Err e
 
 # New expression inference
-infer_new : Node, List Node, Option Node, InferContext -> Result (TypeId, InferContext) Str
+infer_new : Node, List Node, Option (List Node), InferContext -> Result (TypeId, InferContext) Str
 infer_new = \callee, arguments, type_args, ctx ->
     when infer_node callee ctx is
         Ok (constructor_type, cons_ctx) ->
@@ -766,7 +780,7 @@ infer_assignment = \left, right, operator, ctx ->
                     when infer_node left right_ctx is
                         Ok (left_type, left_ctx) ->
                             # Add constraint that types must be compatible
-                            constraint = Subtype right_type left_type
+                            constraint = { kind: Subtype right_type left_type, source: Ok "assignment" }
                             Ok (right_type, { left_ctx &
                                 constraints: List.append left_ctx.constraints constraint
                             })
@@ -790,7 +804,7 @@ infer_conditional = \test, consequent, alternate, ctx ->
         Err e -> Err e
 
 # Variable declaration inference
-infer_variable_declarations : List Node, Str, InferContext -> Result (TypeId, InferContext) Str
+infer_variable_declarations : List Node, Ast.VariableDeclarationKind, InferContext -> Result (TypeId, InferContext) Str
 infer_variable_declarations = \declarations, kind, ctx ->
     result = List.walk declarations (Ok (None, ctx)) \acc_result, decl ->
         when acc_result is

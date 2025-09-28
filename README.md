@@ -68,13 +68,13 @@ TSInterfaceDeclaration {
         key: Identifier { name: "name" },
         optional: Bool.false,
         readonly: Bool.false,
-        typeAnnotation: TSStringKeyword
+        type_annotation: TSStringKeyword
       },
       TSPropertySignature {
         key: Identifier { name: "age" },
         optional: Bool.true,
         readonly: Bool.false,
-        typeAnnotation: TSNumberKeyword
+        type_annotation: TSNumberKeyword
       }
     ]
   }
@@ -88,7 +88,7 @@ TSInterfaceDeclaration {
         key: Identifier { name: "permissions" },
         optional: Bool.false,
         readonly: Bool.false,
-        typeAnnotation: TSArrayType {
+        type_annotation: TSArrayType {
           elementType: TSStringKeyword
         }
       }
@@ -96,8 +96,8 @@ TSInterfaceDeclaration {
   },
   extends: [
     TSTypeReference {
-      typeName: Identifier { name: "User" },
-      typeParameters: [...0 items]
+      type_name: Identifier { name: "User" },
+      type_parameters: [...0 items]
     }
   ]
 }
@@ -115,7 +115,7 @@ type Point = [number, number];
 ```
 TSTypeAliasDeclaration {
   id: Identifier { name: "Matrix" },
-  typeAnnotation: TSArrayType {
+  type_annotation: TSArrayType {
     elementType: TSArrayType {
       elementType: TSNumberKeyword
     }
@@ -124,7 +124,7 @@ TSTypeAliasDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "StringOrNumber" },
-  typeAnnotation: TSUnionType {
+  type_annotation: TSUnionType {
     types: [
       TSStringKeyword,
       TSNumberKeyword
@@ -134,7 +134,7 @@ TSTypeAliasDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "MixedArray" },
-  typeAnnotation: TSArrayType {
+  type_annotation: TSArrayType {
     elementType: TSUnionType {
       types: [
         TSStringKeyword,
@@ -146,7 +146,7 @@ TSTypeAliasDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Point" },
-  typeAnnotation: TSTupleType {
+  type_annotation: TSTupleType {
     elementTypes: [
       TSNumberKeyword,
       TSNumberKeyword
@@ -167,19 +167,19 @@ VariableDeclaration {
   declarations: [
     VariableDeclarator {
       id: Identifier { name: "user" },
-      typeAnnotation: TSTypeLiteral {
+      type_annotation: TSTypeLiteral {
         members: [
           TSPropertySignature {
             key: Identifier { name: "name" },
             optional: Bool.false,
             readonly: Bool.false,
-            typeAnnotation: TSStringKeyword
+            type_annotation: TSStringKeyword
           },
           TSPropertySignature {
             key: Identifier { name: "age" },
             optional: Bool.false,
             readonly: Bool.false,
-            typeAnnotation: TSNumberKeyword
+            type_annotation: TSNumberKeyword
           },
         ]
       },
@@ -277,14 +277,14 @@ TSInterfaceDeclaration {
         key: Identifier { name: "value" },
         optional: Bool.false,
         readonly: Bool.false,
-        typeAnnotation: TSTypeReference {
-          typeName: Identifier { name: "T" },
-          typeParameters: [...0 items]
+        type_annotation: TSTypeReference {
+          type_name: Identifier { name: "T" },
+          type_parameters: [...0 items]
         }
       }
     ]
   },
-  typeParameters: TSTypeParameterDeclaration {
+  type_parameters: TSTypeParameterDeclaration {
     params: [
       TSTypeParameter { name: Identifier { name: "T" } }
     ]
@@ -293,21 +293,21 @@ TSInterfaceDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Pair" },
-  typeParameters: TSTypeParameterDeclaration {
+  type_parameters: TSTypeParameterDeclaration {
     params: [
       TSTypeParameter { name: Identifier { name: "T" } },
       TSTypeParameter { name: Identifier { name: "U" } = TSStringKeyword }
     ]
   },
-  typeAnnotation: TSTupleType {
+  type_annotation: TSTupleType {
     elementTypes: [
       TSTypeReference {
-        typeName: Identifier { name: "T" },
-        typeParameters: [...0 items]
+        type_name: Identifier { name: "T" },
+        type_parameters: [...0 items]
       },
       TSTypeReference {
-        typeName: Identifier { name: "U" },
-        typeParameters: [...0 items]
+        type_name: Identifier { name: "U" },
+        type_parameters: [...0 items]
       }
     ]
   }
@@ -321,14 +321,14 @@ TSInterfaceDeclaration {
         key: Identifier { name: "data" },
         optional: Bool.false,
         readonly: Bool.false,
-        typeAnnotation: TSTypeReference {
-          typeName: Identifier { name: "T" },
-          typeParameters: [...0 items]
+        type_annotation: TSTypeReference {
+          type_name: Identifier { name: "T" },
+          type_parameters: [...0 items]
         }
       }
     ]
   },
-  typeParameters: TSTypeParameterDeclaration {
+  type_parameters: TSTypeParameterDeclaration {
     params: [
       TSTypeParameter { name: Identifier { name: "T" } extends TSNumberKeyword }
     ]
@@ -337,7 +337,7 @@ TSInterfaceDeclaration {
 
 FunctionDeclaration {
   id: Identifier { name: "identity" },
-  typeParameters: TSTypeParameterDeclaration {
+  type_parameters: TSTypeParameterDeclaration {
     params: [
       TSTypeParameter { name: Identifier { name: "T" } }
     ]
@@ -369,7 +369,7 @@ type Greeting = `Hello, ${string}!`;
 ```
 TSTypeAliasDeclaration {
   id: Identifier { name: "Person" },
-  typeAnnotation: TSIntersectionType {
+  type_annotation: TSIntersectionType {
     types: [
       TSTypeLiteral {
         members: [
@@ -377,7 +377,7 @@ TSTypeAliasDeclaration {
             key: Identifier { name: "name" },
             optional: Bool.false,
             readonly: Bool.false,
-            typeAnnotation: TSStringKeyword
+            type_annotation: TSStringKeyword
           }
         ]
       },
@@ -387,7 +387,7 @@ TSTypeAliasDeclaration {
             key: Identifier { name: "age" },
             optional: Bool.false,
             readonly: Bool.false,
-            typeAnnotation: TSNumberKeyword
+            type_annotation: TSNumberKeyword
           }
         ]
       }
@@ -397,7 +397,7 @@ TSTypeAliasDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Status" },
-  typeAnnotation: TSUnionType {
+  type_annotation: TSUnionType {
     types: [
       TSLiteralType {
         literal: StringLiteral { value: ""active"" }
@@ -414,7 +414,7 @@ TSTypeAliasDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Count" },
-  typeAnnotation: TSUnionType {
+  type_annotation: TSUnionType {
     types: [
       TSLiteralType {
         literal: NumberLiteral { value: "0" }
@@ -434,7 +434,7 @@ TSTypeAliasDeclaration {
 
 TSTypeAliasDeclaration {
   id: Identifier { name: "Greeting" },
-  typeAnnotation: TSTemplateLiteralType {
+  type_annotation: TSTemplateLiteralType {
     quasis: [
       TemplateElement {
         value: "Hello, ",
@@ -471,7 +471,7 @@ class AppComponent {
 ```
 TSTypeAliasDeclaration {
   id: Identifier { name: "ReadonlyDict" },
-  typeAnnotation: TSTypeLiteral {
+  type_annotation: TSTypeLiteral {
     members: [
       TSIndexSignature {
         parameters: [
@@ -479,10 +479,10 @@ TSTypeAliasDeclaration {
             key: Identifier { name: "index" },
             optional: Bool.false,
             readonly: Bool.false,
-            typeAnnotation: TSNumberKeyword
+            type_annotation: TSNumberKeyword
           }
         ],
-        typeAnnotation: TSStringKeyword,
+        type_annotation: TSStringKeyword,
         readonly: Bool.true
       }
     ]

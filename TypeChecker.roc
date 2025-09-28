@@ -571,7 +571,7 @@ check_function_declaration = |id, params, body, checker|
                 body,
                 generator: Bool.false,
                 async: Bool.false,
-                typeParameters: None,
+                type_parameters: None,
             }),
             inferred_type: {
                 name: "unknown",

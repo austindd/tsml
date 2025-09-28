@@ -152,7 +152,8 @@ Node : [
                 body : Node,
                 generator : Bool,
                 async : Bool,
-                typeParameters : Option Node,
+                type_parameters : Option Node,
+                return_type : Option Node,
             }),
     FunctionDeclaration (WithBaseNodeData {
                 id : Node,
@@ -160,13 +161,16 @@ Node : [
                 body : Node,
                 generator : Bool,
                 async : Bool,
-                typeParameters : Option Node,
+                type_parameters : Option Node,
+                return_type : Option Node,
             }),
     ArrowFunctionExpression (WithBaseNodeData {
                 params : List Node,
                 body : Node,
                 generator : Bool,
                 async : Bool,
+                type_parameters : Option Node,
+                return_type : Option Node,
             }),
     Directive (WithBaseNodeData {
                 expression : Node,
@@ -253,7 +257,7 @@ Node : [
     VariableDeclarator (WithBaseNodeData {
                 id : Node,
                 init : Option Node,
-                typeAnnotation : Option Node,
+                type_annotation : Option Node,
             }),
     ClassDeclaration (WithBaseNodeData {
                 id : Node,
@@ -297,10 +301,12 @@ Node : [
     CallExpression (WithBaseNodeData {
                 callee : Node,
                 arguments : List Node,
+                type_args : Option (List Node),
             }),
     NewExpression (WithBaseNodeData {
                 callee : Node,
                 arguments : List Node,
+                type_args : Option (List Node),
             }),
     SequenceExpression (WithBaseNodeData {
                 expressions : List Node,
@@ -354,7 +360,7 @@ Node : [
                 argument : Node,
             }),
     YieldExpression (WithBaseNodeData {
-                argument : Node,
+                argument : Option Node,
                 delegate : Bool,
             }),
     # TypeScript-specific nodes
@@ -362,7 +368,7 @@ Node : [
                 id : Node,
                 body : Node,
                 extends : Option (List Node),
-                typeParameters : Option Node,
+                type_parameters : Option Node,
             }),
     TSInterfaceBody (WithBaseNodeData {
                 body : List Node,
@@ -374,15 +380,15 @@ Node : [
             }),
     TSTypeAliasDeclaration (WithBaseNodeData {
                 id : Node,
-                typeAnnotation : Node,
-                typeParameters : Option Node,
+                type_annotation : Node,
+                type_parameters : Option Node,
             }),
     TSTypeAnnotation (WithBaseNodeData {
-                typeAnnotation : Node,
+                type_annotation : Node,
             }),
     TSTypeReference (WithBaseNodeData {
-                typeName : Node,
-                typeArguments : Option (List Node),
+                type_name : Node,
+                type_arguments : Option (List Node),
             }),
     TSStringKeyword (WithBaseNodeData {}),
     TSNumberKeyword (WithBaseNodeData {}),
@@ -395,12 +401,12 @@ Node : [
     TSUndefinedKeyword (WithBaseNodeData {}),
     TSAsExpression (WithBaseNodeData {
                 expression : Node,
-                typeAnnotation : Node,
+                type_annotation : Node,
             }),
     TSFunctionType (WithBaseNodeData {
                 parameters : List Node,
                 returnType : Node,
-                typeParameters : Option Node,
+                type_parameters : Option Node,
             }),
     TSTypeofType (WithBaseNodeData {
                 exprName : Node,
@@ -410,13 +416,13 @@ Node : [
             }),
     TSPropertySignature (WithBaseNodeData {
                 key : Node,
-                typeAnnotation : Option Node,
+                type_annotation : Option Node,
                 optional : Bool,
                 readonly : Bool,
             }),
     TSIndexSignature (WithBaseNodeData {
                 parameters : List Node,
-                typeAnnotation : Option Node,
+                type_annotation : Option Node,
                 readonly : Bool,
             }),
     TSArrayType (WithBaseNodeData {
@@ -445,9 +451,9 @@ Node : [
                 falseType : Node,
             }),
     TSMappedType (WithBaseNodeData {
-                typeParameter : Node,
+                type_parameter : Node,
                 constraint : Node,
-                typeAnnotation : Option Node,
+                type_annotation : Option Node,
                 optional : Option Bool, # true for +?, false for -?, None for no modifier
                 readonly : Option Bool, # true for +readonly, false for -readonly, None for no modifier
             }),
@@ -922,7 +928,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
 
         VariableDeclarator(data) ->
             init_str = option_to_str_inline(data.init, indent_level + 1)
-            type_str = option_to_str_inline(data.typeAnnotation, indent_level + 1)
+            type_str = option_to_str_inline(data.type_annotation, indent_level + 1)
 
             base_str =
                 Str.concat(indent, "VariableDeclarator {\n")
@@ -932,11 +938,11 @@ node_to_str_with_config = |node, indent_level, max_depth|
                 |> Str.concat(",\n")
 
             with_type =
-                when data.typeAnnotation is
+                when data.type_annotation is
                     Some(_) ->
                         base_str
                         |> Str.concat(indent)
-                        |> Str.concat("  typeAnnotation: ")
+                        |> Str.concat("  type_annotation: ")
                         |> Str.concat(type_str)
                         |> Str.concat(",\n")
 
@@ -953,9 +959,9 @@ node_to_str_with_config = |node, indent_level, max_depth|
 
         FunctionDeclaration(data) ->
             type_params_str =
-                when data.typeParameters is
+                when data.type_parameters is
                     Some(type_params) ->
-                        "  typeParameters: "
+                        "  type_parameters: "
                         |> Str.concat(node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth))
                         |> Str.concat(",\n")
                         |> Str.concat(indent)
@@ -1004,9 +1010,9 @@ node_to_str_with_config = |node, indent_level, max_depth|
                     None -> ""
 
             type_params_str =
-                when data.typeParameters is
+                when data.type_parameters is
                     Some(type_params) ->
-                        "  typeParameters: "
+                        "  type_parameters: "
                         |> Str.concat(node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth))
                         |> Str.concat(",\n")
                         |> Str.concat(indent)
@@ -1474,7 +1480,11 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         YieldExpression(data) ->
-            argument_str = node_to_str_or_truncate_inline(data.argument, indent_level + 1, max_depth)
+            argument_str = when data.argument is
+                Some(arg) ->
+                    node_to_str_or_truncate_inline(arg, indent_level + 1, max_depth)
+                None ->
+                    "None"
             delegate_str = if data.delegate then "Bool.true" else "Bool.false"
             Str.concat(indent, "YieldExpression {\n")
             |> Str.concat(indent)
@@ -1493,10 +1503,10 @@ node_to_str_with_config = |node, indent_level, max_depth|
             id_str = node_to_str_or_truncate_inline(data.id, indent_level + 1, max_depth)
             body_str = node_to_str_or_truncate_inline(data.body, indent_level + 1, max_depth)
             type_params_str =
-                when data.typeParameters is
+                when data.type_parameters is
                     Some(type_params) ->
                         type_params_val = node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth)
-                        ",\n${indent}  typeParameters: ${type_params_val}"
+                        ",\n${indent}  type_parameters: ${type_params_val}"
 
                     None -> ""
             extends_str =
@@ -1556,10 +1566,10 @@ node_to_str_with_config = |node, indent_level, max_depth|
             optional_str = if data.optional then "Bool.true" else "Bool.false"
             readonly_str = if data.readonly then "Bool.true" else "Bool.false"
             type_annotation_str =
-                when data.typeAnnotation is
+                when data.type_annotation is
                     Some(type_ann) ->
                         ann_str = node_to_str_or_truncate_inline(type_ann, indent_level + 1, max_depth)
-                        ",\n${indent}  typeAnnotation: ${ann_str}"
+                        ",\n${indent}  type_annotation: ${ann_str}"
 
                     None -> ""
             Str.concat(indent, "TSPropertySignature {\n")
@@ -1581,12 +1591,12 @@ node_to_str_with_config = |node, indent_level, max_depth|
 
         TSTypeAliasDeclaration(data) ->
             id_str = node_to_str_or_truncate_inline(data.id, indent_level + 1, max_depth)
-            type_annotation_str = node_to_str_or_truncate_inline(data.typeAnnotation, indent_level + 1, max_depth)
+            type_annotation_str = node_to_str_or_truncate_inline(data.type_annotation, indent_level + 1, max_depth)
             type_params_str =
-                when data.typeParameters is
+                when data.type_parameters is
                     Some(type_params) ->
                         type_params_val = node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth)
-                        ",\n${indent}  typeParameters: ${type_params_val}"
+                        ",\n${indent}  type_parameters: ${type_params_val}"
 
                     None -> ""
             Str.concat(indent, "TSTypeAliasDeclaration {\n")
@@ -1596,20 +1606,20 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(type_params_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
-            |> Str.concat("  typeAnnotation: ")
+            |> Str.concat("  type_annotation: ")
             |> Str.concat(type_annotation_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
 
         TSTypeAnnotation(data) ->
-            type_annotation_str = node_to_str_or_truncate_inline(data.typeAnnotation, indent_level + 1, max_depth)
-            Str.concat(indent, "TSTypeAnnotation { typeAnnotation: ${type_annotation_str} }")
+            type_annotation_str = node_to_str_or_truncate_inline(data.type_annotation, indent_level + 1, max_depth)
+            Str.concat(indent, "TSTypeAnnotation { type_annotation: ${type_annotation_str} }")
 
         TSTypeReference(data) ->
-            type_name_str = node_to_str_or_truncate_inline(data.typeName, indent_level + 1, max_depth)
+            type_name_str = node_to_str_or_truncate_inline(data.type_name, indent_level + 1, max_depth)
             type_params_str =
-                when data.typeArguments is
+                when data.type_arguments is
                     Some(params) ->
                         node_list_to_str_or_truncate(params, indent_level, max_depth)
 
@@ -1618,11 +1628,11 @@ node_to_str_with_config = |node, indent_level, max_depth|
             Str.concat(indent, "TSTypeReference {")
             |> Str.concat("\n")
             |> Str.concat(indent)
-            |> Str.concat("  typeName: ")
+            |> Str.concat("  type_name: ")
             |> Str.concat(type_name_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
-            |> Str.concat("  typeArguments: ")
+            |> Str.concat("  type_arguments: ")
             |> Str.concat(type_params_str)
             |> Str.concat("\n")
             |> Str.concat(indent)
@@ -1659,8 +1669,8 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(node_to_str_inline(data.expression, indent_level + 1))
             |> Str.concat(",\n")
             |> Str.concat(indent)
-            |> Str.concat("  typeAnnotation: ")
-            |> Str.concat(node_to_str_inline(data.typeAnnotation, indent_level + 1))
+            |> Str.concat("  type_annotation: ")
+            |> Str.concat(node_to_str_inline(data.type_annotation, indent_level + 1))
             |> Str.concat("\n")
             |> Str.concat(indent)
             |> Str.concat("}")
@@ -1669,7 +1679,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
             params_str = node_list_to_str_or_truncate(data.parameters, indent_level + 1, max_depth)
             return_type_str = node_to_str_or_truncate_inline(data.returnType, indent_level + 1, max_depth)
             type_params_str =
-                when data.typeParameters is
+                when data.type_parameters is
                     Some(type_params) ->
                         node_to_str_or_truncate_inline(type_params, indent_level + 1, max_depth)
 
@@ -1678,7 +1688,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
 
             Str.concat(indent, "TSFunctionType {\n")
             |> Str.concat(indent)
-            |> Str.concat("  typeParameters: ${type_params_str},\n")
+            |> Str.concat("  type_parameters: ${type_params_str},\n")
             |> Str.concat(indent)
             |> Str.concat("  params: ")
             |> Str.concat(params_str)
@@ -1708,7 +1718,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
         TSIndexSignature(data) ->
             params_str = node_list_to_str_or_truncate(data.parameters, indent_level, max_depth)
             type_ann_str =
-                when data.typeAnnotation is
+                when data.type_annotation is
                     Some(type_ann) ->
                         node_to_str_or_truncate_inline(type_ann, indent_level + 1, max_depth)
 
@@ -1721,7 +1731,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat(params_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
-            |> Str.concat("  typeAnnotation: ")
+            |> Str.concat("  type_annotation: ")
             |> Str.concat(type_ann_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)
@@ -1823,13 +1833,13 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("}")
 
         TSMappedType(data) ->
-            param_str = node_to_str_or_truncate_inline(data.typeParameter, indent_level + 1, max_depth)
+            param_str = node_to_str_or_truncate_inline(data.type_parameter, indent_level + 1, max_depth)
             constraint_str = node_to_str_or_truncate_inline(data.constraint, indent_level + 1, max_depth)
             type_str =
-                when data.typeAnnotation is
+                when data.type_annotation is
                     Some(type_ann) ->
                         ann_str = node_to_str_or_truncate_inline(type_ann, indent_level + 1, max_depth)
-                        ",\n${indent}  typeAnnotation: ${ann_str}"
+                        ",\n${indent}  type_annotation: ${ann_str}"
 
                     None -> ""
             optional_str =
@@ -1846,7 +1856,7 @@ node_to_str_with_config = |node, indent_level, max_depth|
                     None -> ""
             Str.concat(indent, "TSMappedType {\n")
             |> Str.concat(indent)
-            |> Str.concat("  typeParameter: ")
+            |> Str.concat("  type_parameter: ")
             |> Str.concat(param_str)
             |> Str.concat(",\n")
             |> Str.concat(indent)

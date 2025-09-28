@@ -263,11 +263,11 @@ generate_constraints_helper = |node, env, next_var|
                     (Type.mk_literal UndefinedLit, all_constraints, var_after_cons)
 
         # TypeScript type assertions
-        TSAsExpression { expression, typeAnnotation } ->
+        TSAsExpression { expression, type_annotation } ->
             # Check if this is "as const" assertion
-            is_const_assertion = when typeAnnotation is
-                TSTypeReference { typeName } ->
-                    when typeName is
+            is_const_assertion = when type_annotation is
+                TSTypeReference { type_name } ->
+                    when type_name is
                         Identifier { name } -> name == "const"
                         _ -> Bool.false
                 _ -> Bool.false
@@ -358,13 +358,13 @@ apply_substitutions = |type, subs|
                 )
 
         Union types ->
-            Type.mk_union (List.map types |t| apply_substitutions t subs)
+            Type.mk_union(List.map(types, |t| apply_substitutions(t, subs)))
 
         Intersection types ->
-            Type.mk_intersection (List.map types |t| apply_substitutions t subs)
+            Type.mk_intersection(List.map(types, |t| apply_substitutions(t, subs)))
 
         Negation inner ->
-            Type.mk_negation (apply_substitutions inner subs)
+            Type.mk_negation(apply_substitutions(inner, subs))
 
         _ -> type
 
@@ -372,22 +372,25 @@ infer_binary_op_type : BinaryOperator, Type, Type, U64 -> Type
 infer_binary_op_type = |op, left, right, next_var|
     when op is
         EqualEqual | BangEqual | EqualEqualEqual | BangEqualEqual ->
-            Type.mk_primitive "boolean"
+            Type.mk_primitive("boolean")
 
         LessThan | LessThanEqual | GreaterThan | GreaterThanEqual ->
-            Type.mk_primitive "boolean"
+            Type.mk_primitive("boolean")
 
         Plus ->
-            Type.mk_union [Type.mk_primitive "number", Type.mk_primitive "string"]
+            Type.mk_union([Type.mk_primitive("number"), Type.mk_primitive("string")])
 
         Minus | Star | Slash | Percent ->
-            Type.mk_primitive "number"
+            Type.mk_primitive("number")
 
         Pipe | Caret | Ampersand | LeftShift | RightShift | UnsignedRightShift ->
-            Type.mk_primitive "number"
+            Type.mk_primitive("number")
 
         In | Instanceof ->
-            Type.mk_primitive "boolean"
+            Type.mk_primitive("boolean")
+        
+        NullishCoalesce ->
+            Type.mk_union([Type.mk_primitive("null"), Type.mk_primitive("undefined")])
 
 infer_unary_op_type : UnaryOperator, Type -> Type
 infer_unary_op_type = |op, arg|
@@ -446,12 +449,12 @@ process_statements_with_env = |stmts, env, next_var|
                         # Process declarations and update environment
                         result = List.walk declarations (Type.mk_literal UndefinedLit, [], next_var, env) |(_, cs_acc, v_acc, env_acc), decl|
                             when decl is
-                                VariableDeclarator { id, init, typeAnnotation } ->
+                                VariableDeclarator { id, init, type_annotation } ->
                                     var_name = extract_param_name id
 
                                     # Process type annotation if present
                                     (var_type, annotation_cs, var_after_annotation) =
-                                        when typeAnnotation is
+                                        when type_annotation is
                                             Some annotation_node ->
                                                 # Process the type annotation to get its type
                                                 (ann_type, ann_cs, next_v) = generate_constraints_helper annotation_node env_acc v_acc
@@ -466,14 +469,14 @@ process_statements_with_env = |stmts, env, next_var|
                                             (init_type, init_cs, new_var) = generate_constraints_helper init_expr env_acc var_after_annotation
 
                                             # Determine the variable's type based on annotation and widening rules
-                                            actual_var_type = when typeAnnotation is
+                                            actual_var_type = when type_annotation is
                                                 Some _ ->
                                                     # Use the annotated type
                                                     var_type
                                                 None ->
                                                     # Check if init is "as const" expression
                                                     is_as_const = when init_expr is
-                                                        TSAsExpression { typeAnnotation: TSTypeReference { typeName: Identifier { name: "const" } } } ->
+                                                        TSAsExpression { type_annotation: TSTypeReference { type_name: Identifier { name: "const" } } } ->
                                                             Bool.true
                                                         _ -> Bool.false
 
@@ -512,7 +515,7 @@ process_var_declarations : List Node, TypeEnv, U64 -> (Type, List Constraint, U6
 process_var_declarations = |decls, env, next_var|
     List.walk decls (Type.mk_literal UndefinedLit, [], next_var) |(_, cs, v), decl|
         when decl is
-            VariableDeclarator { id, init, typeAnnotation } ->
+            VariableDeclarator { id, init, type_annotation } ->
                 var_name = extract_param_name id
                 when init is
                     Some init_expr ->
