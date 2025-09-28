@@ -1,469 +1,354 @@
 module [
-    NarrowedType,
     TypeGuard,
+    NarrowingContext,
+    RefineType,
     narrow_type,
-    analyze_control_flow,
-    check_exhaustiveness,
+    apply_guard,
+    narrow_typeof,
+    narrow_truthiness,
+    narrow_equality,
+    merge_contexts,
+    narrow_in_branch,
 ]
 
-# Control Flow Type Narrowing Implementation
+import ComprehensiveTypeIndexed as T
 
-TypeId : U64
-
-# Type representation with narrowing support
-NarrowableType : [
-    NNum,
-    NStr,
-    NBool,
-    NNull,
-    NUndefined,
-    NObject (List { key: Str, type: TypeId }),
-    NArray TypeId,
-    NUnion (List NarrowableType),
-    NLiteral LiteralValue,
-    NTypeVar TypeId,
-    NUnknown,
-    NAny,
-    NNever,
-]
-
-LiteralValue : [
-    LNum F64,
-    LStr Str,
-    LBool Bool,
-]
-
-# Narrowed type with control flow context
-NarrowedType : {
-    original: NarrowableType,
-    narrowed: NarrowableType,
-    guards: List TypeGuard,
-}
-
-# Type guard representations
+# Type guards represent runtime checks that narrow types
 TypeGuard : [
-    # typeof checks
-    TypeofGuard {
-        variable: Str,
-        expected: Str,  # "string", "number", "boolean", etc.
-        negated: Bool,
-    },
-
-    # instanceof checks
-    InstanceofGuard {
-        variable: Str,
-        constructor: Str,
-        negated: Bool,
-    },
-
-    # Truthiness checks
-    TruthinessGuard {
-        variable: Str,
-        negated: Bool,
-    },
-
-    # Null/undefined checks
-    NullishGuard {
-        variable: Str,
-        is_null: Bool,
-        is_undefined: Bool,
-        negated: Bool,
-    },
-
-    # Property existence checks ('in' operator)
-    PropertyGuard {
-        property: Str,
-        object: Str,
-        negated: Bool,
-    },
-
-    # Equality checks
-    EqualityGuard {
-        variable: Str,
-        value: LiteralValue,
-        strict: Bool,
-        negated: Bool,
-    },
-
-    # Custom type predicate (user-defined type guard)
-    PredicateGuard {
-        variable: Str,
-        predicate: Str,  # Function name
-        negated: Bool,
-    },
+    TypeofGuard { var_name : Str, type_name : Str, negated : Bool },
+    TruthinessGuard { var_name : Str, negated : Bool },
+    EqualityGuard { var_name : Str, value : T.TypeId, negated : Bool },
+    InstanceofGuard { var_name : Str, constructor : T.TypeId, negated : Bool },
+    InGuard { property : Str, var_name : Str, negated : Bool },
+    NullishGuard { var_name : Str, negated : Bool },
+    AndGuard (List TypeGuard),
+    OrGuard (List TypeGuard),
 ]
 
-# Control flow context
-ControlFlowContext : {
-    # Active type guards in current branch
-    guards: List TypeGuard,
-
-    # Variable type mappings
-    types: List { name: Str, type: NarrowableType },
-
-    # Reachability
-    reachable: Bool,
+# Context for tracking narrowed types in control flow
+NarrowingContext : {
+    store : T.TypeStore,
+    refinements : List { var_name : Str, original_type : T.TypeId, narrowed_type : T.TypeId },
 }
 
-# === Core Narrowing Operations ===
+# Type refinement result
+RefineType : {
+    refined_type : T.TypeId,
+    store : T.TypeStore,
+}
 
 # Apply a type guard to narrow a type
-narrow_type : NarrowableType, TypeGuard -> NarrowableType
-narrow_type = \typ, guard ->
+narrow_type : T.TypeStore, T.TypeId, TypeGuard, Str -> RefineType
+narrow_type = \store, type_id, guard, var_name ->
     when guard is
-        TypeofGuard data ->
-            narrow_by_typeof typ data.expected data.negated
-
-        InstanceofGuard data ->
-            narrow_by_instanceof typ data.constructor data.negated
-
-        TruthinessGuard data ->
-            narrow_by_truthiness typ data.negated
-
-        NullishGuard data ->
-            narrow_by_nullish typ data.is_null data.is_undefined data.negated
-
-        PropertyGuard data ->
-            narrow_by_property typ data.property data.negated
-
-        EqualityGuard data ->
-            narrow_by_equality typ data.value data.strict data.negated
-
-        PredicateGuard _ ->
-            # Custom predicates would need external function info
-            typ
-
-# Narrow type by typeof check
-narrow_by_typeof : NarrowableType, Str, Bool -> NarrowableType
-narrow_by_typeof = \typ, expected, negated ->
-    when typ is
-        NUnion members ->
-            filtered = if negated then
-                List.keep_if members \m -> Bool.not (matches_typeof m expected)
+        TypeofGuard(data) ->
+            if data.var_name == var_name then
+                narrow_typeof(store, type_id, data.type_name, data.negated)
             else
-                List.keep_if members \m -> matches_typeof m expected
+                { refined_type: type_id, store: store }
 
-            when filtered is
-                [] -> NNever
-                [single] -> single
-                multiple -> NUnion multiple
-
-        _ ->
-            if negated then
-                if matches_typeof typ expected then NNever else typ
+        TruthinessGuard(data) ->
+            if data.var_name == var_name then
+                narrow_truthiness(store, type_id, data.negated)
             else
-                if matches_typeof typ expected then typ else NNever
+                { refined_type: type_id, store: store }
 
-# Check if type matches typeof result
-matches_typeof : NarrowableType, Str -> Bool
-matches_typeof = \typ, expected ->
-    when (typ, expected) is
-        (NNum, "number") -> Bool.true
-        (NStr, "string") -> Bool.true
-        (NBool, "boolean") -> Bool.true
-        (NUndefined, "undefined") -> Bool.true
-        (NNull, "object") -> Bool.true  # typeof null === "object" (JS quirk)
-        (NObject _, "object") -> Bool.true
-        (NArray _, "object") -> Bool.true
-        (NLiteral (LNum _), "number") -> Bool.true
-        (NLiteral (LStr _), "string") -> Bool.true
-        (NLiteral (LBool _), "boolean") -> Bool.true
-        _ -> Bool.false
+        EqualityGuard(data) ->
+            if data.var_name == var_name then
+                narrow_equality(store, type_id, data.value, data.negated)
+            else
+                { refined_type: type_id, store: store }
 
-# Narrow type by instanceof check
-narrow_by_instanceof : NarrowableType, Str, Bool -> NarrowableType
-narrow_by_instanceof = \typ, constructor, negated ->
-    # Simplified: would check against constructor type
+        InstanceofGuard(data) ->
+            if data.var_name == var_name then
+                narrow_instanceof(store, type_id, data.constructor, data.negated)
+            else
+                { refined_type: type_id, store: store }
+
+        InGuard(data) ->
+            if data.var_name == var_name then
+                narrow_in_property(store, type_id, data.property, data.negated)
+            else
+                { refined_type: type_id, store: store }
+
+        NullishGuard(data) ->
+            if data.var_name == var_name then
+                narrow_nullish(store, type_id, data.negated)
+            else
+                { refined_type: type_id, store: store }
+
+        AndGuard(guards) ->
+            # Apply all guards in sequence (intersection)
+            List.walk(guards, { refined_type: type_id, store: store }, \acc, g ->
+                narrow_type(acc.store, acc.refined_type, g, var_name)
+            )
+
+        OrGuard(guards) ->
+            # Apply guards and union the results
+            results = List.map(guards, \g -> narrow_type(store, type_id, g, var_name))
+
+            # Join all refined types
+            (final_store, refined) = List.walk(
+                results,
+                (store, type_id),
+                \(acc_store, acc_type), result ->
+                    T.join(acc_store, acc_type, result.refined_type)
+            )
+            { refined_type: refined, store: final_store }
+
+# Narrow type based on typeof check
+narrow_typeof : T.TypeStore, T.TypeId, Str, Bool -> RefineType
+narrow_typeof = \store, type_id, type_name, negated ->
+    # Get the primitive type for the typeof check
+    (store1, expected_type) = when type_name is
+        "number" -> T.make_primitive(store, "number")
+        "string" -> T.make_primitive(store, "string")
+        "boolean" -> T.make_primitive(store, "boolean")
+        "undefined" -> T.make_primitive(store, "undefined")
+        "object" ->
+            # typeof null === "object" in JavaScript
+            (s1, null_type) = T.make_primitive(store, "null")
+            (s2, obj_type) = T.make_any(s1)  # Using any as placeholder for object
+            T.make_union(s2, [obj_type, null_type])
+        "function" -> T.make_any(store)  # Placeholder for function type
+        "symbol" -> T.make_primitive(store, "symbol")
+        "bigint" -> T.make_primitive(store, "bigint")
+        _ -> T.make_never(store)
+
     if negated then
-        typ  # Can't narrow negated instanceof much
+        # Negated: type & !expected_type
+        narrow_by_exclusion(store1, type_id, expected_type)
     else
-        when constructor is
-            "Array" ->
-                when typ is
-                    NArray _ -> typ
-                    NUnion members ->
-                        arrays = List.keep_if members \m ->
-                            when m is
-                                NArray _ -> Bool.true
-                                _ -> Bool.false
-                        when arrays is
-                            [] -> NNever
-                            [single] -> single
-                            multiple -> NUnion multiple
-                    _ -> NNever
-            _ -> typ
+        # Not negated: type & expected_type
+        (store2, narrowed) = T.meet(store1, type_id, expected_type)
+        { refined_type: narrowed, store: store2 }
 
-# Narrow type by truthiness
-narrow_by_truthiness : NarrowableType, Bool -> NarrowableType
-narrow_by_truthiness = \typ, negated ->
-    when typ is
-        NUnion members ->
-            filtered = if negated then
-                # Keep falsy values
-                List.keep_if members is_falsy
+# Narrow type based on truthiness check
+narrow_truthiness : T.TypeStore, T.TypeId, Bool -> RefineType
+narrow_truthiness = \store, type_id, negated ->
+    # Falsy values in JavaScript: false, 0, -0, 0n, "", null, undefined, NaN
+    (store1, false_lit) = T.make_literal(store, BoolLit(Bool.false))
+    (store2, zero_lit) = T.make_literal(store1, NumLit(0.0))
+    (store3, empty_str) = T.make_literal(store2, StrLit(""))
+    (store4, null_type) = T.make_primitive(store3, "null")
+    (store5, undefined_type) = T.make_primitive(store4, "undefined")
+
+    # Create union of all falsy types
+    (store6, falsy_union) = T.make_union(store5, [false_lit, zero_lit, empty_str, null_type, undefined_type])
+
+    if negated then
+        # Checking for falsy: narrow to falsy types
+        (store7, narrowed) = T.meet(store6, type_id, falsy_union)
+        { refined_type: narrowed, store: store7 }
+    else
+        # Checking for truthy: exclude falsy types
+        narrow_by_exclusion(store6, type_id, falsy_union)
+
+# Narrow type based on equality check
+narrow_equality : T.TypeStore, T.TypeId, T.TypeId, Bool -> RefineType
+narrow_equality = \store, type_id, value_type, negated ->
+    if negated then
+        # Not equal: exclude the value type
+        narrow_by_exclusion(store, type_id, value_type)
+    else
+        # Equal: narrow to the value type
+        (store1, narrowed) = T.meet(store, type_id, value_type)
+        { refined_type: narrowed, store: store1 }
+
+# Narrow type based on instanceof check
+narrow_instanceof : T.TypeStore, T.TypeId, T.TypeId, Bool -> RefineType
+narrow_instanceof = \store, type_id, constructor_type, negated ->
+    # For instanceof, we'd need to track constructor/prototype relationships
+    # For now, just return the type as-is or never if negated
+    if negated then
+        narrow_by_exclusion(store, type_id, constructor_type)
+    else
+        (store1, narrowed) = T.meet(store, type_id, constructor_type)
+        { refined_type: narrowed, store: store1 }
+
+# Narrow type based on 'in' property check
+narrow_in_property : T.TypeStore, T.TypeId, Str, Bool -> RefineType
+narrow_in_property = \store, type_id, property, negated ->
+    # Check if type has the property
+    when T.get_type(store, type_id) is
+        Ok(TObject(row_id)) ->
+            if has_property(store, row_id, property) then
+                if negated then
+                    # Has property but we're checking it doesn't
+                    (store1, never) = T.make_never(store)
+                    { refined_type: never, store: store1 }
+                else
+                    # Has property and we're checking it does
+                    { refined_type: type_id, store: store }
             else
-                # Remove falsy values
-                List.keep_if members \m -> Bool.not (is_falsy m)
-
-            when filtered is
-                [] -> NNever
-                [single] -> single
-                multiple -> NUnion multiple
-
+                if negated then
+                    # Doesn't have property and we're checking it doesn't
+                    { refined_type: type_id, store: store }
+                else
+                    # Doesn't have property but we're checking it does
+                    (store1, never) = T.make_never(store)
+                    { refined_type: never, store: store1 }
         _ ->
-            if negated then
-                if is_falsy typ then typ else NNever
-            else
-                if is_falsy typ then NNever else typ
+            # Not an object type - can't narrow by property
+            { refined_type: type_id, store: store }
 
-# Check if type is falsy
-is_falsy : NarrowableType -> Bool
-is_falsy = \typ ->
-    when typ is
-        NNull -> Bool.true
-        NUndefined -> Bool.true
-        NLiteral (LBool(false)) -> Bool.true
-        NLiteral (LNum(0.0)) -> Bool.true
-        NLiteral (LStr("")) -> Bool.true
+# Check if a row type has a property
+has_property : T.TypeStore, T.RowId, Str -> Bool
+has_property = \store, row_id, property ->
+    when T.get_row(store, row_id) is
+        Ok(RExtend(extend)) ->
+            if extend.label == property then
+                Bool.true
+            else
+                has_property(store, extend.rest, property)
         _ -> Bool.false
 
-# Narrow by null/undefined checks
-narrow_by_nullish : NarrowableType, Bool, Bool, Bool -> NarrowableType
-narrow_by_nullish = \typ, check_null, check_undefined, negated ->
-    when typ is
-        NUnion members ->
-            filtered = List.keep_if members \m ->
-                is_match = (check_null && matches_null m) ||
-                          (check_undefined && matches_undefined m)
-                if negated then Bool.not is_match else is_match
+# Narrow type based on nullish check (null or undefined)
+narrow_nullish : T.TypeStore, T.TypeId, Bool -> RefineType
+narrow_nullish = \store, type_id, negated ->
+    (store1, null_type) = T.make_primitive(store, "null")
+    (store2, undefined_type) = T.make_primitive(store1, "undefined")
+    (store3, nullish) = T.make_union(store2, [null_type, undefined_type])
 
-            when filtered is
-                [] -> NNever
-                [single] -> single
-                multiple -> NUnion multiple
+    if negated then
+        # Not nullish: exclude null and undefined
+        narrow_by_exclusion(store3, type_id, nullish)
+    else
+        # Is nullish: narrow to null or undefined
+        (store4, narrowed) = T.meet(store3, type_id, nullish)
+        { refined_type: narrowed, store: store4 }
 
+# Helper: Narrow by excluding a type
+narrow_by_exclusion : T.TypeStore, T.TypeId, T.TypeId -> RefineType
+narrow_by_exclusion = \store, type_id, exclude_type ->
+    # This is essentially type_id & !exclude_type
+    # We need to handle this based on the type structure
+
+    when T.get_type(store, type_id) is
+        Ok(TUnion(types)) ->
+            # Filter out types that are subtypes of exclude_type
+            remaining = List.keep_if(types, \t ->
+                Bool.not(T.is_subtype_of(store, t, exclude_type))
+            )
+
+            when remaining is
+                [] ->
+                    (store1, never) = T.make_never(store)
+                    { refined_type: never, store: store1 }
+                [single] ->
+                    { refined_type: single, store: store }
+                multiple ->
+                    (store1, union) = T.make_union(store, multiple)
+                    { refined_type: union, store: store1 }
         _ ->
-            is_nullish = (check_null && matches_null typ) ||
-                        (check_undefined && matches_undefined typ)
-
-            if negated then
-                if is_nullish then NNever else typ
+            # For non-union types, check if it's a subtype of what we're excluding
+            if T.is_subtype_of(store, type_id, exclude_type) then
+                # The entire type is excluded
+                (store1, never) = T.make_never(store)
+                { refined_type: never, store: store1 }
             else
-                if is_nullish then typ else NNever
+                # The type doesn't overlap with what we're excluding
+                { refined_type: type_id, store: store }
 
-# Check type matches null
-matches_null : NarrowableType -> Bool
-matches_null = \typ ->
-    when typ is
-        NNull -> Bool.true
-        _ -> Bool.false
+# Apply a type guard to a context
+apply_guard : NarrowingContext, TypeGuard -> NarrowingContext
+apply_guard = \ctx, guard ->
+    # Apply guard to all variables in context
+    new_refinements = List.map(ctx.refinements, \refinement ->
+        result = narrow_type(ctx.store, refinement.narrowed_type, guard, refinement.var_name)
+        { refinement &
+            narrowed_type: result.refined_type,
+        }
+    )
 
-# Check type matches undefined
-matches_undefined : NarrowableType -> Bool
-matches_undefined = \typ ->
-    when typ is
-        NUndefined -> Bool.true
-        _ -> Bool.false
+    # Get the final store from narrowing
+    final_store = when List.last(ctx.refinements) is
+        Ok(last) ->
+            result = narrow_type(ctx.store, last.narrowed_type, guard, last.var_name)
+            result.store
+        Err(_) -> ctx.store
 
-# Narrow by property existence
-narrow_by_property : NarrowableType, Str, Bool -> NarrowableType
-narrow_by_property = \typ, property, negated ->
-    when typ is
-        NObject props ->
-            has_prop = List.any props \p -> p.key == property
-            if negated then
-                if has_prop then NNever else typ
-            else
-                typ  # Has the property
+    { store: final_store, refinements: new_refinements }
 
-        NUnion members ->
-            filtered = List.keep_if members \m ->
-                when m is
-                    NObject props ->
-                        has_prop = List.any props \p -> p.key == property
-                        if negated then Bool.not has_prop else has_prop
-                    _ -> negated  # Non-objects don't have properties
+# Narrow types in a branch based on a condition
+narrow_in_branch : NarrowingContext, TypeGuard, Bool -> NarrowingContext
+narrow_in_branch = \ctx, guard, is_then_branch ->
+    # In the then branch, apply the guard as-is
+    # In the else branch, apply the negated guard
+    actual_guard = if is_then_branch then
+        guard
+    else
+        negate_guard(guard)
 
-            when filtered is
-                [] -> NNever
-                [single] -> single
-                multiple -> NUnion multiple
+    apply_guard(ctx, actual_guard)
 
-        _ ->
-            if negated then typ else NNever
-
-# Narrow by equality
-narrow_by_equality : NarrowableType, LiteralValue, Bool, Bool -> NarrowableType
-narrow_by_equality = \typ, value, strict, negated ->
-    when typ is
-        NLiteral lit ->
-            matches = if strict then
-                literals_equal lit value
-            else
-                literals_loose_equal lit value
-
-            if negated then
-                if matches then NNever else typ
-            else
-                if matches then typ else NNever
-
-        NUnion members ->
-            filtered = List.keep_if members \m ->
-                when m is
-                    NLiteral lit ->
-                        matches = if strict then
-                            literals_equal lit value
-                        else
-                            literals_loose_equal lit value
-                        if negated then Bool.not matches else matches
-                    _ ->
-                        negated  # Non-literals can't equal literal value
-
-            when filtered is
-                [] -> NNever
-                [single] -> single
-                multiple -> NUnion multiple
-
-        _ ->
-            if negated then typ else NNever
-
-# Check literal equality (strict)
-literals_equal : LiteralValue, LiteralValue -> Bool
-literals_equal = \l1, l2 ->
-    when (l1, l2) is
-        (LNum n1, LNum n2) -> Num.compare(n1, n2) == EQ
-        (LStr s1, LStr s2) -> s1 == s2
-        (LBool b1, LBool b2) -> b1 == b2
-        _ -> Bool.false
-
-# Check literal equality (loose, with coercion)
-literals_loose_equal : LiteralValue, LiteralValue -> Bool
-literals_loose_equal = \l1, l2 ->
-    when (l1, l2) is
-        # Same type - use strict equality
-        (LNum n1, LNum n2) -> Num.compare(n1, n2) == EQ
-        (LStr s1, LStr s2) -> s1 == s2
-        (LBool b1, LBool b2) -> b1 == b2
-
-        # Coercion cases
-        (LNum 0.0, LBool(false)) -> Bool.true
-        (LBool(false), LNum 0.0) -> Bool.true
-        (LNum 1.0, LBool(true)) -> Bool.true
-        (LBool(true), LNum 1.0) -> Bool.true
-
-        _ -> Bool.false
-
-# === Control Flow Analysis ===
-
-# Analyze control flow for type narrowing
-analyze_control_flow : List TypeGuard, ControlFlowContext -> ControlFlowContext
-analyze_control_flow = \guards, context ->
-    # Apply each guard to narrow types
-    narrowed_types = List.map context.types \binding ->
-        narrowed_type = List.walk guards binding.type \acc, guard ->
-            # Only apply guard if it matches this variable
-            if guard_applies_to_var guard binding.name then
-                narrow_type acc guard
-            else
-                acc
-
-        { binding & type: narrowed_type }
-
-    { context &
-        guards: List.concat context.guards guards,
-        types: narrowed_types
-    }
-
-# Check if guard applies to variable
-guard_applies_to_var : TypeGuard, Str -> Bool
-guard_applies_to_var = \guard, var_name ->
+# Negate a type guard
+negate_guard : TypeGuard -> TypeGuard
+negate_guard = \guard ->
     when guard is
-        TypeofGuard data -> data.variable == var_name
-        InstanceofGuard data -> data.variable == var_name
-        TruthinessGuard data -> data.variable == var_name
-        NullishGuard data -> data.variable == var_name
-        PropertyGuard data -> data.object == var_name
-        EqualityGuard data -> data.variable == var_name
-        PredicateGuard data -> data.variable == var_name
+        TypeofGuard(data) -> TypeofGuard({ data & negated: Bool.not(data.negated) })
+        TruthinessGuard(data) -> TruthinessGuard({ data & negated: Bool.not(data.negated) })
+        EqualityGuard(data) -> EqualityGuard({ data & negated: Bool.not(data.negated) })
+        InstanceofGuard(data) -> InstanceofGuard({ data & negated: Bool.not(data.negated) })
+        InGuard(data) -> InGuard({ data & negated: Bool.not(data.negated) })
+        NullishGuard(data) -> NullishGuard({ data & negated: Bool.not(data.negated) })
+        AndGuard(guards) -> OrGuard(List.map(guards, negate_guard))  # De Morgan's law
+        OrGuard(guards) -> AndGuard(List.map(guards, negate_guard))  # De Morgan's law
 
-# === Exhaustiveness Checking ===
+# Merge contexts from different control flow branches
+merge_contexts : List NarrowingContext -> NarrowingContext
+merge_contexts = \contexts ->
+    when contexts is
+        [] ->
+            { store: T.empty_store, refinements: [] }
+        [single] ->
+            single
+        multiple ->
+            # For each variable, join the types from all branches
+            all_vars = List.walk(multiple, [], \acc, ctx ->
+                List.walk(ctx.refinements, acc, \vars, refinement ->
+                    if List.any(vars, \v -> v == refinement.var_name) then
+                        vars
+                    else
+                        List.append(vars, refinement.var_name)
+                )
+            )
 
-# Check if a switch/if-else chain is exhaustive
-check_exhaustiveness : NarrowableType, List NarrowableType -> Bool
-check_exhaustiveness = \original_type, covered_cases ->
-    # Check if union of covered cases equals original type
-    when original_type is
-        NUnion members ->
-            # Each member must be covered
-            List.all members \member ->
-                List.any covered_cases \case ->
-                    types_overlap member case
+            # Get the last store
+            final_store = when List.last(multiple) is
+                Ok(last) -> last.store
+                Err(_) -> T.empty_store
 
-        _ ->
-            # Single type - check if covered
-            List.any covered_cases \case ->
-                types_overlap original_type case
+            # For each variable, join types from all contexts
+            merged_refinements = List.map(all_vars, \var_name ->
+                # Get this variable's type from each context
+                types_and_originals = List.keep_oks(multiple, \ctx ->
+                    List.find_first(ctx.refinements, \r -> r.var_name == var_name)
+                )
 
-# Check if two types overlap
-types_overlap : NarrowableType, NarrowableType -> Bool
-types_overlap = \t1, t2 ->
-    when (t1, t2) is
-        (NAny, _) -> Bool.true
-        (_, NAny) -> Bool.true
-        (NNever, _) -> Bool.false
-        (_, NNever) -> Bool.false
-        (NNum, NNum) -> Bool.true
-        (NStr, NStr) -> Bool.true
-        (NBool, NBool) -> Bool.true
-        (NNull, NNull) -> Bool.true
-        (NUndefined, NUndefined) -> Bool.true
-        (NLiteral l1, NLiteral l2) -> literals_equal l1 l2
-        (NUnion members, _) ->
-            List.any members \m -> types_overlap m t2
-        (_, NUnion members) ->
-            List.any members \m -> types_overlap t1 m
-        _ -> Bool.false
+                when types_and_originals is
+                    [] ->
+                        # Should not happen
+                        (store1, unknown) = T.make_unknown(final_store)
+                        { var_name: var_name, original_type: unknown, narrowed_type: unknown }
+                    refinements ->
+                        # Get the first original type (should be same across all)
+                        original = when List.first(refinements) is
+                            Ok(r) -> r.original_type
+                            Err(_) ->
+                                (s, u) = T.make_unknown(final_store)
+                                u
 
-# === Examples ===
+                        # Join all narrowed types
+                        narrowed_types = List.map(refinements, \r -> r.narrowed_type)
+                        (joined_store, joined_type) = List.walk(
+                            List.drop_first(narrowed_types, 1),
+                            (final_store, List.first(narrowed_types) |> Result.with_default(original)),
+                            \(store, current), next ->
+                                T.join(store, current, next)
+                        )
 
-# Example: typeof narrowing
-# if (typeof x === 'string') { /* x is string */ }
-example_typeof_narrowing : NarrowableType -> NarrowableType
-example_typeof_narrowing = \x_type ->
-    guard = TypeofGuard {
-        variable: "x",
-        expected: "string",
-        negated: Bool.false,
-    }
-    narrow_type x_type guard
+                        { var_name: var_name, original_type: original, narrowed_type: joined_type }
+            )
 
-# Example: null check narrowing
-# if (x != null) { /* x is non-null */ }
-example_null_check : NarrowableType -> NarrowableType
-example_null_check = \x_type ->
-    guard = NullishGuard {
-        variable: "x",
-        is_null: Bool.true,
-        is_undefined: Bool.true,
-        negated: Bool.true,
-    }
-    narrow_type x_type guard
-
-# Example: discriminated union narrowing
-# type Result = { success: true, data: T } | { success: false, error: string }
-# if (result.success) { /* result is { success: true, data: T } */ }
-example_discriminated_union : NarrowableType -> NarrowableType
-example_discriminated_union = \result_type ->
-    guard = PropertyGuard {
-        property: "success",
-        object: "result",
-        negated: Bool.false,
-    }
-    narrowed = narrow_type result_type guard
-
-    # Further narrow by truthiness of success property
-    truthiness_guard = TruthinessGuard {
-        variable: "result.success",
-        negated: Bool.false,
-    }
-    narrow_type narrowed truthiness_guard
+            { store: final_store, refinements: merged_refinements }
