@@ -722,7 +722,7 @@ infer_member_access = \object, property, computed, optional, ctx ->
         Err e -> Err e
 
 # Call expression inference
-infer_call : Node, List Node, Bool, Option (List Node), InferContext -> Result (TypeId, InferContext) Str
+infer_call : Node, List Node, Bool, Option Node, InferContext -> Result (TypeId, InferContext) Str
 infer_call = \callee, arguments, optional, type_args, ctx ->
     when infer_node callee ctx is
         Ok (fn_type, fn_ctx) ->
@@ -754,7 +754,7 @@ infer_call = \callee, arguments, optional, type_args, ctx ->
         Err e -> Err e
 
 # New expression inference
-infer_new : Node, List Node, Option (List Node), InferContext -> Result (TypeId, InferContext) Str
+infer_new : Node, List Node, Option Node, InferContext -> Result (TypeId, InferContext) Str
 infer_new = \callee, arguments, type_args, ctx ->
     when infer_node callee ctx is
         Ok (constructor_type, cons_ctx) ->
