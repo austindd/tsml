@@ -6,6 +6,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is **tsml**, an experimental TypeScript/JavaScript compiler written in Roc. It implements a tokenizer, parser, and AST (Abstract Syntax Tree) representation following the ESTree specification.
 
+## Roc Language important details
+
+- The new syntax for function definitions is as follows:
+
+```roc
+function_identifier : Type1, Type2 (List Type3) -> ReturnType
+function_identifier = |param1, param2|
+    expression_1
+    expression_2
+    return_expression
+```
+
+- The new syntax for function calls is as follows:
+
+```roc
+function_identifier_1(param1, param2, param3)
+
+param_1 |> function_identifier_2(param2, param3)
+```
+
+- Roc does not support type annotations.
+
+- Roc does not support mutually recursive type definitions. Mutually recursive functions are supported, but not types. We often use indexed access to avoid this issue in general.
+
+- "Tag types" are basically the same thing as OCaml's polymorphic variants. They exist in a global namespace, so they never need to be imported or qualified. They are also structurally typed.
+
+- When you get a "Type Mismatch" error from the compiler related to pattern matching it is often because of the cases has a slightly different structure compared to the type definition. This can be a simple difference in record field names, or accidentally adding an `Option` type wrapper around something that isn't optional. One way to debug this is to comment out portions of the pattern matching code to isolate the specific pattern that is wrong, since the compiler usually doesn't specify which pattern is wrong. To do this, you will need a wildcard case to get it to compile.
+
+- When calling some effectful functions like `pf.Stdout.line!` or `pf.File.read_utf8!`, they return a `Result` type. You can use the `?` operator to thread the error type through the call chain, and it will simply combine all the error types into a union (they are always tag types). However, the current compiler version has a bug that causes code with `?` operators to explode the build time exponentially, so please avoid using them for now. Instead, I typically throw away the result by using the underscore pattern, like `_ = pf.Stdout.line!(arg)`, and only propagate errors that will be helpful to the user.
+
 ## Development Environment Setup
 
 The project uses a local Roc installation:
@@ -73,7 +103,12 @@ roc build main.roc
    - ES version support (Es5 through Es2026)
    - Main functions: `node_to_str` for AST display
 
-4. **main.roc** - Interactive CLI application
+4. **ComprehensiveTypeIndexed.roc** - Type inference for indexed types
+    - Entry point: `infer_type`
+    - Uses a type constraint solver to infer types
+    - Uses indexed access to avoid mutual recursion, which is not currently supported by Roc
+
+5. **main.roc** - Interactive CLI application
    - Tokenizes input → Filters trivia → Parses → Displays AST
    - Entry point for testing the compiler pipeline
 
