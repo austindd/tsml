@@ -63,13 +63,20 @@ check_program = \ast ->
     }
 
     # Type check the program
-    when infer_node(initial_ctx, ast) is
+    inference_result = infer_node(initial_ctx, ast)
+    when inference_result is
         Ok((final_ctx, type_id)) ->
-            # Solve constraints
-            when CS.solve_constraints(final_ctx.store, final_ctx.constraints) is
+            constraint_set = {
+                store: final_ctx.store,
+                type_vars: List.map(final_ctx.type_params, |tp| tp.id),
+                constraints: final_ctx.constraints,
+            }
+            solved_constraints = CS.solve_constraints(constraint_set)
+            when solved_constraints is
                 Ok(solution) ->
                     # Apply substitutions from constraint solving
-                    (final_store, final_type) = apply_solution(solution.store, type_id, solution.substitutions)
+                    subs = solution.substitutions |> List.map(|s| { var: s.var, solution: s.type_id })
+                    (final_store, final_type) = apply_solution(solution.store, type_id, subs)
 
                     {
                         type: final_type,
@@ -82,7 +89,7 @@ check_program = \ast ->
                     {
                         type: unknown,
                         store: final_ctx.store,
-                        errors: [Other("Constraint solving failed: $(Inspect.to_str(error))")],
+                        errors: [Other("Constraint solving failed: ${error}")],
                         warnings: [],
                     }
 
@@ -173,7 +180,7 @@ infer_node = \ctx, node ->
 # Infer types for a list of statements
 infer_statement_list : TypeContext, List Ast.Node -> Result (TypeContext, T.TypeId) TypeError
 infer_statement_list = \ctx, statements ->
-    List.walk_until(statements, Ok((ctx, T.TypeId(0))), \result, stmt ->
+    List.walk_until(statements, Ok((ctx, TypeId(0))), \result, stmt ->
         when result is
             Ok((current_ctx, _)) ->
                 when infer_node(current_ctx, stmt) is
@@ -182,15 +189,15 @@ infer_statement_list = \ctx, statements ->
             Err(error) -> Break(Err(error))
     )
 
-# Infer types for variable declarations
-infer_variable_declarations : TypeContext, List Ast.VariableDeclarator, Ast.VariableKind -> Result (TypeContext, T.TypeId) TypeError
+# Infer types for variable declarations (List VariableDeclarator, Ast.VariableDeclarationKind)
+infer_variable_declarations : TypeContext, List Ast.Node, Ast.VariableDeclarationKind -> Result (TypeContext, T.TypeId) TypeError
 infer_variable_declarations = \ctx, declarators, kind ->
     is_mutable = when kind is
         Let -> Bool.false
         Const -> Bool.false
         Var -> Bool.true
 
-    List.walk_until(declarators, Ok((ctx, T.TypeId(0))), \result, decl ->
+    List.walk_until(declarators, Ok((ctx, TypeId(0))), \result, decl ->
         when result is
             Ok((current_ctx, _)) ->
                 when infer_variable_declarator(current_ctx, decl, is_mutable) is
@@ -199,138 +206,148 @@ infer_variable_declarations = \ctx, declarators, kind ->
             Err(error) -> Break(Err(error))
     )
 
-# Infer type for a single variable declarator
-infer_variable_declarator : TypeContext, Ast.VariableDeclarator, Bool -> Result (TypeContext, T.TypeId) TypeError
-infer_variable_declarator = \ctx, decl, is_mutable ->
-    when decl.id is
-        Identifier({ name }) ->
-            # Infer type from initializer or use unknown
-            when decl.init is
-                Some(init_expr) ->
-                    when infer_node(ctx, init_expr) is
-                        Ok((ctx1, init_type)) ->
-                            # For non-mutable bindings, generalize the type
-                            final_type = if is_mutable then
-                                init_type
-                            else
-                                # Generalize for let-polymorphism
-                                env_types = List.map(ctx1.env, \binding -> binding.type)
-                                (store2, scheme) = Poly.generalize(ctx1.store, init_type, env_types)
-                                # For now, keep the type as-is (full polymorphism needs more work)
-                                init_type
+# Infer type for a single variable declarator (VariableDeclarator)
+infer_variable_declarator : TypeContext, Ast.Node, Bool -> Result (TypeContext, T.TypeId) TypeError
+infer_variable_declarator = \ctx, declarator, is_mutable ->
+    when declarator is
+        VariableDeclarator(decl) ->
+            when decl.id is
+                Identifier({ name }) ->
+                    # Infer type from initializer or use unknown
+                    when decl.init is
+                        Some(init_expr) ->
+                            when infer_node(ctx, init_expr) is
+                                Ok((ctx1, init_type)) ->
+                                    # For non-mutable bindings, generalize the type
+                                    final_type = if is_mutable then
+                                        init_type
+                                    else
+                                        # Generalize for let-polymorphism
+                                        env_types = List.map(ctx1.env, \binding -> binding.type)
+                                        (store2, scheme) = Poly.generalize(ctx1.store, init_type, env_types)
+                                        # For now, keep the type as-is (full polymorphism needs more work)
+                                        init_type
 
-                            # Add to environment
-                            new_binding = { name: name, type: final_type, mutable: is_mutable }
-                            new_env = List.append(ctx1.env, new_binding)
-                            Ok(({ ctx1 & env: new_env }, final_type))
+                                    # Add to environment
+                                    new_binding = { name: name, type: final_type, mutable: is_mutable }
+                                    new_env = List.append(ctx1.env, new_binding)
+                                    Ok(({ ctx1 & env: new_env }, final_type))
 
-                        Err(error) -> Err(error)
+                                Err(error) -> Err(error)
 
-                None ->
-                    # No initializer - use unknown type
-                    (store1, unknown) = T.make_unknown(ctx.store)
-                    new_binding = { name: name, type: unknown, mutable: is_mutable }
-                    new_env = List.append(ctx.env, new_binding)
-                    Ok(({ ctx & store: store1, env: new_env }, unknown))
+                        None ->
+                            # No initializer - use unknown type
+                            (store1, unknown) = T.make_unknown(ctx.store)
+                            new_binding = { name: name, type: unknown, mutable: is_mutable }
+                            new_env = List.append(ctx.env, new_binding)
+                            Ok(({ ctx & store: store1, env: new_env }, unknown))
 
-        _ ->
-            # Complex patterns not supported yet
-            (store1, unknown) = T.make_unknown(ctx.store)
-            Ok(({ ctx & store: store1 }, unknown))
-
-# Infer type for function declaration
-infer_function_declaration : TypeContext, Ast.FunctionDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_function_declaration = \ctx, func ->
-    # Create type parameters if any
-    (ctx1, type_params) = when func.type_parameters is
-        Some(params) -> create_type_parameters(ctx, params)
-        None -> (ctx, [])
-
-    # Create parameter types
-    (ctx2, param_types) = create_parameter_types(ctx1, func.params)
-
-    # Set up function context
-    func_ctx = { ctx2 &
-        return_type: Ok(T.TypeId(0)),  # Will be inferred
-        in_function: Bool.true,
-        type_params: type_params,
-    }
-
-    # Infer body type
-    when infer_node(func_ctx, func.body) is
-        Ok((body_ctx, _)) ->
-            # Get the actual return type
-            return_type = when body_ctx.return_type is
-                Ok(ret_type) -> ret_type
-                Err(_) ->
-                    # No return statement - void/undefined
-                    (s, undef) = T.make_primitive(body_ctx.store, "undefined")
-                    undef
-
-            # Create function type
-            (store3, func_type) = T.make_function(
-                body_ctx.store,
-                param_types,
-                return_type,
-                [],  # Type params handled separately
-                func.async,
-                func.generator,
-            )
-
-            # Add function to environment if it has a name
-            final_ctx = when func.id is
-                Some(Identifier({ name })) ->
-                    new_binding = { name: name, type: func_type, mutable: Bool.false }
-                    { body_ctx & env: List.append(body_ctx.env, new_binding), store: store3 }
                 _ ->
-                    { body_ctx & store: store3 }
+                    # Complex patterns not supported yet
+                    (store1, unknown) = T.make_unknown(ctx.store)
+                    Ok(({ ctx & store: store1 }, unknown))
 
-            Ok((final_ctx, func_type))
+        _ -> Err(TypeError("Invalid variable declaration"))
 
-        Err(error) -> Err(error)
+# Infer type for function declaration (FunctionDeclaration)
+infer_function_declaration : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_function_declaration = \ctx, func_decl_node ->
+    when func_decl_node is
+        FunctionDeclaration(func) ->
+            # Create type parameters if any
+            (ctx1, type_params) = when func.type_parameters is
+                Some(params) -> create_type_parameters(ctx, params)
+                None -> (ctx, [])
 
-# Infer type for arrow function
-infer_arrow_function : TypeContext, Ast.ArrowFunctionDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_arrow_function = \ctx, func ->
-    # Similar to function declaration but simpler
-    # Create parameter types
-    (ctx1, param_types) = create_parameter_types(ctx, func.params)
+            # Create parameter types
+            (ctx2, param_types) = create_parameter_types(ctx1, func.params)
 
-    # Set up function context
-    func_ctx = { ctx1 &
-        return_type: Ok(T.TypeId(0)),
-        in_function: Bool.true,
-    }
+            # Set up function context
+            func_ctx = { ctx2 &
+                return_type: Ok(TypeId(0)),  # Will be inferred
+                in_function: Bool.true,
+                type_params: type_params,
+            }
 
-    # Infer body type
-    when infer_node(func_ctx, func.body) is
-        Ok((body_ctx, body_type)) ->
-            # For expression bodies, the body type is the return type
-            return_type = when func.body is
-                BlockStatement(_) ->
-                    when body_ctx.return_type is
-                        Ok(ret) -> ret
-                        Err(_) -> body_type
-                _ -> body_type
+            # Infer body type
+            when infer_node(func_ctx, func.body) is
+                Ok((body_ctx, _)) ->
+                    # Get the actual return type
+                    return_type = when body_ctx.return_type is
+                        Ok(ret_type) -> ret_type
+                        Err(_) ->
+                            # No return statement - void/undefined
+                            (s, undef) = T.make_primitive(body_ctx.store, "undefined")
+                            undef
 
-            # Create function type
-            (store2, func_type) = T.make_function(
-                body_ctx.store,
-                param_types,
-                return_type,
-                [],
-                func.async,
-                Bool.false,  # Arrow functions can't be generators
-            )
+                    # Create function type
+                    (store3, func_type) = T.make_function(
+                        body_ctx.store,
+                        param_types,
+                        return_type,
+                        [],  # Type params handled separately
+                        func.async,
+                        func.generator,
+                    )
 
-            Ok(({ body_ctx & store: store2 }, func_type))
+                    # Add function to environment if it has a name
+                    final_ctx = when func.id is
+                        Some(Identifier({ name })) ->
+                            new_binding = { name: name, type: func_type, mutable: Bool.false }
+                            { body_ctx & env: List.append(body_ctx.env, new_binding), store: store3 }
+                        _ ->
+                            { body_ctx & store: store3 }
 
-        Err(error) -> Err(error)
+                    Ok((final_ctx, func_type))
 
-# Infer type for literals
-infer_literal : TypeContext, Ast.LiteralValue -> Result (TypeContext, T.TypeId) TypeError
-infer_literal = \ctx, lit ->
-    when lit is
+                Err(error) -> Err(error)
+        _ -> Err(TypeError("Invalid function declaration"))
+
+# Infer type for arrow function (ArrowFunctionExpression)
+infer_arrow_function : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_arrow_function = \ctx, arrow_func_expr_node ->
+    when arrow_func_expr_node is
+        ArrowFunctionExpression(func) ->
+            # Similar to function declaration but simpler
+            # Create parameter types
+            (ctx1, param_types) = create_parameter_types(ctx, func.params)
+
+            # Set up function context
+            func_ctx = { ctx1 &
+                return_type: Ok(TypeId(0)),
+                in_function: Bool.true,
+            }
+
+            # Infer body type
+            when infer_node(func_ctx, func.body) is
+                Ok((body_ctx, body_type)) ->
+                    # For expression bodies, the body type is the return type
+                    return_type = when func.body is
+                        BlockStatement(_) ->
+                            when body_ctx.return_type is
+                                Ok(ret) -> ret
+                                Err(_) -> body_type
+                        _ -> body_type
+
+                    # Create function type
+                    (store2, func_type) = T.make_function(
+                        body_ctx.store,
+                        param_types,
+                        return_type,
+                        [],
+                        func.async,
+                        Bool.false,  # Arrow functions can't be generators
+                    )
+
+                    Ok(({ body_ctx & store: store2 }, func_type))
+
+                Err(error) -> Err(error)
+        _ -> Err(TypeError("Invalid arrow function"))
+
+# Infer type for literals (<LiteralNodes>)
+infer_literal : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_literal = \ctx, lit_node ->
+    when lit_node is
         StringLiteral(str) ->
             (store1, str_lit) = T.make_literal(ctx.store, StrLit(str))
             Ok(({ ctx & store: store1 }, str_lit))
@@ -351,126 +368,135 @@ infer_literal = \ctx, lit ->
             (store1, unknown) = T.make_unknown(ctx.store)
             Ok(({ ctx & store: store1 }, unknown))
 
-# Infer type for binary expressions
-infer_binary_expression : TypeContext, Ast.BinaryExpressionDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_binary_expression = \ctx, expr ->
-    # Infer left and right types
-    when infer_node(ctx, expr.left) is
-        Ok((ctx1, left_type)) ->
-            when infer_node(ctx1, expr.right) is
-                Ok((ctx2, right_type)) ->
-                    # Determine result type based on operator
+# Infer type for binary expressions (BinaryExpression)
+infer_binary_expression : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_binary_expression = \ctx, binary_expr_node ->
+    when binary_expr_node is
+        BinaryExpression(expr) ->
+            # Infer left and right types
+            when infer_node(ctx, expr.left) is
+                Ok((ctx1, left_type)) ->
+                    when infer_node(ctx1, expr.right) is
+                        Ok((ctx2, right_type)) ->
+                            # Determine result type based on operator
+                            when expr.operator is
+                                "+" | "-" | "*" | "/" | "%" ->
+                                    # Numeric operations
+                                    (store3, number) = T.make_primitive(ctx2.store, "number")
+                                    # Add constraints that operands should be numbers
+                                    constraint1 = Subtype({ sub: left_type, super: number, source: BinaryOp })
+                                    constraint2 = Subtype({ sub: right_type, super: number, source: BinaryOp })
+                                    new_constraints = List.concat(ctx2.constraints, [constraint1, constraint2])
+                                    Ok(({ ctx2 & store: store3, constraints: new_constraints }, number))
+
+                                "===" | "!==" | "==" | "!=" ->
+                                    # Equality - returns boolean
+                                    (store3, boolean) = T.make_primitive(ctx2.store, "boolean")
+                                    Ok(({ ctx2 & store: store3 }, boolean))
+
+                                "<" | ">" | "<=" | ">=" ->
+                                    # Comparison - returns boolean
+                                    (store3, boolean) = T.make_primitive(ctx2.store, "boolean")
+                                    Ok(({ ctx2 & store: store3 }, boolean))
+
+                                "&&" | "||" ->
+                                    # Logical operations - return union of operand types
+                                    (store3, union) = T.make_union(ctx2.store, [left_type, right_type])
+                                    Ok(({ ctx2 & store: store3 }, union))
+
+                                _ ->
+                                    # Unknown operator
+                                    (store3, unknown) = T.make_unknown(ctx2.store)
+                                    Ok(({ ctx2 & store: store3 }, unknown))
+
+                        Err(error) -> Err(error)
+
+                Err(error) -> Err(error)
+        _ -> Err(TypeError("Invalid binary expression"))
+
+# Infer type for unary expressions (UnaryExpression)
+infer_unary_expression : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_unary_expression = \ctx, unary_expr_node ->
+    when unary_expr_node is
+        UnaryExpression(expr) ->
+            when infer_node(ctx, expr.argument) is
+                Ok((ctx1, arg_type)) ->
                     when expr.operator is
-                        "+" | "-" | "*" | "/" | "%" ->
-                            # Numeric operations
-                            (store3, number) = T.make_primitive(ctx2.store, "number")
-                            # Add constraints that operands should be numbers
-                            constraint1 = CS.Subtype({ sub: left_type, super: number, source: CS.BinaryOp })
-                            constraint2 = CS.Subtype({ sub: right_type, super: number, source: CS.BinaryOp })
-                            new_constraints = List.concat(ctx2.constraints, [constraint1, constraint2])
-                            Ok(({ ctx2 & store: store3, constraints: new_constraints }, number))
+                        "!" ->
+                            # Logical not - returns boolean
+                            (store2, boolean) = T.make_primitive(ctx1.store, "boolean")
+                            Ok(({ ctx1 & store: store2 }, boolean))
 
-                        "===" | "!==" | "==" | "!=" ->
-                            # Equality - returns boolean
-                            (store3, boolean) = T.make_primitive(ctx2.store, "boolean")
-                            Ok(({ ctx2 & store: store3 }, boolean))
+                        "-" | "+" ->
+                            # Numeric operators - return number
+                            (store2, number) = T.make_primitive(ctx1.store, "number")
+                            # Add constraint that operand should be numeric
+                            constraint = Subtype({ sub: arg_type, super: number, source: UnaryOp })
+                            new_constraints = List.append(ctx1.constraints, constraint)
+                            Ok(({ ctx1 & store: store2, constraints: new_constraints }, number))
 
-                        "<" | ">" | "<=" | ">=" ->
-                            # Comparison - returns boolean
-                            (store3, boolean) = T.make_primitive(ctx2.store, "boolean")
-                            Ok(({ ctx2 & store: store3 }, boolean))
-
-                        "&&" | "||" ->
-                            # Logical operations - return union of operand types
-                            (store3, union) = T.make_union(ctx2.store, [left_type, right_type])
-                            Ok(({ ctx2 & store: store3 }, union))
+                        "typeof" ->
+                            # typeof - returns string
+                            (store2, string) = T.make_primitive(ctx1.store, "string")
+                            Ok(({ ctx1 & store: store2 }, string))
 
                         _ ->
                             # Unknown operator
-                            (store3, unknown) = T.make_unknown(ctx2.store)
-                            Ok(({ ctx2 & store: store3 }, unknown))
+                            (store2, unknown) = T.make_unknown(ctx1.store)
+                            Ok(({ ctx1 & store: store2 }, unknown))
 
                 Err(error) -> Err(error)
+        _ -> Err(TypeError("Invalid unary expression"))
 
-        Err(error) -> Err(error)
+# Infer type for call expressions (CallExpression)
+infer_call_expression : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_call_expression = \ctx, call_expr_node ->
+    when call_expr_node is
+        CallExpression(expr) ->
+            # Infer callee type
+            when infer_node(ctx, expr.callee) is
+                Ok((ctx1, callee_type)) ->
+                    # Infer argument types
+                    when infer_argument_types(ctx1, expr.arguments) is
+                        Ok((ctx2, arg_types)) ->
+                            # Check if callee is a function
+                            when T.get_type(ctx2.store, callee_type) is
+                                Ok(TFunction(func)) ->
+                                    # Check argument count and types
+                                    # For now, just return the return type
+                                    Ok((ctx2, func.ret))
 
-# Infer type for unary expressions
-infer_unary_expression : TypeContext, Ast.UnaryExpressionDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_unary_expression = \ctx, expr ->
-    when infer_node(ctx, expr.argument) is
-        Ok((ctx1, arg_type)) ->
-            when expr.operator is
-                "!" ->
-                    # Logical not - returns boolean
-                    (store2, boolean) = T.make_primitive(ctx1.store, "boolean")
-                    Ok(({ ctx1 & store: store2 }, boolean))
+                                _ ->
+                                    # Not a function - could be unknown or polymorphic
+                                    # Create a fresh type variable for the result
+                                    (store3, result_var) = T.make_type_var(ctx2.store, ctx2.fresh_counter)
 
-                "-" | "+" ->
-                    # Numeric operators - return number
-                    (store2, number) = T.make_primitive(ctx1.store, "number")
-                    # Add constraint that operand should be numeric
-                    constraint = CS.Subtype({ sub: arg_type, super: number, source: CS.UnaryOp })
-                    new_constraints = List.append(ctx1.constraints, constraint)
-                    Ok(({ ctx1 & store: store2, constraints: new_constraints }, number))
+                                    # Create expected function type
+                                    param_types = List.map(arg_types, \arg_type ->
+                                        { name: "", param_type: arg_type, optional: Bool.false }
+                                    )
+                                    (store4, expected_func) = T.make_function(
+                                        store3, param_types, result_var, [], Bool.false, Bool.false
+                                    )
 
-                "typeof" ->
-                    # typeof - returns string
-                    (store2, string) = T.make_primitive(ctx1.store, "string")
-                    Ok(({ ctx1 & store: store2 }, string))
+                                    # Add constraint that callee should be a function
+                                    constraint = Subtype({
+                                        sub: callee_type,
+                                        super: expected_func,
+                                        source: FunctionCall
+                                    })
+                                    new_constraints = List.append(ctx2.constraints, constraint)
 
-                _ ->
-                    # Unknown operator
-                    (store2, unknown) = T.make_unknown(ctx1.store)
-                    Ok(({ ctx1 & store: store2 }, unknown))
+                                    Ok(({ ctx2 &
+                                        store: store4,
+                                        constraints: new_constraints,
+                                        fresh_counter: ctx2.fresh_counter + 1,
+                                    }, result_var))
 
-        Err(error) -> Err(error)
-
-# Infer type for call expressions
-infer_call_expression : TypeContext, Ast.CallExpressionDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_call_expression = \ctx, expr ->
-    # Infer callee type
-    when infer_node(ctx, expr.callee) is
-        Ok((ctx1, callee_type)) ->
-            # Infer argument types
-            when infer_argument_types(ctx1, expr.arguments) is
-                Ok((ctx2, arg_types)) ->
-                    # Check if callee is a function
-                    when T.get_type(ctx2.store, callee_type) is
-                        Ok(TFunction(func)) ->
-                            # Check argument count and types
-                            # For now, just return the return type
-                            Ok((ctx2, func.ret))
-
-                        _ ->
-                            # Not a function - could be unknown or polymorphic
-                            # Create a fresh type variable for the result
-                            (store3, result_var) = T.make_type_var(ctx2.store, ctx2.fresh_counter)
-
-                            # Create expected function type
-                            param_types = List.map(arg_types, \arg_type ->
-                                { name: "", param_type: arg_type, optional: Bool.false }
-                            )
-                            (store4, expected_func) = T.make_function(
-                                store3, param_types, result_var, [], Bool.false, Bool.false
-                            )
-
-                            # Add constraint that callee should be a function
-                            constraint = CS.Subtype({
-                                sub: callee_type,
-                                super: expected_func,
-                                source: CS.FunctionCall
-                            })
-                            new_constraints = List.append(ctx2.constraints, constraint)
-
-                            Ok(({ ctx2 &
-                                store: store4,
-                                constraints: new_constraints,
-                                fresh_counter: ctx2.fresh_counter + 1,
-                            }, result_var))
+                        Err(error) -> Err(error)
 
                 Err(error) -> Err(error)
-
-        Err(error) -> Err(error)
+        _ -> Err(TypeError("Invalid call expression"))
 
 # Infer types for arguments
 infer_argument_types : TypeContext, List Ast.Node -> Result (TypeContext, List T.TypeId) TypeError
@@ -485,77 +511,83 @@ infer_argument_types = \ctx, arguments ->
             Err(error) -> Break(Err(error))
     )
 
-# Infer type for member expressions
-infer_member_expression : TypeContext, Ast.MemberExpressionDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_member_expression = \ctx, expr ->
-    # Infer object type
-    when infer_node(ctx, expr.object) is
-        Ok((ctx1, obj_type)) ->
-            # Get property name
-            prop_name = when expr.property is
-                Identifier({ name }) -> name
-                _ -> "unknown"
+# Infer type for member expressions (MemberExpression)
+infer_member_expression : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_member_expression = \ctx, member_expr_node ->
+    when member_expr_node is
+        MemberExpression(expr) ->
+            # Infer object type
+            when infer_node(ctx, expr.object) is
+                Ok((ctx1, obj_type)) ->
+                    # Get property name
+                    prop_name = when expr.property is
+                        Identifier({ name }) -> name
+                        _ -> "unknown"
 
-            # Create a type variable for the member type
-            (store2, member_var) = T.make_type_var(ctx1.store, ctx1.fresh_counter)
+                    # Create a type variable for the member type
+                    (store2, member_var) = T.make_type_var(ctx1.store, ctx1.fresh_counter)
 
-            # Add constraint that object has this member
-            constraint = CS.HasMember({
-                object: obj_type,
-                member: prop_name,
-                member_type: member_var,
-                source: CS.MemberAccess,
-            })
-            new_constraints = List.append(ctx1.constraints, constraint)
+                    # Add constraint that object has this member
+                    constraint = HasMember({
+                        object: obj_type,
+                        member: prop_name,
+                        member_type: member_var,
+                        source: MemberAccess,
+                    })
+                    new_constraints = List.append(ctx1.constraints, constraint)
 
-            Ok(({ ctx1 &
-                store: store2,
-                constraints: new_constraints,
-                fresh_counter: ctx1.fresh_counter + 1,
-            }, member_var))
-
-        Err(error) -> Err(error)
-
-# Infer type for if statements with control flow narrowing
-infer_if_statement : TypeContext, Ast.IfStatementDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_if_statement = \ctx, stmt ->
-    # Infer condition type
-    when infer_node(ctx, stmt.test) is
-        Ok((ctx1, cond_type)) ->
-            # Extract type guards from condition
-            guards = extract_type_guards(stmt.test)
-
-            # Apply guards for then branch
-            then_ctx = apply_type_guards(ctx1, guards, Bool.true)
-
-            # Type check then branch
-            when infer_node(then_ctx, stmt.consequent) is
-                Ok((then_result_ctx, then_type)) ->
-                    # Type check else branch if present
-                    when stmt.alternate is
-                        Some(else_stmt) ->
-                            # Apply negated guards for else branch
-                            else_ctx = apply_type_guards(ctx1, guards, Bool.false)
-
-                            when infer_node(else_ctx, else_stmt) is
-                                Ok((else_result_ctx, else_type)) ->
-                                    # Merge contexts after branches
-                                    merged_ctx = merge_contexts(ctx1, then_result_ctx, else_result_ctx)
-
-                                    # Result type is union of branch types
-                                    (store2, union) = T.make_union(merged_ctx.store, [then_type, else_type])
-                                    Ok(({ merged_ctx & store: store2 }, union))
-
-                                Err(error) -> Err(error)
-
-                        None ->
-                            # No else branch
-                            (store2, void_type) = T.make_primitive(then_result_ctx.store, "undefined")
-                            Ok(({ then_result_ctx & store: store2 }, void_type))
+                    Ok(({ ctx1 &
+                        store: store2,
+                        constraints: new_constraints,
+                        fresh_counter: ctx1.fresh_counter + 1,
+                    }, member_var))
 
                 Err(error) -> Err(error)
+        _ -> Err(TypeError("Invalid member expression"))
 
-        Err(error) -> Err(error)
+# Infer type for if statements with control flow narrowing (IfStatement)
+infer_if_statement : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_if_statement = \ctx, if_stmt ->
+    when if_stmt is
+        IfStatement(stmt) ->
+            # Infer condition type
+            when infer_node(ctx, stmt.test) is
+                Ok((ctx1, cond_type)) ->
+                    # Extract type guards from condition
+                    guards = extract_type_guards(stmt.test)
+
+                    # Apply guards for then branch
+                    then_ctx = apply_type_guards(ctx1, guards, Bool.true)
+
+                    # Type check then branch
+                    when infer_node(then_ctx, stmt.consequent) is
+                        Ok((then_result_ctx, then_type)) ->
+                            # Type check else branch if present
+                            when stmt.alternate is
+                                Some(else_stmt) ->
+                                    # Apply negated guards for else branch
+                                    else_ctx = apply_type_guards(ctx1, guards, Bool.false)
+
+                                    when infer_node(else_ctx, else_stmt) is
+                                        Ok((else_result_ctx, else_type)) ->
+                                            # Merge contexts after branches
+                                            merged_ctx = merge_contexts(ctx1, then_result_ctx, else_result_ctx)
+
+                                            # Result type is union of branch types
+                                            (store2, union) = T.make_union(merged_ctx.store, [then_type, else_type])
+                                            Ok(({ merged_ctx & store: store2 }, union))
+
+                                        Err(error) -> Err(error)
+
+                                None ->
+                                    # No else branch
+                                    (store2, void_type) = T.make_primitive(then_result_ctx.store, "undefined")
+                                    Ok(({ then_result_ctx & store: store2 }, void_type))
+
+                        Err(error) -> Err(error)
+
+                Err(error) -> Err(error)
+        _ -> Err(TypeError("Invalid if statement"))
 
 # Helper functions
 
@@ -566,16 +598,16 @@ lookup_variable = \ctx, name ->
         Ok(binding) -> Ok((ctx, binding.type))
         Err(_) -> Err(UnboundVariable({ name: name, location: "unknown" }))
 
-# Create type parameters
-create_type_parameters : TypeContext, List Ast.TypeParameter -> (TypeContext, List Poly.TypeParameter)
-create_type_parameters = \ctx, params ->
+# Create type parameters (List TSTypeParameter)
+create_type_parameters : TypeContext, List Ast.Node -> (TypeContext, List Poly.TypeParameter)
+create_type_parameters = |ctx, type_params|
     # For now, just return empty list - full implementation needs more work
     (ctx, [])
 
-# Create parameter types from function parameters
-create_parameter_types : TypeContext, List Ast.Pattern -> (TypeContext, List { name: Str, param_type: T.TypeId, optional: Bool })
-create_parameter_types = \ctx, params ->
-    List.walk(params, (ctx, []), \(current_ctx, types), param ->
+# Create parameter types from function parameters (List [Identifier, ObjectPattern, ArrayPattern, etc.])
+create_parameter_types : TypeContext, List Ast.Node -> (TypeContext, List { name: Str, param_type: T.TypeId, optional: Bool })
+create_parameter_types = |ctx, params|
+    List.walk(params, (ctx, []), |(current_ctx, types), param|
         when param is
             Identifier({ name }) ->
                 # Create a fresh type variable for the parameter
@@ -693,56 +725,65 @@ apply_solution = \store, type_id, substitutions ->
 
 # Infer types for other statement types (stubs for now)
 
-infer_while_statement : TypeContext, Ast.WhileStatementDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_while_statement = \ctx, stmt ->
-    # Type check condition
-    when infer_node(ctx, stmt.test) is
-        Ok((ctx1, _)) ->
-            # Type check body in loop context
-            loop_ctx = { ctx1 & in_loop: Bool.true }
-            when infer_node(loop_ctx, stmt.body) is
-                Ok((ctx2, _)) ->
-                    (store3, void_type) = T.make_primitive(ctx2.store, "undefined")
-                    Ok(({ ctx2 & store: store3 }, void_type))
+# Infer type for a while statement (WhileStatement)
+infer_while_statement : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_while_statement = \ctx, while_stmt ->
+    when while_stmt is
+        WhileStatement(stmt) ->
+            # Type check condition
+            when infer_node(ctx, stmt.test) is
+                Ok((ctx1, _)) ->
+                    # Type check body in loop context
+                    loop_ctx = { ctx1 & in_loop: Bool.true }
+                    when infer_node(loop_ctx, stmt.body) is
+                        Ok((ctx2, _)) ->
+                            (store3, void_type) = T.make_primitive(ctx2.store, "undefined")
+                            Ok(({ ctx2 & store: store3 }, void_type))
+                        Err(error) -> Err(error)
                 Err(error) -> Err(error)
-        Err(error) -> Err(error)
 
-infer_for_statement : TypeContext, Ast.ForStatementDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_for_statement = \ctx, stmt ->
-    # Type check init
-    ctx1 = when stmt.init is
-        Some(init) ->
-            when infer_node(ctx, init) is
+        _ -> Err(TypeError("Invalid while statement"))
+
+# Infer type for a for statement (ForStatement)
+infer_for_statement : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_for_statement = \ctx, stmt_node ->
+    when stmt_node is
+        ForStatement(stmt) ->
+            # Type check init
+            ctx1 = when stmt.init is
+                Some(init) ->
+                    when infer_node(ctx, init) is
+                        Ok((new_ctx, _)) -> new_ctx
+                        Err(_) -> ctx
+                None -> ctx
+
+            # Type check in loop context
+            loop_ctx = { ctx1 & in_loop: Bool.true }
+
+            # Type check test
+            ctx2 = when stmt.test is
+                Some(test) ->
+                    when infer_node(loop_ctx, test) is
+                        Ok((new_ctx, _)) -> new_ctx
+                        Err(_) -> loop_ctx
+                None -> loop_ctx
+
+            # Type check body
+            ctx3 = when infer_node(ctx2, stmt.body) is
                 Ok((new_ctx, _)) -> new_ctx
-                Err(_) -> ctx
-        None -> ctx
+                Err(_) -> ctx2
 
-    # Type check in loop context
-    loop_ctx = { ctx1 & in_loop: Bool.true }
+            # Type check update
+            ctx4 = when stmt.update is
+                Some(update) ->
+                    when infer_node(ctx3, update) is
+                        Ok((new_ctx, _)) -> new_ctx
+                        Err(_) -> ctx3
+                None -> ctx3
 
-    # Type check test
-    ctx2 = when stmt.test is
-        Some(test) ->
-            when infer_node(loop_ctx, test) is
-                Ok((new_ctx, _)) -> new_ctx
-                Err(_) -> loop_ctx
-        None -> loop_ctx
-
-    # Type check body
-    ctx3 = when infer_node(ctx2, stmt.body) is
-        Ok((new_ctx, _)) -> new_ctx
-        Err(_) -> ctx2
-
-    # Type check update
-    ctx4 = when stmt.update is
-        Some(update) ->
-            when infer_node(ctx3, update) is
-                Ok((new_ctx, _)) -> new_ctx
-                Err(_) -> ctx3
-        None -> ctx3
-
-    (store5, void_type) = T.make_primitive(ctx4.store, "undefined")
-    Ok(({ ctx4 & store: store5 }, void_type))
+            (store5, void_type) = T.make_primitive(ctx4.store, "undefined")
+            Ok(({ ctx4 & store: store5 }, void_type))
+        _ -> Err(TypeError("Invalid for statement"))
 
 infer_return_statement : TypeContext, Option Ast.Node -> Result (TypeContext, T.TypeId) TypeError
 infer_return_statement = \ctx, argument ->
@@ -764,8 +805,8 @@ infer_return_statement = \ctx, argument ->
                 new_ctx = { ctx & store: store1, return_type: Ok(undef) }
                 Ok((new_ctx, undef))
 
-infer_assignment : TypeContext, Ast.AssignmentExpressionDetails -> Result (TypeContext, T.TypeId) TypeError
-infer_assignment = \ctx, expr ->
+infer_assignment : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_assignment = |ctx, expr|
     # Infer right-hand side type
     when infer_node(ctx, expr.right) is
         Ok((ctx1, right_type)) ->
@@ -777,10 +818,10 @@ infer_assignment = \ctx, expr ->
                         Ok(binding) ->
                             if binding.mutable then
                                 # Add constraint that types should match
-                                constraint = CS.Equality({
+                                constraint = Equality({
                                     left: binding.type,
                                     right: right_type,
-                                    source: CS.Assignment,
+                                    source: Assignment,
                                 })
                                 new_constraints = List.append(ctx1.constraints, constraint)
                                 Ok(({ ctx1 & constraints: new_constraints }, right_type))
@@ -822,7 +863,7 @@ infer_array_expression = \ctx, elements ->
         Err(error) -> Err(error)
 
 infer_array_elements : TypeContext, List (Option Ast.Node) -> Result (TypeContext, List T.TypeId) TypeError
-infer_array_elements = \ctx, elements ->
+infer_array_elements = |ctx, elements|
     List.walk_until(elements, Ok((ctx, [])), \result, elem ->
         when result is
             Ok((current_ctx, types)) ->
@@ -839,10 +880,10 @@ infer_array_elements = \ctx, elements ->
             Err(error) -> Break(Err(error))
     )
 
-infer_object_expression : TypeContext, List Ast.Property -> Result (TypeContext, T.TypeId) TypeError
-infer_object_expression = \ctx, properties ->
+infer_object_expression : TypeContext, List Ast.Node -> Result (TypeContext, T.TypeId) TypeError
+infer_object_expression = |ctx, property_nodes|
     # Build object type from properties
-    when infer_object_properties(ctx, properties) is
+    when infer_object_properties(ctx, property_nodes) is
         Ok((ctx1, prop_types)) ->
             # Create object type with all properties
             when create_object_type(ctx1.store, prop_types) is
@@ -855,31 +896,35 @@ infer_object_expression = \ctx, properties ->
         Err(error) -> Err(error)
 
 infer_object_properties : TypeContext, List Ast.Node -> Result (TypeContext, List { key: Str, value: T.TypeId }) TypeError
-infer_object_properties = \ctx, properties ->
-    List.walk_until(properties, Ok((ctx, [])), \result, prop ->
-        when result is
-            Ok((current_ctx, props)) ->
-                when prop.key is
-                    Identifier({ name }) ->
-                        when infer_node(current_ctx, prop.value) is
-                            Ok((new_ctx, value_type)) ->
-                                new_prop = { key: name, value: value_type }
-                                Continue(Ok((new_ctx, List.append(props, new_prop))))
-                            Err(error) -> Break(Err(error))
+infer_object_properties = |ctx, properties|
+    properties
+        |> List.walk_until(Ok((ctx, [])), |result, prop_node|
+            when prop_node is
+                Property(prop) ->
+                    when result is
+                        Ok((current_ctx, props)) ->
+                            when prop.key is
+                                Identifier({ name }) ->
+                                    when infer_node(current_ctx, prop.value) is
+                                        Ok((new_ctx, value_type)) ->
+                                            new_prop = { key: name, value: value_type }
+                                            Continue(Ok((new_ctx, List.append(props, new_prop))))
+                                        Err(error) -> Break(Err(error))
 
-                    Literal(StringLiteral(name)) ->
-                        when infer_node(current_ctx, prop.value) is
-                            Ok((new_ctx, value_type)) ->
-                                new_prop = { key: name, value: value_type }
-                                Continue(Ok((new_ctx, List.append(props, new_prop))))
-                            Err(error) -> Break(Err(error))
+                                Literal(StringLiteral(name)) ->
+                                    when infer_node(current_ctx, prop.value) is
+                                        Ok((new_ctx, value_type)) ->
+                                            new_prop = { key: name, value: value_type }
+                                            Continue(Ok((new_ctx, List.append(props, new_prop))))
+                                        Err(error) -> Break(Err(error))
 
-                    _ ->
-                        # Complex keys not supported
-                        Continue(Ok((current_ctx, props)))
+                                _ ->
+                                    # Complex keys not supported
+                                    Continue(Ok((current_ctx, props)))
 
-            Err(error) -> Break(Err(error))
-    )
+                        Err(error) -> Break(Err(error))
+                _ -> Break(Err(TypeError("Invalid object property")))
+        )
 
 create_object_type : T.TypeStore, List { key: Str, value: T.TypeId } -> Result (T.TypeStore, T.TypeId) [CreateObjectError]
 create_object_type = \store, props ->
@@ -896,22 +941,22 @@ create_object_type = \store, props ->
     Ok((store2, obj))
 
 infer_conditional : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
-infer_conditional = \ctx, expr ->
-    when expr is
+infer_conditional = \ctx, cond_expr ->
+    when cond_expr is
         ConditionalExpression({ test, consequent, alternate }) ->
             # Infer test type
-            when infer_node(ctx, expr.test) is
+            when infer_node(ctx, test) is
                 Ok((ctx1, _)) ->
                     # Extract guards and apply to branches
-                    guards = extract_type_guards(expr.test)
+                    guards = extract_type_guards(test)
 
                     # Type check consequent with guards applied
                     then_ctx = apply_type_guards(ctx1, guards, Bool.true)
-                    when infer_node(then_ctx, expr.consequent) is
+                    when infer_node(then_ctx, consequent) is
                         Ok((_, then_type)) ->
                             # Type check alternate with negated guards
                             else_ctx = apply_type_guards(ctx1, guards, Bool.false)
-                            when infer_node(else_ctx, expr.alternate) is
+                            when infer_node(else_ctx, alternate) is
                                 Ok((ctx3, else_type)) ->
                                     # Result is union of branch types
                                     (store4, union) = T.make_union(ctx3.store, [then_type, else_type])
@@ -922,4 +967,4 @@ infer_conditional = \ctx, expr ->
                         Err(error) -> Err(error)
 
                 Err(error) -> Err(error)
-        _ -> crash("Unexpected node type. Expected ConditionalExpression.")
+        _ -> Err("Unexpected node type. Expected ConditionalExpression.")

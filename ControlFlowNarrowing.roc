@@ -128,7 +128,7 @@ narrow_truthiness : T.TypeStore, T.TypeId, Bool -> RefineType
 narrow_truthiness = \store, type_id, negated ->
     # Falsy values in JavaScript: false, 0, -0, 0n, "", null, undefined, NaN
     (store1, false_lit) = T.make_literal(store, BoolLit(Bool.false))
-    (store2, zero_lit) = T.make_literal(store1, NumLit(0.0))
+    (store2, zero_lit) = T.make_literal(store1, NumLit("0"))
     (store3, empty_str) = T.make_literal(store2, StrLit(""))
     (store4, null_type) = T.make_primitive(store3, "null")
     (store5, undefined_type) = T.make_primitive(store4, "undefined")
