@@ -12,7 +12,8 @@ module [
 ]
 
 import ComprehensiveTypeIndexed as T
-import Ast
+import Ast exposing [BinaryOperator, LogicalOperator]
+import Option exposing [Option]
 
 # Type variables for constraint solving
 TypeVar : U64
@@ -40,7 +41,8 @@ ConstraintSource : [
     Assignment { var_name : Str },
     FunctionCall { func_name : Str },
     Return,
-    BinaryOp { op : Str },
+    BinaryOp { op : BinaryOperator },
+    LogicalOp { op : LogicalOperator },
     MemberAccess { object_name : Str, member : Str },
     Literal,
     TypeAnnotation,
@@ -64,7 +66,7 @@ generate_constraints : T.TypeStore, Ast.Node -> (ConstraintSet, T.TypeId)
 generate_constraints = \store, node ->
     when node is
         # Literals generate no constraints, just return their type
-        NumericLiteral(data) ->
+        NumberLiteral(data) ->
             (store1, lit_type) = T.make_literal(store, NumLit(data.value))
             (
                 { constraints: [], type_vars: [], store: store1 },
@@ -112,7 +114,7 @@ generate_constraints = \store, node ->
 
         # Array expressions
         ArrayExpression(data) ->
-            generate_array_constraints(store, data.elements)
+            generate_array_constraints(store, data.elements |> List.map(Some))
 
         # Object expressions
         ObjectExpression(data) ->
@@ -127,7 +129,7 @@ generate_constraints = \store, node ->
             )
 
 # Generate constraints for binary expressions
-generate_binary_constraints : T.TypeStore, Ast.Node, Str, Ast.Node -> (ConstraintSet, T.TypeId)
+generate_binary_constraints : T.TypeStore, Ast.Node, Ast.BinaryOperator, Ast.Node -> (ConstraintSet, T.TypeId)
 generate_binary_constraints = \store, left, op, right ->
     # Generate constraints for operands
     (left_constraints, left_type) = generate_constraints(store, left)
@@ -140,7 +142,7 @@ generate_binary_constraints = \store, left, op, right ->
 
     # Add operator-specific constraints
     when op is
-        "+" ->
+        Plus ->
             # Addition can be number + number = number OR string + string = string
             (store1, number_type) = T.make_primitive(combined_store, "number")
             (store2, string_type) = T.make_primitive(store1, "string")
@@ -155,8 +157,8 @@ generate_binary_constraints = \store, left, op, right ->
             constraints = List.concat(
                 combined_constraints,
                 [
-                    Subtype({ sub: left_type, super: number_type, source: BinaryOp({ op: "+" }) }),
-                    Subtype({ sub: right_type, super: number_type, source: BinaryOp({ op: "+" }) }),
+                    Subtype({ sub: left_type, super: number_type, source: BinaryOp({ op: Plus }) }),
+                    Subtype({ sub: right_type, super: number_type, source: BinaryOp({ op: Plus }) }),
                 ]
             )
 
@@ -165,7 +167,7 @@ generate_binary_constraints = \store, left, op, right ->
                 number_type
             )
 
-        "-" | "*" | "/" | "%" ->
+        Minus | Star | Slash | Percent | Ampersand | Pipe | Caret | LeftShift | RightShift | UnsignedRightShift ->
             # Arithmetic operators require number operands
             (store1, number_type) = T.make_primitive(combined_store, "number")
             constraints = List.concat(
@@ -181,7 +183,7 @@ generate_binary_constraints = \store, left, op, right ->
                 number_type
             )
 
-        "===" | "!==" | "==" | "!=" | "<" | ">" | "<=" | ">=" ->
+        EqualEqual | BangEqual | EqualEqualEqual | BangEqualEqual | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual ->
             # Comparison operators return boolean
             (store1, bool_type) = T.make_primitive(combined_store, "boolean")
 
@@ -190,7 +192,46 @@ generate_binary_constraints = \store, left, op, right ->
                 bool_type
             )
 
-        "&&" | "||" ->
+        Instanceof ->
+            # instanceof requires some identifier on the righthand side, and returns a boolean
+            (store1, bool_type) = T.make_unknown(combined_store)
+
+            (
+                { constraints: combined_constraints, type_vars: combined_vars, store: store1 },
+                bool_type
+            )
+
+        In -> 
+            # in requires some identifier on the righthand side, and returns a boolean
+            (store1, bool_type) = T.make_unknown(combined_store)
+
+            (
+                { constraints: combined_constraints, type_vars: combined_vars, store: store1 },
+                bool_type
+            )
+        
+        NullishCoalesce ->
+            # ?? operator - left type without null/undefined, or right type
+            (store1, union_type) = T.make_union(combined_store, [left_type, right_type])
+
+            (
+                { constraints: combined_constraints, type_vars: combined_vars, store: store1 },
+                union_type
+            )
+
+generate_logical_constraints : T.TypeStore, Ast.Node, Ast.LogicalOperator, Ast.Node -> (ConstraintSet, T.TypeId)
+generate_logical_constraints = |store, left, op, right|
+    # Generate constraints for operands
+    (left_constraints, left_type) = generate_constraints(store, left)
+    (right_constraints, right_type) = generate_constraints(left_constraints.store, right)
+
+    # Combine constraint sets
+    combined_store = right_constraints.store
+    combined_vars = List.concat(left_constraints.type_vars, right_constraints.type_vars)
+    combined_constraints = List.concat(left_constraints.constraints, right_constraints.constraints)
+
+    when op is
+        LogicalAnd | LogicalOr ->
             # Logical operators - result is union of operand types
             (store1, result_type) = T.join(combined_store, left_type, right_type)
 
@@ -199,16 +240,8 @@ generate_binary_constraints = \store, left, op, right ->
                 result_type
             )
 
-        _ ->
-            # Unknown operator
-            (store1, unknown) = T.make_unknown(combined_store)
-            (
-                { constraints: combined_constraints, type_vars: combined_vars, store: store1 },
-                unknown
-            )
-
 # Generate constraints for function calls
-generate_call_constraints : T.TypeStore, Ast.Node, List Ast.ArgumentNode -> (ConstraintSet, T.TypeId)
+generate_call_constraints : T.TypeStore, Ast.Node, List Ast.Node -> (ConstraintSet, T.TypeId)
 generate_call_constraints = \store, callee, arguments ->
     # Generate constraints for callee
     (callee_constraints, callee_type) = generate_constraints(store, callee)
@@ -218,11 +251,7 @@ generate_call_constraints = \store, callee, arguments ->
         arguments,
         ([], [], callee_constraints.store),
         \(acc_constraints, acc_types, acc_store), arg ->
-            arg_expr = when arg is
-                Argument(expr) -> expr
-                SpreadArgument(expr) -> expr
-
-            (arg_constraint_set, arg_type) = generate_constraints(acc_store, arg_expr)
+            (arg_constraint_set, arg_type) = generate_constraints(acc_store, arg)
             (
                 List.concat(acc_constraints, arg_constraint_set.constraints),
                 List.append(acc_types, arg_type),
@@ -314,30 +343,30 @@ generate_conditional_constraints = \store, test, consequent, alternate ->
 generate_array_constraints : T.TypeStore, List (Option Ast.Node) -> (ConstraintSet, T.TypeId)
 generate_array_constraints = \store, elements ->
     # Generate constraints for each element
-    (all_constraints, elem_types, final_store) = List.walk(
-        elements,
-        ([], [], store),
-        \(acc_constraints, acc_types, acc_store), elem_opt ->
-            when elem_opt is
-                Some(elem) ->
-                    (elem_constraints, elem_type) = generate_constraints(acc_store, elem)
-                    (
-                        List.concat(acc_constraints, elem_constraints.constraints),
-                        List.append(acc_types, elem_type),
-                        elem_constraints.store
-                    )
-                None ->
-                    # Hole or spread - use unknown
-                    (store1, unknown) = T.make_unknown(acc_store)
-                    (
-                        acc_constraints,
-                        List.append(acc_types, unknown),
-                        store1
-                    )
-    )
+    (all_constraints, elem_types, final_store) =
+        elements |> List.walk(
+            ([], [], store),
+            |(acc_constraints, acc_types, acc_store), elem_opt|
+                when elem_opt is
+                    Some(elem) ->
+                        (elem_constraints, elem_type) = generate_constraints(acc_store, elem)
+                        (
+                            List.concat(acc_constraints, elem_constraints.constraints),
+                            List.append(acc_types, elem_type),
+                            elem_constraints.store
+                        )
+                    None ->
+                        # Hole or spread - use unknown
+                        (store1, unknown) = T.make_unknown(acc_store)
+                        (
+                            acc_constraints,
+                            List.append(acc_types, unknown),
+                            store1
+                        )
+        )
 
     # Find common element type
-    elem_type = when elem_types is
+    elem_type2 = when elem_types is
         [] ->
             (s, never) = T.make_never(final_store)
             never
@@ -353,21 +382,21 @@ generate_array_constraints = \store, elements ->
             joined
 
     # Create array type
-    (store1, array_type) = T.make_array(final_store, elem_type)
+    (store2, array_type) = T.make_array(final_store, elem_type2)
 
     (
-        { constraints: all_constraints, type_vars: [], store: store1 },
+        { constraints: all_constraints, type_vars: [], store: store2 },
         array_type
     )
 
 # Generate constraints for object expressions
-generate_object_constraints : T.TypeStore, List Ast.PropertyNode -> (ConstraintSet, T.TypeId)
-generate_object_constraints = \store, properties ->
+generate_object_constraints : T.TypeStore, List Ast.Node -> (ConstraintSet, T.TypeId)
+generate_object_constraints = |store, properties|
     # Build object type with properties
     (all_constraints, row_id, final_store) = List.walk(
         properties,
         ([], 0, store),
-        \(acc_constraints, acc_row, acc_store), prop ->
+        |(acc_constraints, acc_row, acc_store), prop|
             when prop is
                 Property(data) ->
                     # Get property name
@@ -376,8 +405,9 @@ generate_object_constraints = \store, properties ->
                         StringLiteral(str_data) -> str_data.value
                         _ -> "unknown"
 
+                    value = data.value |> Option.with_default(data.key)
                     # Generate constraints for value
-                    (val_constraints, val_type) = generate_constraints(acc_store, data.value)
+                    (val_constraints, val_type) = generate_constraints(acc_store, value)
 
                     # Extend row type
                     if acc_row == 0 then
@@ -413,6 +443,8 @@ generate_object_constraints = \store, properties ->
                 SpreadElement(_) ->
                     # Skip spread for now
                     (acc_constraints, acc_row, acc_store)
+                _ ->
+                  crash("Unexpected spread element")
     )
 
     # Create object type
@@ -468,11 +500,11 @@ solve_constraints = \constraint_set ->
 
 # Solve a single constraint
 solve_single_constraint : Solution, Constraint -> Result Solution [UnificationError Str]
-solve_single_constraint = \solution, constraint ->
+solve_single_constraint = |solution, constraint|
     when constraint is
         Equality({ left, right, source: _ }) ->
             unify(solution.store, left, right)
-            |> Result.map(\unified_store ->
+            |> Result.map_ok(|unified_store|
                 { solution & store: unified_store }
             )
 
@@ -484,7 +516,7 @@ solve_single_constraint = \solution, constraint ->
                 # Try to make sub a subtype by unifying with a subtype
                 # For now, just unify them
                 unify(solution.store, sub, super)
-                |> Result.map(\unified_store ->
+                |> Result.map_ok(|unified_store|
                     { solution & store: unified_store }
                 )
 
@@ -494,10 +526,10 @@ solve_single_constraint = \solution, constraint ->
                 Ok(TObject(row_id)) ->
                     # Look for the member in the row
                     find_member_type(solution.store, row_id, member)
-                    |> Result.try(\found_type ->
+                    |> Result.try(|found_type|
                         unify(solution.store, found_type, member_type)
                     )
-                    |> Result.map(\unified_store ->
+                    |> Result.map_ok(|unified_store|
                         { solution & store: unified_store }
                     )
                 _ ->
@@ -509,8 +541,8 @@ solve_single_constraint = \solution, constraint ->
             when T.get_type(solution.store, func) is
                 Ok(TFunction(fn_type)) ->
                     # Unify result with return type
-                    unify(solution.store, fn_type.return_type, result)
-                    |> Result.map(\unified_store ->
+                    unify(solution.store, fn_type.ret, result)
+                    |> Result.map_ok(|unified_store|
                         { solution & store: unified_store }
                     )
                 _ ->

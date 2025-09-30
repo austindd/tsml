@@ -79,7 +79,7 @@ EnumId : U64
 
 # Literal values
 LiteralValue : [
-    NumLit F64,
+    NumLit Str,
     StrLit Str,
     BoolLit Bool,
     BigIntLit Str,
@@ -527,7 +527,7 @@ type_to_str_helper = |store, type_id, depth, max_depth|
 
                     TLiteral lit ->
                         when lit is
-                            NumLit(n) -> Num.to_str n
+                            NumLit(n) -> n
                             StrLit(s) -> "\"${s}\""
                             BoolLit(b) -> if b then "true" else "false"
                             BigIntLit(n) -> "${n}n"

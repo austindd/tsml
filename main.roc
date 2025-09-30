@@ -6,11 +6,9 @@ import Token
 import TokenTest
 import Ast
 import Parser
-import TypeInfer
-import Type
-import TypeReport
-import TypeConstraintSolver
-import TestConstraintSolver
+import VerySimpleTypeChecker as TypeChecker
+import ComprehensiveTypeIndexed as T
+import Option exposing [Option, Some, None]
 
 # import Ast
 # import AsyncTypes
@@ -103,20 +101,6 @@ is_trivia_token = |token|
         NonTextFileMarkerTrivia -> Bool.true
         _ -> Bool.false
 
-# # Helper function to separate successful tokens from errors
-# extract_tokens_and_errors : List Token.TokenResult -> (List Token.Token, List Str)
-# extract_tokens_and_errors = |token_results|
-#     List.walk(
-#         token_results,
-#         ([], []),
-#         |state, result|
-#             (tokens, errors) = state
-#             when result is
-#                 Ok(token) -> (List.append(tokens, token), errors)
-#                 Err(error) ->
-#                     error_str = "TokenError" # Simplified error handling
-#                     (tokens, List.append(errors, error_str)),
-#     )
 
 # Process a single line of input
 process_input! : Str => {}
@@ -160,27 +144,13 @@ process_input! = |input_code|
     ast_display = Ast.node_to_str(ast)
     _ = Stdout.line!(ast_display)
 
-    # Step 6: Type Inference
-    _ = Stdout.line!("\n🔬 Type Inference:")
-    inference_result = TypeInfer.infer_program(ast)
+    # Step 6: Type Checking with Unified Type Checker
+    _ = Stdout.line!("\n🔬 Type Checking:")
+    type_result = TypeChecker.check_program(ast)
 
-    _ =
-        when inference_result is
-            Ok(result) ->
-                type_str = Type.type_to_str(result.type)
-                _ = Stdout.line!("Inferred type: ${type_str}")
-                {}
-
-            Err(error) ->
-                error_report = TypeReport.format_type_error(
-                    {
-                        error: error,
-                        location: None,
-                        context: None,
-                    },
-                )
-                _ = Stdout.line!("Type error:\n${error_report}")
-                {}
+    _ = Stdout.line!("ℹ️ $(type_result.info)")
+    type_str = T.type_to_str(type_result.store, type_result.type)
+    _ = Stdout.line!("✅ Type: ${type_str}")
 
     _ = Stdout.line!("\n✅ Analysis completed successfully!")
     {}
@@ -213,10 +183,27 @@ main_loop! = |{}|
             _ = Stdout.line!("❌ Failed to read input")
             main_loop!({})
 
-main! = |_|
-    _ = Stdout.line!("🚀 TypeScript/JavaScript Parser")
-    _ = Stdout.line!("Interactive Mode - Enter JavaScript/TypeScript code to parse")
 
+main! = |_|
+    _ = Stdout.line!("🚀 TypeScript/JavaScript Type Checker")
+    _ = Stdout.line!("Unified type system with:")
+    _ = Stdout.line!("  • Complete lattice (unknown/never)")
+    _ = Stdout.line!("  • Bidirectional type checking")
+    _ = Stdout.line!("  • Control-flow narrowing")
+    _ = Stdout.line!("  • Constraint solving")
+    _ = Stdout.line!("  • Polymorphic types")
+
+    # Show some examples
+    _ = Stdout.line!("\n📚 Example TypeScript inputs you can try:")
+    _ = Stdout.line!("  • let x = 42;")
+    _ = Stdout.line!("  • const greeting = \"hello\";")
+    _ = Stdout.line!("  • function add(x, y) { return x + y; }")
+    _ = Stdout.line!("  • const arr = [1, 2, 3];")
+    _ = Stdout.line!("  • if (x > 5) { console.log(x); }")
+
+    # Enter interactive mode
+    _ = Stdout.line!("\n" |> Str.repeat(50))
+    _ = Stdout.line!("\nInteractive Mode - Enter JavaScript/TypeScript code to analyze")
     _ = main_loop!({})
 
     # output = TestConstraintSolver.test_basic_unification({})
