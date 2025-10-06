@@ -49,7 +49,7 @@ Variance : [
 InstantiationContext : {
     store : T.TypeStore,
     substitutions : List { param : T.TypeId, replacement : T.TypeId },
-    fresh_counter : U32,  # For generating fresh type variables
+    fresh_counter : U64,  # For generating fresh type variables
 }
 
 # Quantify free type variables in a type to create a type scheme

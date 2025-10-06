@@ -279,10 +279,10 @@ empty_store = {
 
 # Add a type to the store and get its ID
 add_type : TypeStore, TypeDef -> (TypeStore, TypeId)
-add_type = \store, type_def ->
+add_type = |store, type_def|
     type_id = store.next_type_id
     new_store = { store &
-        types: List.append store.types type_def,
+        types: List.append(store.types, type_def),
         next_type_id: type_id + 1,
     }
     (new_store, type_id)

@@ -39,11 +39,11 @@ Constraint : [
 # Source information for error reporting
 ConstraintSource : [
     Assignment { var_name : Str },
-    FunctionCall { func_name : Str },
+    FunctionCall { func : Ast.Node },
     Return,
     BinaryOp { op : BinaryOperator },
     LogicalOp { op : LogicalOperator },
-    MemberAccess { object_name : Str, member : Str },
+    MemberAccess { object : Ast.Node, member : Ast.Node },
     Literal,
     TypeAnnotation,
 ]
