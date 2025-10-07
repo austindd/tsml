@@ -19,10 +19,6 @@ module [
     default_max_depth,
 ]
 
-import Token exposing [
-    Token,
-]
-
 import Option exposing [
     Option,
 ]
@@ -43,27 +39,6 @@ WithEsVersion x : [
 
 EsVersion : WithEsVersion []
 
-get_es_version_rank : EsVersion -> U8
-get_es_version_rank = |version|
-    when version is
-        Es5 -> 1
-        Es2015 -> 2
-        Es2016 -> 3
-        Es2017 -> 4
-        Es2018 -> 5
-        Es2019 -> 6
-        Es2020 -> 7
-        Es2021 -> 8
-        Es2022 -> 9
-        Es2025 -> 10
-        Es2026 -> 11
-
-es_version_cmp : EsVersion, EsVersion -> [EQ, LT, GT]
-es_version_cmp = |a, b|
-    rank_a = get_es_version_rank(a)
-    rank_b = get_es_version_rank(b)
-    Num.compare(rank_a, rank_b)
-
 # WithPosition x : { line : U64, column : U64 }x
 #
 # Position : WithPosition {}
@@ -77,8 +52,6 @@ WithBaseNodeData x : {
     # loc : SourceLocation,
     # tokens : List Token,
 }x
-
-BaseNodeData : WithBaseNodeData {}
 
 Node : [
     Error (WithBaseNodeData {
@@ -625,13 +598,6 @@ node_list_to_str_or_truncate = |nodes, indent_level, max_depth|
         |> Str.concat(indent)
         |> Str.concat("  ]")
 
-node_to_str_or_truncate : Node, U64, U64 -> Str
-node_to_str_or_truncate = |node, indent_level, max_depth|
-    if max_depth > 0 and indent_level >= max_depth then
-        "<node>"
-    else
-        node_to_str_with_config(node, indent_level, max_depth)
-
 node_to_str_or_truncate_inline : Node, U64, U64 -> Str
 node_to_str_or_truncate_inline = |node, base_indent_level, max_depth|
     if max_depth > 0 and base_indent_level >= max_depth then
@@ -708,8 +674,6 @@ node_to_str_with_config = |node, indent_level, max_depth|
             |> Str.concat("\" }")
 
         TemplateLiteral(data) ->
-            quasis_count = List.len(data.quasis) |> Num.to_str
-            expr_count = List.len(data.expressions) |> Num.to_str
             Str.concat(indent, "TemplateLiteral { quasis: ")
             |> Str.concat(node_list_to_str_or_truncate(data.quasis, indent_level + 1, max_depth))
             |> Str.concat(", expressions: ")
@@ -1542,7 +1506,6 @@ node_to_str_with_config = |node, indent_level, max_depth|
 
         TSMethodSignature(data) ->
             key_str = node_to_str_or_truncate_inline(data.key, indent_level, max_depth)
-            params_count = List.len(data.params) |> Num.to_str
             return_type_str =
                 when data.returnType is
                     Some(ret_type) ->
@@ -2107,21 +2070,6 @@ node_to_str_with_config = |node, indent_level, max_depth|
         _ ->
             Str.concat(indent, "UnsupportedNode")
 
-list_to_str_with_indent : List Node, U64 -> Str
-list_to_str_with_indent = |nodes, indent_level|
-    # Legacy function - calls with unlimited depth
-    list_to_str_with_config(nodes, indent_level, 0)
-
-list_to_str_with_config : List Node, U64, U64 -> Str
-list_to_str_with_config = |nodes, indent_level, max_depth|
-    List.walk(
-        nodes,
-        "",
-        |acc, node|
-            node_str = node_to_str_with_config(node, indent_level, max_depth)
-            Str.concat(acc, node_str) |> Str.concat(",\n"),
-    )
-
 node_to_str_inline : Node, U64 -> Str
 node_to_str_inline = |node, base_indent_level|
     # Render node inline (without leading indent) but preserve internal structure
@@ -2135,12 +2083,6 @@ node_to_str_inline_with_config = |node, base_indent_level, max_depth|
     result = node_to_str_with_config(node, base_indent_level, max_depth)
     # Remove leading whitespace
     Str.trim_start(result)
-
-option_to_str_with_indent : Option Node, U64 -> Str
-option_to_str_with_indent = |opt, indent_level|
-    when opt is
-        Some(node) -> node_to_str_with_indent(node, indent_level)
-        None -> "None"
 
 option_to_str_inline : Option Node, U64 -> Str
 option_to_str_inline = |opt, base_indent_level|

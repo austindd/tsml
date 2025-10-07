@@ -132,10 +132,10 @@ parse_primary_expression = |token_list|
             (Identifier({ name: "undefined" }), rest)  # undefined is treated as an identifier in JS/TS
 
         # Template literals
-        [NoSubstitutionTemplateLiteralToken(content), .. as rest] ->
+        [NoSubstitutionTemplateLiteralToken(_), ..] ->
             parse_template_literal(token_list)
 
-        [TemplateHead(content), .. as rest] ->
+        [TemplateHead(_), ..] ->
             parse_template_literal(token_list)
 
         # Unary prefix operators
@@ -446,8 +446,8 @@ parse_expression_led = |left_node, min_precedence, token_list|
             parse_expression_led(call_expr, min_precedence, rest2)
 
         # Tagged template literals
-        [NoSubstitutionTemplateLiteralToken(_), .. as rest1]
-        | [TemplateHead(_), .. as rest1] ->
+        [NoSubstitutionTemplateLiteralToken(_), ..]
+        | [TemplateHead(_), ..] ->
             (template, rest2) = parse_template_literal(token_list)
             tagged_template = TaggedTemplateExpression({ tag: left_node, quasi: template })
             parse_expression_led(tagged_template, min_precedence, rest2)
@@ -1001,7 +1001,7 @@ parse_statement = |token_list|
             parse_function_declaration(rest)
 
         # Decorator (for class/method/property)
-        [AtToken, .. as rest] ->
+        [AtToken, ..] ->
             parse_decorated_declaration(token_list)
 
         # Class declaration
@@ -1017,7 +1017,7 @@ parse_statement = |token_list|
             parse_type_alias_declaration(rest)
 
         # TypeScript enum declaration
-        [EnumKeyword, .. as rest] ->
+        [EnumKeyword, ..] ->
             parse_enum_declaration(token_list)
 
         # Import declaration
@@ -1668,7 +1668,7 @@ parse_function_expression : List Token -> (Node, List Token)
 parse_function_expression = |token_list|
     when token_list is
         [TokenError(err), .. as after] -> (Error({message: Inspect.to_str(err)}), after)
-        [LessThanToken, .. as rest] ->
+        [LessThanToken, ..] ->
             # Generic function expression: function<T>(param: T): T { ... }
             parse_generic_function_expression(token_list)
 
@@ -1701,7 +1701,7 @@ parse_function_expression = |token_list|
             )
             (func_expr, rest4)
 
-        [OpenParenToken, .. as rest1] ->
+        [OpenParenToken, ..] ->
             # Anonymous function expression
             (params, rest2) = parse_function_parameters(token_list)
             # Check for return type annotation: function(): type
@@ -1994,9 +1994,6 @@ parse_function_parameters = |token_list|
         [_, .. as rest1] ->
             ([Error({ message: "Expected open paren for function parameters" })], rest1)
 
-        [_] ->
-            ([Error({ message: "Expected open paren for function parameters" })], [])
-
         [] ->
             ([Error({ message: "Expected open paren for function parameters" })], [])
 
@@ -2060,7 +2057,7 @@ parse_parameter_list = |params, token_list|
                         rest2,
                     )
 
-                [_] | [] ->
+                [] ->
                     (
                         List.append(
                             new_params,

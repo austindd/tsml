@@ -1201,7 +1201,7 @@ utf8_list_to_ts_token_list_inner = |u8_list, token_list|
         # ConflictMarkerTrivia and NonTextFileMarkerTrivia are more complex/specific,
         # omitted for brevity here but would follow similar patterns if needed.
         # --- Unknown Character ---
-        [u8, .. as u8s] -> # Catch-all for unrecognized bytes
+        [..] -> # Catch-all for unrecognized bytes
             consume_until_whitespace_or_newline_or_eof : List U8, List U8 -> { unknown_bytes : List U8, remaining_u8s : List U8 }
             consume_until_whitespace_or_newline_or_eof = |current_u8s, acc|
                 when current_u8s is
@@ -1808,75 +1808,6 @@ extract_expression_content = |u8s, acc, brace_count|
 
         [] -> # Unclosed expression
             { expr_content: acc, remaining: [] }
-
-is_keyword : Str -> Bool
-is_keyword = |s|
-    List.contains(keywords, s)
-
-keywords = [
-    "break",
-    "case",
-    "catch",
-    "class",
-    "const",
-    "continue",
-    "debugger",
-    "default",
-    "delete",
-    "do",
-    "else",
-    "enum",
-    "export",
-    "extends",
-    "false",
-    "finally",
-    "for",
-    "function",
-    "if",
-    "import",
-    "in",
-    "Instanceof",
-    "new",
-    "null",
-    "return",
-    "super",
-    "switch",
-    "this",
-    "throw",
-    "true",
-    "try",
-    "typeof",
-    "var",
-    "void",
-    "while",
-    "with",
-    "as",
-    "implements",
-    "interface",
-    "let",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "static",
-    "yield",
-    "any",
-    "boolean",
-    "constructor",
-    "declare",
-    "get",
-    "module",
-    "require",
-    "number",
-    "set",
-    "string",
-    "symbol",
-    "type",
-    "from",
-    "of",
-    "async",
-    "await",
-]
 
 # cc = {
 #     slash: 47,

@@ -144,16 +144,9 @@ generate_binary_constraints = \store, left, op, right ->
     when op is
         Plus ->
             # Addition can be number + number = number OR string + string = string
-            (store1, number_type) = T.make_primitive(combined_store, "number")
-            (store2, string_type) = T.make_primitive(store1, "string")
-            (store3, result_var) = create_type_var_type(store2, create_type_var("add_result"))
-
-            # Create constraints for both possibilities
-            # We need a disjunction: (left = number & right = number & result = number) OR
-            #                        (left = string & right = string & result = string) OR
-            #                        (one is string & result = string)
-
             # For simplicity, we'll just constrain to number for now
+            (store1, number_type) = T.make_primitive(combined_store, "number")
+
             constraints = List.concat(
                 combined_constraints,
                 [
@@ -163,7 +156,7 @@ generate_binary_constraints = \store, left, op, right ->
             )
 
             (
-                { constraints: constraints, type_vars: combined_vars, store: store3 },
+                { constraints: constraints, type_vars: combined_vars, store: store1 },
                 number_type
             )
 
@@ -219,27 +212,6 @@ generate_binary_constraints = \store, left, op, right ->
                 union_type
             )
 
-generate_logical_constraints : T.TypeStore, Ast.Node, Ast.LogicalOperator, Ast.Node -> (ConstraintSet, T.TypeId)
-generate_logical_constraints = |store, left, op, right|
-    # Generate constraints for operands
-    (left_constraints, left_type) = generate_constraints(store, left)
-    (right_constraints, right_type) = generate_constraints(left_constraints.store, right)
-
-    # Combine constraint sets
-    combined_store = right_constraints.store
-    combined_vars = List.concat(left_constraints.type_vars, right_constraints.type_vars)
-    combined_constraints = List.concat(left_constraints.constraints, right_constraints.constraints)
-
-    when op is
-        LogicalAnd | LogicalOr ->
-            # Logical operators - result is union of operand types
-            (store1, result_type) = T.join(combined_store, left_type, right_type)
-
-            (
-                { constraints: combined_constraints, type_vars: combined_vars, store: store1 },
-                result_type
-            )
-
 # Generate constraints for function calls
 generate_call_constraints : T.TypeStore, Ast.Node, List Ast.Node -> (ConstraintSet, T.TypeId)
 generate_call_constraints = \store, callee, arguments ->
@@ -269,7 +241,7 @@ generate_call_constraints = \store, callee, arguments ->
             func: callee_type,
             args: arg_types,
             result: result_type,
-            source: FunctionCall({ func_name: "unknown" })
+            source: FunctionCall({ func: callee })
         })]
     )
 
@@ -300,7 +272,7 @@ generate_member_constraints = \store, object, property, _computed ->
         object: obj_type,
         member: prop_name,
         member_type: result_type,
-        source: MemberAccess({ object_name: "obj", member: prop_name })
+        source: MemberAccess({ object: object, member: property })
     })
 
     (
@@ -316,7 +288,7 @@ generate_member_constraints = \store, object, property, _computed ->
 generate_conditional_constraints : T.TypeStore, Ast.Node, Ast.Node, Ast.Node -> (ConstraintSet, T.TypeId)
 generate_conditional_constraints = \store, test, consequent, alternate ->
     # Generate constraints for all branches
-    (test_constraints, test_type) = generate_constraints(store, test)
+    (test_constraints, _test_type) = generate_constraints(store, test)
     (cons_constraints, cons_type) = generate_constraints(test_constraints.store, consequent)
     (alt_constraints, alt_type) = generate_constraints(cons_constraints.store, alternate)
 
@@ -368,12 +340,12 @@ generate_array_constraints = \store, elements ->
     # Find common element type
     elem_type2 = when elem_types is
         [] ->
-            (s, never) = T.make_never(final_store)
+            (_s, never) = T.make_never(final_store)
             never
         [single] -> single
         multiple ->
             # Join all element types
-            (s, joined) = List.walk(
+            (_s, joined) = List.walk(
                 List.drop_first(multiple, 1),
                 (final_store, List.first(multiple) |> Result.with_default(0)),
                 \(acc_store, acc_type), next_type ->
@@ -623,7 +595,7 @@ unify_types = \store, def1, def2, id1, id2 ->
 
 # Apply a solution to a type
 apply_solution : Solution, T.TypeId -> T.TypeId
-apply_solution = \solution, type_id ->
+apply_solution = \_solution, type_id ->
     # For now, just return the type as-is
     # In a full implementation, we'd substitute type variables
     type_id

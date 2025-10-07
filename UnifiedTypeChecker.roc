@@ -67,9 +67,9 @@ check_program = \ast ->
     when inference_result is
         Ok((final_ctx, type_id)) ->
             constraint_set = {
-                store: final_ctx.store,
-                type_vars: List.map(final_ctx.type_params, |tp| tp.id),
                 constraints: final_ctx.constraints,
+                type_vars: List.map(final_ctx.type_params, |tp| tp.id),
+                store: final_ctx.store,
             }
             solved_constraints = CS.solve_constraints(constraint_set)
             when solved_constraints is
@@ -89,7 +89,7 @@ check_program = \ast ->
                     {
                         type: unknown,
                         store: final_ctx.store,
-                        errors: [Other("Constraint solving failed: ${error}")],
+                        errors: [Other("Constraint solving failed")],
                         warnings: [],
                     }
 
@@ -111,65 +111,66 @@ infer_node : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
 infer_node = \ctx, node ->
     when node is
         # Programs and statements
-        Program(details) ->
-            infer_statement_list(ctx, details.value.body)
+        Program(data) ->
+            infer_statement_list(ctx, data.body)
 
-        BlockStatement(details) ->
-            infer_statement_list(ctx, details.value.body)
+        BlockStatement(data) ->
+            infer_statement_list(ctx, data.body)
 
         # Declarations
-        VariableDeclaration(details) ->
-            infer_variable_declarations(ctx, details.value.declarations, details.value.kind)
+        VariableDeclaration(data) ->
+            infer_variable_declarations(ctx, data.declarations, data.kind)
 
-        FunctionDeclaration(details) ->
-            infer_function_declaration(ctx, details.value)
+        FunctionDeclaration(data) ->
+            infer_function_declaration(ctx, node)
 
         # Expressions
-        Identifier(details) ->
-            lookup_variable(ctx, details.value.name)
+        Identifier(data) ->
+            lookup_variable(ctx, data.name)
 
-        Literal(details) ->
-            infer_literal(ctx, details.value)
+        # Literals are handled directly in infer_literal
+        StringLiteral(_) | NumberLiteral(_) | BooleanLiteral(_) | NullLiteral(_) ->
+            infer_literal(ctx, node)
 
-        BinaryExpression(details) ->
-            infer_binary_expression(ctx, details.value)
+        BinaryExpression(data) ->
+            infer_binary_expression(ctx, node)
 
-        UnaryExpression(details) ->
-            infer_unary_expression(ctx, details.value)
+        UnaryExpression(data) ->
+            infer_unary_expression(ctx, node)
 
-        AssignmentExpression(details) ->
-            infer_assignment(ctx, details.value)
+        AssignmentExpression(data) ->
+            infer_assignment(ctx, node)
 
-        CallExpression(details) ->
-            infer_call_expression(ctx, details.value)
+        CallExpression(data) ->
+            infer_call_expression(ctx, node)
 
-        MemberExpression(details) ->
-            infer_member_expression(ctx, details.value)
+        MemberExpression(data) ->
+            infer_member_expression(ctx, node)
 
-        ArrayExpression(details) ->
-            infer_array_expression(ctx, details.value.elements)
+        ArrayExpression(data) ->
+            infer_array_expression(ctx, data.elements)
 
-        ObjectExpression(details) ->
-            infer_object_expression(ctx, details.value.properties)
+        ObjectExpression(data) ->
+            infer_object_expression(ctx, data.properties)
 
-        ArrowFunctionExpression(details) ->
-            infer_arrow_function(ctx, details.value)
+        ArrowFunctionExpression(data) ->
+            infer_arrow_function(ctx, node)
 
-        ConditionalExpression(details) ->
-            infer_conditional(ctx, details.value)
+        ConditionalExpression(data) ->
+            infer_conditional(ctx, node)
 
         # Control flow
-        IfStatement(details) ->
-            infer_if_statement(ctx, details.value)
+        IfStatement(data) ->
+            infer_if_statement(ctx, node)
 
-        WhileStatement(details) ->
-            infer_while_statement(ctx, details.value)
+        WhileStatement(data) ->
+            infer_while_statement(ctx, node)
 
-        ForStatement(details) ->
-            infer_for_statement(ctx, details.value)
+        ForStatement(data) ->
+            infer_for_statement(ctx, node)
 
-        ReturnStatement(details) ->
-            infer_return_statement(ctx, details.value.argument)
+        ReturnStatement(data) ->
+            infer_return_statement(ctx, data.argument)
 
         # Default
         _ ->
@@ -180,7 +181,7 @@ infer_node = \ctx, node ->
 # Infer types for a list of statements
 infer_statement_list : TypeContext, List Ast.Node -> Result (TypeContext, T.TypeId) TypeError
 infer_statement_list = \ctx, statements ->
-    List.walk_until(statements, Ok((ctx, TypeId(0))), \result, stmt ->
+    List.walk_until(statements, Ok((ctx, 0)), \result, stmt ->
         when result is
             Ok((current_ctx, _)) ->
                 when infer_node(current_ctx, stmt) is
@@ -197,7 +198,7 @@ infer_variable_declarations = \ctx, declarators, kind ->
         Const -> Bool.false
         Var -> Bool.true
 
-    List.walk_until(declarators, Ok((ctx, TypeId(0))), \result, decl ->
+    List.walk_until(declarators, Ok((ctx, 0)), \result, decl ->
         when result is
             Ok((current_ctx, _)) ->
                 when infer_variable_declarator(current_ctx, decl, is_mutable) is
@@ -247,7 +248,7 @@ infer_variable_declarator = \ctx, declarator, is_mutable ->
                     (store1, unknown) = T.make_unknown(ctx.store)
                     Ok(({ ctx & store: store1 }, unknown))
 
-        _ -> Err(Other("Expected VariableDeclaration node, got $(declarator)"))
+        _ -> Err(Other("Expected VariableDeclaration node"))
 
 # Infer type for function declaration (FunctionDeclaration)
 infer_function_declaration : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
@@ -256,15 +257,15 @@ infer_function_declaration = \ctx, func_decl_node ->
         FunctionDeclaration(func) ->
             # Create type parameters if any
             (ctx1, type_params) = when func.type_parameters is
-                Some(params) -> create_type_parameters(ctx, params)
-                None -> (ctx, [])
+                Some(TSTypeParameterDeclaration(decl)) -> create_type_parameters(ctx, decl.params)
+                _ -> (ctx, [])
 
             # Create parameter types
             (ctx2, param_types) = create_parameter_types(ctx1, func.params)
 
             # Set up function context
             func_ctx = { ctx2 &
-                return_type: Ok(TypeId(0)),  # Will be inferred
+                return_type: Ok(0),  # Will be inferred
                 in_function: Bool.true,
                 type_params: type_params,
             }
@@ -292,7 +293,7 @@ infer_function_declaration = \ctx, func_decl_node ->
 
                     # Add function to environment if it has a name
                     final_ctx = when func.id is
-                        Some(Identifier({ name })) ->
+                        Identifier({ name }) ->
                             new_binding = { name: name, type: func_type, mutable: Bool.false }
                             { body_ctx & env: List.append(body_ctx.env, new_binding), store: store3 }
                         _ ->
@@ -301,7 +302,7 @@ infer_function_declaration = \ctx, func_decl_node ->
                     Ok((final_ctx, func_type))
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected FunctionDeclaration node, got $(func_decl_node)"))
+        _ -> Err(Other("Expected FunctionDeclaration node"))
 
 # Infer type for arrow function (ArrowFunctionExpression)
 infer_arrow_function : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
@@ -314,7 +315,7 @@ infer_arrow_function = \ctx, arrow_func_expr_node ->
 
             # Set up function context
             func_ctx = { ctx1 &
-                return_type: Ok(TypeId(0)),
+                return_type: Ok(0),
                 in_function: Bool.true,
             }
 
@@ -342,25 +343,25 @@ infer_arrow_function = \ctx, arrow_func_expr_node ->
                     Ok(({ body_ctx & store: store2 }, func_type))
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected ArrowFunctionExpression node, got $(arrow_func_expr_node)"))
+        _ -> Err(Other("Expected ArrowFunctionExpression node"))
 
 # Infer type for literals (<LiteralNodes>)
 infer_literal : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
 infer_literal = \ctx, lit_node ->
     when lit_node is
-        StringLiteral(str) ->
-            (store1, str_lit) = T.make_literal(ctx.store, StrLit(str))
+        StringLiteral(data) ->
+            (store1, str_lit) = T.make_literal(ctx.store, StrLit(data.value))
             Ok(({ ctx & store: store1 }, str_lit))
 
-        NumericLiteral(num) ->
-            (store1, num_lit) = T.make_literal(ctx.store, NumLit(num))
+        NumberLiteral(data) ->
+            (store1, num_lit) = T.make_literal(ctx.store, NumLit(data.value))
             Ok(({ ctx & store: store1 }, num_lit))
 
-        BooleanLiteral(bool) ->
-            (store1, bool_lit) = T.make_literal(ctx.store, BoolLit(bool))
+        BooleanLiteral(data) ->
+            (store1, bool_lit) = T.make_literal(ctx.store, BoolLit(data.value))
             Ok(({ ctx & store: store1 }, bool_lit))
 
-        NullLiteral ->
+        NullLiteral(_) ->
             (store1, null_type) = T.make_primitive(ctx.store, "null")
             Ok(({ ctx & store: store1 }, null_type))
 
@@ -384,8 +385,8 @@ infer_binary_expression = \ctx, binary_expr_node ->
                                     # Numeric operations
                                     (store3, number) = T.make_primitive(ctx2.store, "number")
                                     # Add constraints that operands should be numbers
-                                    constraint1 = Subtype({ sub: left_type, super: number, source: BinaryOp })
-                                    constraint2 = Subtype({ sub: right_type, super: number, source: BinaryOp })
+                                    constraint1 = Subtype({ sub: left_type, super: number, source: BinaryOp({ op: expr.operator }) })
+                                    constraint2 = Subtype({ sub: right_type, super: number, source: BinaryOp({ op: expr.operator }) })
                                     new_constraints = List.concat(ctx2.constraints, [constraint1, constraint2])
                                     Ok(({ ctx2 & store: store3, constraints: new_constraints }, number))
 
@@ -407,7 +408,7 @@ infer_binary_expression = \ctx, binary_expr_node ->
                         Err(error) -> Err(error)
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected BinaryExpression node, got $(binary_expr_node)"))
+        _ -> Err(Other("Expected BinaryExpression node"))
 
 infer_logical_expression : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
 infer_logical_expression = \ctx, logical_expr_node ->
@@ -425,7 +426,7 @@ infer_logical_expression = \ctx, logical_expr_node ->
                         Err(error) -> Err(error)
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected LogicalExpression node, got $(logical_expr_node)"))
+        _ -> Err(Other("Expected LogicalExpression node"))
 
 # Infer type for unary expressions (UnaryExpression)
 infer_unary_expression : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
@@ -435,20 +436,20 @@ infer_unary_expression = \ctx, unary_expr_node ->
             when infer_node(ctx, expr.argument) is
                 Ok((ctx1, arg_type)) ->
                     when expr.operator is
-                        "!" ->
+                        Bang ->
                             # Logical not - returns boolean
                             (store2, boolean) = T.make_primitive(ctx1.store, "boolean")
                             Ok(({ ctx1 & store: store2 }, boolean))
 
-                        "-" | "+" ->
+                        Minus | Plus ->
                             # Numeric operators - return number
                             (store2, number) = T.make_primitive(ctx1.store, "number")
                             # Add constraint that operand should be numeric
-                            constraint = Subtype({ sub: arg_type, super: number, source: UnaryOp })
+                            constraint = Subtype({ sub: arg_type, super: number, source: TypeAnnotation })
                             new_constraints = List.append(ctx1.constraints, constraint)
                             Ok(({ ctx1 & store: store2, constraints: new_constraints }, number))
 
-                        "typeof" ->
+                        Typeof ->
                             # typeof - returns string
                             (store2, string) = T.make_primitive(ctx1.store, "string")
                             Ok(({ ctx1 & store: store2 }, string))
@@ -459,7 +460,7 @@ infer_unary_expression = \ctx, unary_expr_node ->
                             Ok(({ ctx1 & store: store2 }, unknown))
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected UnaryExpression node, got $(unary_expr_node)"))
+        _ -> Err(Other("Expected UnaryExpression node"))
 
 # Infer type for call expressions (CallExpression)
 infer_call_expression : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
@@ -509,7 +510,7 @@ infer_call_expression = \ctx, call_expr_node ->
                         Err(error) -> Err(error)
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected CallExpression node, got $(call_expr_node)"))
+        _ -> Err(Other("Expected CallExpression node"))
 
 # Infer types for arguments
 infer_argument_types : TypeContext, List Ast.Node -> Result (TypeContext, List T.TypeId) TypeError
@@ -537,37 +538,40 @@ infer_member_expression = \ctx, member_expr_node ->
                         Identifier({ name }) -> Ok(name)
                         StringLiteral({ value }) -> Ok(value)
                         NumberLiteral({ value }) -> Ok(value)
-                        _ -> Err(Other("Expected Identifier or StringLiteral or NumberLiteral, got $(prop)"))
+                        _ -> Err(Other("Expected Identifier or StringLiteral or NumberLiteral"))
                         
-                _ -> Err(Other("Expected PropertyNode, got $(expr.property)"))
+                _ -> Err(Other("Expected PropertyNode"))
             obj_name = when expr.object is
                 Identifier({ name }) -> Ok(name)
-                _ -> Err(Other("Expected Identifier, got $(expr.object)"))
+                _ -> Err(Other("Expected Identifier"))
             when infer_node(ctx, expr.object) is
                 Ok((ctx1, obj_type)) ->
-                    # Create a type variable for the member type
-                    (store2, member_var) = T.make_type_var(ctx1.store, ctx1.fresh_counter)
+                    when prop_name is
+                        Ok(member_name) ->
+                            # Create a type variable for the member type
+                            (store2, member_var) = T.make_type_var(ctx1.store, ctx1.fresh_counter)
 
-                    # Add constraint that object has this member
-                    constraint = HasMember({
-                        object: expr.object,
-                        member: expr.property,
-                        member_type: member_var,
-                        source: MemberAccess({
-                            object: expr.object,
-                            member: expr.property,
-                        }),
-                    })
-                    new_constraints = List.append(ctx1.constraints, constraint)
+                            # Add constraint that object has this member
+                            constraint = HasMember({
+                                object: obj_type,
+                                member: member_name,
+                                member_type: member_var,
+                                source: MemberAccess({
+                                    object: expr.object,
+                                    member: expr.property,
+                                }),
+                            })
+                            new_constraints = List.append(ctx1.constraints, constraint)
 
-                    Ok(({ ctx1 &
-                        store: store2,
-                        constraints: new_constraints,
-                        fresh_counter: ctx1.fresh_counter + 1,
-                    }, member_var))
+                            Ok(({ ctx1 &
+                                store: store2,
+                                constraints: new_constraints,
+                                fresh_counter: ctx1.fresh_counter + 1,
+                            }, member_var))
+                        Err(error) -> Err(error)
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected MemberExpression node, got $(member_expr_node)"))
+        _ -> Err(Other("Expected MemberExpression node"))
 
 # Infer type for if statements with control flow narrowing (IfStatement)
 infer_if_statement : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
@@ -611,7 +615,7 @@ infer_if_statement = \ctx, if_stmt ->
                         Err(error) -> Err(error)
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected IfStatement node, got $(if_stmt)"))
+        _ -> Err(Other("Expected IfStatement node"))
 
 # Helper functions
 
@@ -662,39 +666,48 @@ extract_type_guards = \node ->
     when node is
         BinaryExpression({ operator, left, right }) ->
             when operator is
-                "===" | "==" ->
+                EqualEqualEqual | EqualEqual ->
                     # Equality check
                     when left is
-                        UnaryExpression({ operator: "typeof", argument }) ->
-                            when argument is
-                                Identifier({ name }) ->
-                                    when right is
-                                        Literal(StringLiteral(type_name)) ->
-                                            [TypeofGuard({ var_name: name, type_name: type_name, negated: Bool.false })]
+                        UnaryExpression({ operator: typeof_op, argument }) ->
+                            when typeof_op is
+                                Typeof ->
+                                    when argument is
+                                        Identifier({ name }) ->
+                                            when right is
+                                                StringLiteral({ value: type_name }) ->
+                                                    [TypeofGuard({ var_name: name, type_name: type_name, negated: Bool.false })]
+                                                _ -> []
                                         _ -> []
                                 _ -> []
                         _ -> []
 
-                "!==" | "!=" ->
+                BangEqualEqual | BangEqual ->
                     # Inequality check
                     when left is
-                        UnaryExpression({ operator: "typeof", argument }) ->
-                            when argument is
-                                Identifier({ name }) ->
-                                    when right is
-                                        Literal(StringLiteral(type_name)) ->
-                                            [TypeofGuard({ var_name: name, type_name: type_name, negated: Bool.true })]
+                        UnaryExpression({ operator: typeof_op, argument }) ->
+                            when typeof_op is
+                                Typeof ->
+                                    when argument is
+                                        Identifier({ name }) ->
+                                            when right is
+                                                StringLiteral({ value: type_name }) ->
+                                                    [TypeofGuard({ var_name: name, type_name: type_name, negated: Bool.true })]
+                                                _ -> []
                                         _ -> []
                                 _ -> []
                         _ -> []
 
                 _ -> []
 
-        UnaryExpression({ operator: "!", argument }) ->
-            # Negated truthiness
-            when argument is
-                Identifier({ name }) ->
-                    [TruthinessGuard({ var_name: name, negated: Bool.true })]
+        UnaryExpression({ operator: op, argument }) ->
+            when op is
+                Bang ->
+                    # Negated truthiness
+                    when argument is
+                        Identifier({ name }) ->
+                            [TruthinessGuard({ var_name: name, negated: Bool.true })]
+                        _ -> []
                 _ -> []
 
         Identifier({ name }) ->
@@ -766,7 +779,7 @@ infer_while_statement = \ctx, while_stmt ->
                         Err(error) -> Err(error)
                 Err(error) -> Err(error)
 
-        _ -> Err(Other("Expected WhileStatement node, got $(while_stmt)"))
+        _ -> Err(Other("Expected WhileStatement node"))
 
 # Infer type for a for statement (ForStatement)
 infer_for_statement : TypeContext, Ast.Node -> Result (TypeContext, T.TypeId) TypeError
@@ -807,7 +820,7 @@ infer_for_statement = \ctx, stmt_node ->
 
             (store5, void_type) = T.make_primitive(ctx4.store, "undefined")
             Ok(({ ctx4 & store: store5 }, void_type))
-        _ -> Err(Other("Expected ForStatement node, got $(stmt_node)"))
+        _ -> Err(Other("Expected ForStatement node"))
 
 infer_return_statement : TypeContext, Option Ast.Node -> Result (TypeContext, T.TypeId) TypeError
 infer_return_statement = \ctx, argument ->
@@ -853,7 +866,7 @@ infer_assignment = |ctx, assignment_expr|
                                         new_constraints = List.append(ctx1.constraints, constraint)
                                         Ok(({ ctx1 & constraints: new_constraints }, right_type))
                                     else
-                                        Err(Other("Cannot assign to const/let binding: $(name)"))
+                                        Err(Other("Cannot assign to const/let binding"))
                                 Err(_) ->
                                     Err(UnboundVariable({ name: name, location: "assignment" }))
 
@@ -862,9 +875,9 @@ infer_assignment = |ctx, assignment_expr|
                             Ok((ctx1, right_type))
 
                 Err(error) -> Err(error)
-        _ -> Err(Other("Expected assignment expression node, got $(assignment_expr)"))
+        _ -> Err(Other("Expected assignment expression node"))
 
-infer_array_expression : TypeContext, List (Option Ast.Node) -> Result (TypeContext, T.TypeId) TypeError
+infer_array_expression : TypeContext, List Ast.Node -> Result (TypeContext, T.TypeId) TypeError
 infer_array_expression = \ctx, elements ->
     # Infer element types
     when infer_array_elements(ctx, elements) is
@@ -890,21 +903,15 @@ infer_array_expression = \ctx, elements ->
 
         Err(error) -> Err(error)
 
-infer_array_elements : TypeContext, List (Option Ast.Node) -> Result (TypeContext, List T.TypeId) TypeError
+infer_array_elements : TypeContext, List Ast.Node -> Result (TypeContext, List T.TypeId) TypeError
 infer_array_elements = |ctx, elements|
     List.walk_until(elements, Ok((ctx, [])), \result, elem ->
         when result is
             Ok((current_ctx, types)) ->
-                when elem is
-                    Some(node) ->
-                        when infer_node(current_ctx, node) is
-                            Ok((new_ctx, elem_type)) ->
-                                Continue(Ok((new_ctx, List.append(types, elem_type))))
-                            Err(error) -> Break(Err(error))
-                    None ->
-                        # Sparse array element
-                        (store1, undef) = T.make_primitive(current_ctx.store, "undefined")
-                        Continue(Ok(({ current_ctx & store: store1 }, List.append(types, undef))))
+                when infer_node(current_ctx, elem) is
+                    Ok((new_ctx, elem_type)) ->
+                        Continue(Ok((new_ctx, List.append(types, elem_type))))
+                    Err(error) -> Break(Err(error))
             Err(error) -> Break(Err(error))
     )
 
@@ -972,7 +979,7 @@ infer_object_properties = |ctx, properties|
                                     Continue(Ok((current_ctx, props)))
 
                         Err(error) -> Break(Err(error))
-                _ -> Break(Err(InvalidOperation("Invalid object property")))
+                _ -> Break(Err(Other("Invalid object property")))
         )
 
 create_object_type : T.TypeStore, List { key: Str, value: T.TypeId } -> Result (T.TypeStore, T.TypeId) [CreateObjectError]
@@ -1016,4 +1023,4 @@ infer_conditional = \ctx, cond_expr ->
                         Err(error) -> Err(error)
 
                 Err(error) -> Err(error)
-        _ -> Err("Unexpected node type. Expected ConditionalExpression.")
+        _ -> Err(Other("Unexpected node type. Expected ConditionalExpression."))
