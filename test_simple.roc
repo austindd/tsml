@@ -5,7 +5,7 @@ import pf.Stdout
 import Token
 import Parser
 import Ast
-import VerySimpleTypeChecker as TypeChecker
+import UnifiedTypeChecker as TypeChecker
 import ComprehensiveTypeIndexed as T
 
 main! = |_|
@@ -32,9 +32,21 @@ main! = |_|
     
     # Type check
     result = TypeChecker.check_program(ast)
-    
-    _ = Stdout.line!("Info: $(result.info)")
-    
+
+    # Display errors if any
+    _ = if List.len(result.errors) > 0 then
+        _ = Stdout.line!("Errors found in type checking")
+        {}
+    else
+        {}
+
+    # Display warnings if any
+    _ = if List.len(result.warnings) > 0 then
+        _ = Stdout.line!("Warnings found in type checking")
+        {}
+    else
+        {}
+
     type_str = T.type_to_str(result.store, result.type)
     _ = Stdout.line!("Type: $(type_str)")
     

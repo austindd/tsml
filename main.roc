@@ -3,88 +3,11 @@ app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/downl
 import pf.Stdout
 import pf.Stdin
 import Token
-import TokenTest
 import Ast
 import Parser
-import VerySimpleTypeChecker as TypeChecker
+import UnifiedTypeChecker as TypeChecker
 import ComprehensiveTypeIndexed as T
 import Option exposing [Option, Some, None]
-
-# import Ast
-# import AsyncTypes
-# import BasicTypeInfer
-# import BidirectionalTypeChecker
-# import CompleteTypeChecker
-# import ConstraintBasedInference
-# import ControlFlowAnalysis
-# import ControlFlowNarrowing
-# import EndToEndTypeChecker
-# import FinalTypeChecker
-# import FlowSensitive
-# import FocusedRowChecker
-# import GenericsTypes
-# import GradualTypes
-# import IntegratedRowTypeChecker
-# import IntegratedTypeChecker
-# import IntegratedTypeSystem
-# import JavaScriptFeatures
-# import JSGlobals
-# import JSTypeCoercion
-# import LetPolymorphicConstraintSolver
-# import ListMap
-# import ListUtils
-# import ModuleSystem
-# import NonRecursiveRowChecker
-# import NumUtils
-# import OptimizedSymbolTable
-# import OptimizedTypes
-# import Option
-# import Parser
-# import ResultUtils
-# import RowPoly
-# import RowPolymorphicType
-# import RowSystem
-# import ScopedTypeInfer
-# import SimpleAstTypeChecker
-# import SimpleComprehensiveType
-# import SimpleConstraint
-# import SimpleIntegrated
-# import SimpleRecursiveTypes
-# import SimpleRowChecker
-# import SimpleRowPoly
-# import SimpleTypeChecker
-# import SimpleUnify
-# import SourceLocation
-# import Stack
-# import StackMap
-# import StrUtils
-# import SymTbl
-# import SymTblStack
-# import TestRowSystem
-# import Token
-# import TokenTest
-# import Type
-# import TypeAlgebra
-# import TypeCache
-# import TypeChecker
-# import TypeConstraint
-# import TypeCore
-# import TypedModuleAnalyzer
-# import TypedSymbolTable
-# import TypeInfer
-# import TypeReport
-# import TypeScriptModuleSystem
-# import TypeUnification
-# import TypeUnify
-# import UnionIntersectionTypes
-# import Utf8Char
-# import UtilityTypes
-# import WorkingRowPoly
-# import RecursiveTypes
-# import RowPolymorphism
-import ComprehensiveTypeIndexed
-# import FullType
-# import MLstructTypeSystem
 
 # Helper function to check if a token is trivia (whitespace, comments, etc.)
 is_trivia_token : Token.Token -> Bool
@@ -148,9 +71,30 @@ process_input! = |input_code|
     _ = Stdout.line!("\n🔬 Type Checking:")
     type_result = TypeChecker.check_program(ast)
 
-    _ = Stdout.line!("ℹ️ $(type_result.info)")
+    # Display errors if any
+    _ = if List.len(type_result.errors) > 0 then
+        _ = Stdout.line!("⚠️ Type Errors:")
+        _ = List.for_each!(type_result.errors, |err|
+            _ = Stdout.line!("  - Error in type checking")
+            {}
+        )
+        {}
+    else
+        {}
+
+    # Display warnings if any
+    _ = if List.len(type_result.warnings) > 0 then
+        _ = Stdout.line!("⚠️ Warnings:")
+        _ = List.for_each!(type_result.warnings, |warning|
+            _ = Stdout.line!("  - $(warning)")
+            {}
+        )
+        {}
+    else
+        {}
+
     type_str = T.type_to_str(type_result.store, type_result.type)
-    _ = Stdout.line!("✅ Type: ${type_str}")
+    _ = Stdout.line!("✅ Inferred Type: $(type_str)")
 
     _ = Stdout.line!("\n✅ Analysis completed successfully!")
     {}
@@ -205,16 +149,5 @@ main! = |_|
     _ = Stdout.line!("\n" |> Str.repeat(50))
     _ = Stdout.line!("\nInteractive Mode - Enter JavaScript/TypeScript code to analyze")
     _ = main_loop!({})
-
-    # output = TestConstraintSolver.test_basic_unification({})
-    #     |> List.concat(TestConstraintSolver.test_subtyping({}))
-    #     |> List.concat(TestConstraintSolver.test_arrays({}))
-    #     |> List.concat(TestConstraintSolver.test_tuples({}))
-    #     |> List.concat(TestConstraintSolver.test_unions({}))
-    #     |> List.concat(TestConstraintSolver.test_objects({}))
-    # _ = List.for_each!(output, |line|
-    #     _ = Stdout.line!(line)
-    #     {}
-    # )
 
     Ok({})
